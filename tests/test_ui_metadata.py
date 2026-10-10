@@ -12,7 +12,7 @@ from custom_components.water_leak_detection.config_flow import (
     WaterLeakConfigFlow,
     WaterLeakOptionsFlow,
 )
-from custom_components.water_leak_detection.const import NAME
+from custom_components.water_leak_detection.const import NAME, VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
 INTEGRATION = ROOT / "custom_components" / "water_leak_detection"
@@ -27,7 +27,7 @@ def test_manifest_is_normal_service_integration() -> None:
 
     assert manifest["integration_type"] == "service"
     assert manifest["config_flow"] is True
-    assert manifest["version"] == "1.0.3"
+    assert manifest["version"] == VERSION
     assert manifest["name"] == "Water Leak Guard"
     assert NAME == "Water Leak Guard"
 
@@ -208,5 +208,5 @@ def test_repository_license_metadata() -> None:
 
     assert license_text.startswith("GNU AFFERO GENERAL PUBLIC LICENSE")
     assert "Version 3, 19 November 2007" in license_text
-    assert pyproject["project"]["version"] == "1.0.3"
+    assert pyproject["project"]["version"] == VERSION
     assert pyproject["project"]["license"] == "AGPL-3.0-only"

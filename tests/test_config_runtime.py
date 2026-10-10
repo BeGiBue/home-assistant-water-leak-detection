@@ -148,24 +148,26 @@ async def test_f22_own_derived_source_rejected_from_any_entry(
 
 
 def test_f20_release_validation_and_target_use_same_commit():
-    for path in Path(".github/workflows").glob("release-*.yml"):
-        source = path.read_text()
-        assert "uses: ./.github/workflows/validate.yml" in source
-        assert "needs: validate" in source
-        assert "ref: ${{ github.sha }}" in source
-        assert '--target "${GITHUB_SHA}"' in source
-        assert "ref: main" not in source
-        assert '--target "main"' not in source
+    source = Path(".github/workflows/release.yml").read_text()
+    assert "uses: ./.github/workflows/validate.yml" in source
+    assert "needs: validate" in source
+    assert "ref: ${{ github.sha }}" in source
+    assert '--target "$GITHUB_SHA"' in source
+    assert "ref: main" not in source
+    assert '--target "main"' not in source
+    assert not list(Path(".github/workflows").glob("release-*.yml"))
     assert "workflow_call:" in Path(".github/workflows/validate.yml").read_text()
 
 
 def test_f21_versions_and_current_operational_documentation_agree():
     manifest = json.loads(Path("custom_components/water_leak_detection/manifest.json").read_text())
     project = tomllib.loads(Path("pyproject.toml").read_text())
-    assert manifest["version"] == project["project"]["version"] == c.VERSION == "1.0.3"
+    assert manifest["version"] == project["project"]["version"] == c.VERSION
     readme = Path("README.md").read_text()
+    assert f"**Current release:** {c.VERSION}" in readme
     assert "last_reported" in readme
-    assert "F04 and F08 remain" in readme
+    assert "F04 / Rapid Rise remains" in readme
+    assert "F04 and F08 remain" not in readme
     for language in ("de", "en"):
         translated = json.loads(Path(
             "custom_components/water_leak_detection/translations/" + language + ".json"

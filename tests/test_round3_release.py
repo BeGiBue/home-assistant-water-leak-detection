@@ -158,14 +158,15 @@ def test_f20_remote_failures_are_closed(release_model, error):
     assert not json.loads(state.read_text()).get("creates")
 
 
-def test_f20_workflows_serialize_same_release_tag():
-    for version in ("1.0.1", "1.0.2"):
-        config = yaml.load(
-            Path(f".github/workflows/release-{version}.yml").read_text(), Loader=yaml.BaseLoader
-        )
-        assert config["concurrency"]["group"] == f"release-tag-{version}"
-        assert config["concurrency"]["cancel-in-progress"] == "false"
-        assert config["jobs"]["release"]["needs"] == "validate"
+def test_f20_generic_workflow_serializes_release_publication():
+    config = yaml.load(
+        Path(".github/workflows/release.yml").read_text(), Loader=yaml.BaseLoader
+    )
+    assert config["concurrency"]["group"] == "release-publish-${{ github.ref }}"
+    assert config["concurrency"]["cancel-in-progress"] == "false"
+    assert config["jobs"]["release"]["needs"] == "validate"
+    assert config["jobs"]["cleanup-merged-branches"]["needs"] == "release"
+    assert not list(Path(".github/workflows").glob("release-*.yml"))
 
 
 @pytest.mark.parametrize("tag_kind", ["lightweight", "annotated", "nested"])

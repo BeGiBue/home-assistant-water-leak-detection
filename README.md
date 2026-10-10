@@ -258,12 +258,13 @@ Water Leak Guard is licensed under the **GNU Affero General Public License v3.0 
 
 See [LICENSE](LICENSE) for the complete license text.
 
-## Operational contract after 1.0.3
+## Operational contract after 1.1.0
 
-Version **1.0.3** is the current stable release and already contains the seven reviewed
-technical correction rounds. The static High Flow change that closes F02 is implemented
-on this feature branch and is not part of 1.0.3 yet. F04 and F08 remain known findings
-awaiting separate detector specifications. The Rapid-Rise definition also remains unchanged.
+Version **1.1.0** contains the seven reviewed technical correction rounds together with
+F02 static High Flow, F08 Low Flow stability, and the repeatedly confirmed seasonal
+learning of clean High Flow episodes. High remains static and learning can influence only
+the existing adaptive Burst context. F04 / Rapid Rise remains the next separate detector
+design topic and is intentionally unchanged in this release.
 
 Only actual flow reports supply detection/quiet evidence. Re-reading a cached HA
 state on an internal tick never matures a timer. Object identity and report

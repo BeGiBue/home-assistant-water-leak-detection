@@ -12,6 +12,8 @@ on:
       - main
     paths:
       - "custom_components/water_leak_detection/manifest.json"
+      - "RELEASE_NOTES_*.md"
+      - "CHANGELOG.md"
       - ".github/workflows/release.yml"
 
 permissions:
