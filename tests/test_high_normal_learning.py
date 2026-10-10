@@ -6,7 +6,7 @@ from itertools import permutations
 from types import SimpleNamespace
 
 import pytest
-from test_manager_runtime import start_manager
+from test_manager_runtime import start_manager as raw_start_manager
 from test_round2_measurements import fresh
 
 from custom_components.water_leak_detection.const import (
@@ -30,6 +30,27 @@ from custom_components.water_leak_detection.manager import WaterLeakManager
 BASE = datetime(2026, 9, 1, tzinfo=UTC)
 HIGH = DetectorKind.HIGH_FLOW
 BURST = DetectorKind.BURST_LEAK
+
+
+async def quiet_guard(hass, manager, clock, seconds=300, flow=0):
+    await fresh(hass, manager, clock, flow)
+    for _ in range(seconds // 30):
+        clock.advance(30)
+        await fresh(hass, manager, clock, flow)
+    if seconds % 30:
+        clock.advance(seconds % 30)
+        await fresh(hass, manager, clock, flow)
+
+
+async def start_manager(hass, entry, clock, flow):
+    """Existing episode tests start after the newly required physical startup reset."""
+    manager = await raw_start_manager(hass, entry, clock, 0)
+    await quiet_guard(hass, manager, clock)
+    assert not manager.learner._high_blocked
+    if flow:
+        clock.advance(30)
+        await fresh(hass, manager, clock, flow)
+    return manager
 
 
 def candidates(peaks, days=None, learner=None):
@@ -538,6 +559,7 @@ async def test_two_completed_candidates_survive_real_restart_and_third_confirms(
     runtime_hass.data[DOMAIN][runtime_entry.entry_id] = restored
     await restored.async_setup()
     assert restored.learner.pending_high_candidates == original
+    await quiet_guard(runtime_hass, restored, measurement_clock)
     await finish_high(runtime_hass, restored, measurement_clock, 800)
     assert len(restored.learner.samples) == 3
     assert restored.learner.samples[:2] == original
@@ -738,3 +760,189 @@ def test_duplicate_admitted_high_records_in_store_are_not_relearned():
     assert restored.confirmed_high_history == learner.confirmed_high_history
     restored.add_high_candidate(BASE + timedelta(days=3), 770)
     assert len(restored.samples) == 4
+
+
+@pytest.mark.parametrize("first", [500, 0, 750])
+async def test_restart_cannot_relearn_interrupted_high_without_physical_reset(
+    runtime_hass, runtime_entry, measurement_clock, first
+):
+    manager = await start_manager(runtime_hass, runtime_entry, measurement_clock, 750)
+    assert manager.learner._high_episode is not None
+    await manager.async_unload()
+    manager = await raw_start_manager(runtime_hass, runtime_entry, measurement_clock, first)
+    assert manager.learner._high_blocked
+    measurement_clock.advance(30)
+    await fresh(runtime_hass, manager, measurement_clock, 750)
+    assert manager.learner._high_episode is None
+    await finish_high(runtime_hass, manager, measurement_clock)
+    assert not manager.learner.pending_high_candidates
+
+
+@pytest.mark.parametrize("seconds,flow,released", [(299, 0, False), (300, 0, True),
+                                                   (300, 90, True), (300, 100, False)])
+async def test_startup_guard_exact_physical_boundary(
+    runtime_hass, runtime_entry, measurement_clock, seconds, flow, released
+):
+    manager = await raw_start_manager(runtime_hass, runtime_entry, measurement_clock, flow)
+    assert manager.learner._high_blocked  # No known prior episode is required.
+    await quiet_guard(runtime_hass, manager, measurement_clock, seconds, flow)
+    assert manager.learner._high_blocked is not released
+    await finish_high(runtime_hass, manager, measurement_clock)
+    assert bool(manager.learner.pending_high_candidates) is released
+
+
+async def test_startup_guard_uses_configured_high_reset(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    runtime_hass.config_entries.async_update_entry(
+        runtime_entry, options={"high_quiet_lph": 150, "high_reset_minutes": 2}
+    )
+    manager = await raw_start_manager(runtime_hass, runtime_entry, measurement_clock, 140)
+    assert manager.engine.settings.high_quiet_lph == 150
+    assert manager.engine.settings.high_reset_seconds == 120
+    await quiet_guard(runtime_hass, manager, measurement_clock, 119, 140)
+    assert manager.learner._high_blocked
+    measurement_clock.advance(1)
+    await fresh(runtime_hass, manager, measurement_clock, 140)
+    assert not manager.learner._high_blocked
+
+
+@pytest.mark.parametrize("break_flow", [100, 500, "unknown", "unavailable", "-1", "nan", "inf"])
+async def test_startup_guard_interruption_restarts_quiet(
+    runtime_hass, runtime_entry, measurement_clock, break_flow
+):
+    manager = await raw_start_manager(runtime_hass, runtime_entry, measurement_clock, 0)
+    await quiet_guard(runtime_hass, manager, measurement_clock, 299)
+    await fresh(runtime_hass, manager, measurement_clock, break_flow)
+    measurement_clock.advance(30)
+    await quiet_guard(runtime_hass, manager, measurement_clock, 299)
+    assert manager.learner._high_blocked
+    measurement_clock.advance(1)
+    await fresh(runtime_hass, manager, measurement_clock, 0)
+    assert not manager.learner._high_blocked
+
+
+async def test_startup_guard_source_max_age_gap_does_not_credit_quiet(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    runtime_hass.config_entries.async_update_entry(
+        runtime_entry, options={"source_gap_policy_explicit": True}
+    )
+    manager = await raw_start_manager(runtime_hass, runtime_entry, measurement_clock, 0,
+                                      configured_gap=30)
+    await quiet_guard(runtime_hass, manager, measurement_clock, 180)
+    measurement_clock.advance(120)
+    await fresh(runtime_hass, manager, measurement_clock, 0)
+    assert manager.engine.last_evidence_gap
+    assert manager.learner._high_blocked
+    await quiet_guard(runtime_hass, manager, measurement_clock, 299)
+    assert manager.learner._high_blocked
+    measurement_clock.advance(1)
+    await fresh(runtime_hass, manager, measurement_clock, 0)
+    assert not manager.learner._high_blocked
+
+
+async def test_startup_guard_internal_ticks_do_not_create_reset_evidence(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    manager = await raw_start_manager(runtime_hass, runtime_entry, measurement_clock, 0)
+    for _ in range(30):
+        measurement_clock.advance(10)
+        await manager._async_tick(measurement_clock.utcnow())
+    assert manager.learner._high_blocked
+
+
+async def test_full_startup_reset_allows_regular_three_episode_confirmation(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    manager = await raw_start_manager(runtime_hass, runtime_entry, measurement_clock, 0)
+    await quiet_guard(runtime_hass, manager, measurement_clock)
+    for peak in (750, 780, 800):
+        await finish_high(runtime_hass, manager, measurement_clock, peak)
+    assert learned_peaks(manager.learner) == [750, 780, 800]
+
+
+def history_records(count=4100):
+    return [LearningSample(BASE + timedelta(seconds=i), 750 + i / 10000).to_dict()
+            for i in range(count)]
+
+
+@pytest.mark.parametrize("field", ["pending_high_candidates", "confirmed_high_history"])
+@pytest.mark.parametrize("order", ["ascending", "descending", "shuffled"])
+def test_restore_limit_keeps_newest_valid_records(field, order):
+    from random import Random
+
+    records = history_records()
+    expected = records[-MAX_HIGH_NORMAL_HISTORY:]
+    if order == "descending":
+        records.reverse()
+    elif order == "shuffled":
+        Random(42).shuffle(records)
+    raw = {field: records, "samples": records if field == "confirmed_high_history" else []}
+    learner = AdaptiveFlowLearner()
+    learner.restore(raw, BASE + timedelta(days=1))
+    assert [sample.to_dict() for sample in getattr(learner, field)] == expected
+    learner.restore(raw, BASE + timedelta(days=1))
+    assert [sample.to_dict() for sample in getattr(learner, field)] == expected
+
+
+@pytest.mark.parametrize("prefix", ["expired", "malformed", "duplicate"])
+def test_expired_prefix_cannot_hide_current_candidates(prefix):
+    current = history_records(2)
+    old = LearningSample(BASE - timedelta(days=31), 750).to_dict()
+    preceding = {"expired": old, "malformed": {"timestamp": "invalid", "peak_lph": True},
+                 "duplicate": current[0]}[prefix]
+    learner = AdaptiveFlowLearner()
+    learner.restore({"pending_high_candidates": [preceding] * 4096 + current}, BASE)
+    # The second record is future here; move restore time beyond both records.
+    learner.restore({"pending_high_candidates": [preceding] * 4096 + current},
+                    BASE + timedelta(seconds=2))
+    assert [sample.to_dict() for sample in learner.pending_high_candidates] == current
+
+
+@pytest.mark.parametrize("authorized", ["pending", "confirmed"])
+@pytest.mark.parametrize("target", ["pending", "confirmed"])
+def test_restore_f15_permissions_cannot_cross_high_lists(authorized, target):
+    learner = candidates([750, 780, 800] if authorized == "confirmed" else [750, 780],
+                         [0, 0.001, 0.002] if authorized == "confirmed" else [0, 0.001])
+    runtime = BASE + timedelta(minutes=5)
+    learner.observe_clock(runtime, runtime)
+    wall = BASE - timedelta(hours=1)
+    raw = learner.to_dict(now=wall, runtime_now=runtime)
+    source = "confirmed_high_history" if authorized == "confirmed" else "pending_high_candidates"
+    destination = "confirmed_high_history" if target == "confirmed" else "pending_high_candidates"
+    raw[destination] = raw[source]
+    if target == "confirmed":
+        raw["samples"] = raw[source]
+        raw["clock_rollback"]["fingerprints"] = raw["clock_rollback"].get(
+            "high_confirmed_fingerprints",
+            raw["clock_rollback"].get("high_pending_fingerprints", [])
+        ) or raw["clock_rollback"]["high_pending_fingerprints"]
+    restored = AdaptiveFlowLearner()
+    restored.restore(raw, wall)
+    assert bool(getattr(restored, destination)) is (authorized == target)
+
+
+def test_confirmed_consistency_before_limit_and_window_reduction():
+    records = history_records()
+    missing = LearningSample(BASE + timedelta(hours=2), 900).to_dict()
+    learner = AdaptiveFlowLearner()
+    learner.restore({"samples": records, "confirmed_high_history": records + [missing] * 4100},
+                    BASE + timedelta(days=1))
+    assert [sample.to_dict() for sample in learner.confirmed_high_history] == records[-4096:]
+    learner.update_window(7, BASE + timedelta(days=8))
+    assert not learner.samples and not learner.confirmed_high_history
+
+
+@pytest.mark.parametrize("difference,blocked", [(2e-6, False), (3e-6, True)])
+def test_startup_guard_reuses_engine_numeric_gap_tolerance(difference, blocked):
+    engine = DetectionEngine()
+    learner = AdaptiveFlowLearner()
+    learner.restore({}, BASE)
+    for elapsed in range(0, 301, 30):
+        now = BASE + timedelta(seconds=elapsed)
+        engine.sample(now, 0, None, evidence_seconds=30 - difference)
+        learner.observe_high(now, 0, runtime_now=now, started=False, finished=False,
+                             disqualified=engine.last_evidence_gap,
+                             evidence_gap=engine.last_evidence_gap)
+    assert learner._high_blocked is blocked

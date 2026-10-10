@@ -429,7 +429,7 @@ class AdaptiveFlowLearner:
     def restore(self, raw: Any, now: datetime) -> None:
         """Restore valid admitted samples."""
         self._high_episode = None
-        self._high_blocked = False
+        self._high_blocked = True
         self._high_quiet_since = None
         self.pending_high_candidates.clear()
         self.confirmed_high_history.clear()
@@ -496,10 +496,12 @@ class AdaptiveFlowLearner:
         self._rollback_samples = set(fingerprints)
         context = raw.get("clock_rollback")
         self.pending_high_candidates, self._rollback_high_pending = _restore_high_records(
-            raw.get("pending_high_candidates"), context, "high_pending_fingerprints", now
+            raw.get("pending_high_candidates"), context, "high_pending_fingerprints", now,
+            cutoff=now - timedelta(days=self.window_days)
         )
         self.confirmed_high_history, self._rollback_high_confirmed = _restore_high_records(
-            raw.get("confirmed_high_history"), context, "high_confirmed_fingerprints", now
+            raw.get("confirmed_high_history"), context, "high_confirmed_fingerprints", now,
+            cutoff=now - timedelta(days=self.window_days)
         )
         # A confirmed history record must still have its admitted normal sample.
         admitted = {_fingerprint(sample) for sample in self.samples}
@@ -523,6 +525,8 @@ class AdaptiveFlowLearner:
             sample for sample in self.pending_high_candidates
             if _fingerprint(sample) not in confirmed and _fingerprint(sample) not in admitted
         ]
+        # Validate and deduplicate both complete inputs before the shared
+        # chronological window/limit selection; input order is not trusted.
         self._prune(now)
 
     def _prune(self, now: datetime) -> bool:
@@ -530,6 +534,7 @@ class AdaptiveFlowLearner:
         before = len(self.samples)
         self.samples = [sample for sample in self.samples if sample.timestamp >= cutoff]
         before_high = len(self.pending_high_candidates) + len(self.confirmed_high_history)
+        admitted_high = set(self.samples)
         history = sorted(
             (
                 (sample, confirmed)
@@ -537,6 +542,7 @@ class AdaptiveFlowLearner:
                     (self.pending_high_candidates, False), (self.confirmed_high_history, True)
                 )
                 for sample in records if sample.timestamp >= cutoff
+                and (not confirmed or sample in admitted_high)
             ),
             key=lambda item: (item[0].timestamp, item[0].peak_lph, item[1]),
         )[-MAX_HIGH_NORMAL_HISTORY:]
@@ -547,7 +553,7 @@ class AdaptiveFlowLearner:
 
 
 def _restore_high_records(
-    records: Any, context: Any, identity_key: str, now: datetime
+    records: Any, context: Any, identity_key: str, now: datetime, *, cutoff: datetime
 ) -> tuple[list[LearningSample], set[str]]:
     """Restore bounded optional history using the same F15 identity permissions.
 
@@ -556,7 +562,6 @@ def _restore_high_records(
     """
     if not isinstance(records, list):
         return [], set()
-    records = records[:MAX_HIGH_NORMAL_HISTORY]
     valid_until = now
     identities: Counter[str] = Counter()
     if isinstance(context, dict):
@@ -599,7 +604,9 @@ def _restore_high_records(
             continue
         sample = LearningSample(timestamp, peak)
         identity = _fingerprint(sample)
-        if identity in seen or (timestamp > now and identities[identity] <= 0):
+        if timestamp < cutoff or identity in seen or (
+            timestamp > now and identities[identity] <= 0
+        ):
             continue
         restored.append(sample)
         seen.add(identity)
