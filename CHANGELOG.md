@@ -2,6 +2,43 @@
 
 All notable changes to Water Leak Guard are documented here.
 
+## 1.1.0 — 2026-10-10
+
+### High Flow
+
+- High Flow now uses the configured static threshold as its authoritative detector boundary; the default remains 600 L/h.
+- Adaptive learning no longer raises or lowers the High threshold. The existing 45-minute / 500-litre activation logic and physical reset behavior remain unchanged.
+- Normal high-consumption episodes can now be admitted to adaptive learning only after they end safely and are repeatedly confirmed.
+
+### Low Flow stability
+
+- Added a stability-based early Low Flow path while retaining the existing normal duration path as a safety net.
+- With defaults, a continuously stable Low Flow can be confirmed after 30 minutes using a 15-minute time-weighted stability window.
+- Stability uses a time-weighted median and requires 90% of confirmed window time inside the larger of ±20 L/h or ±10%.
+- The default Low Flow reset is now 3 minutes below the quiet threshold; explicitly stored older values remain preserved.
+- Legacy configurations with shorter Low detection times receive compatible derived stability defaults without destructive migration.
+
+### Seasonal learning of normal High Flow
+
+- A clean High MONITORING episode is first stored only as a candidate; one or two episodes cannot affect adaptive references.
+- At least three comparable clean episodes within the rolling learning window are required. Peaks are comparable when the cluster satisfies `max_peak <= min_peak * 1.15`.
+- The existing learning window, 30 days by default, also ages pending and confirmed High evidence so seasonal behavior naturally falls out of the model.
+- Confirmed episodes retain their original completion timestamps and then enter the existing P95, short/long reference and confidence model.
+- High Flow bypass, High ACTIVE, Burst/Rapid Rise, other active alarms, source outages, invalid measurements and evidence gaps exclude an episode from High learning.
+- After every startup or restore, High learning remains blocked until the complete configured physical High reset has been observed from valid measurement evidence.
+- Pending and confirmed High history is restore-safe, F15 clock-rollback-safe, deduplicated and bounded to the newest 4096 valid in-window entries.
+
+### Compatibility and validation
+
+- No new Home Assistant entities or user-facing options are required for the High confirmation gate.
+- Existing configuration and stored learning data remain backward compatible.
+- High remains static; confirmed normal High episodes can influence only the existing adaptive Burst context through the normal confidence and hydraulic safety limits.
+- Final reviewed state: 995 repository tests passed. The independent follow-up review additionally ran 49 external tests and reported no Critical, High, Medium or Low findings.
+
+### Still open
+
+- F04 / Rapid Rise remains a separate detector-design topic and is intentionally not changed in this release.
+
 ## 1.0.3 — 2026-10-10
 
 ### Safety and reliability

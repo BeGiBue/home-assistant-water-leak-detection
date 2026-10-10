@@ -1,0 +1,138 @@
+name: Publish release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (for example 1.1.0)"
+        required: true
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - "custom_components/water_leak_detection/manifest.json"
+      - ".github/workflows/release.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'Release ')
+    uses: ./.github/workflows/validate.yml
+    permissions:
+      contents: read
+
+  release:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'Release ')
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Resolve release version
+        id: meta
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            version="$INPUT_VERSION"
+          else
+            version="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          print(json.loads(Path("custom_components/water_leak_detection/manifest.json").read_text())["version"])
+          PY
+          )"
+          fi
+          [[ -n "$version" ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release metadata
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            actual_subject="$(git log -1 --pretty=%s "$GITHUB_SHA")"
+            [[ "$actual_subject" == "Release $VERSION" ]] || {
+              echo "Release commit subject mismatch: $actual_subject" >&2
+              exit 1
+            }
+          fi
+          python - "$VERSION" <<'PY'
+          import json
+          import sys
+          import tomllib
+          from pathlib import Path
+
+          version = sys.argv[1]
+          manifest = json.loads(
+              Path("custom_components/water_leak_detection/manifest.json").read_text()
+          )
+          assert manifest["version"] == version, manifest["version"]
+          assert manifest["integration_type"] == "service", manifest["integration_type"]
+          assert manifest["name"] == "Water Leak Guard", manifest["name"]
+
+          constants = Path("custom_components/water_leak_detection/const.py").read_text()
+          assert f'VERSION = "{version}"' in constants
+          assert Path(f"RELEASE_NOTES_{version}.md").is_file()
+          assert Path("LICENSE").is_file()
+
+          pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+          assert pyproject["project"]["version"] == version
+          assert pyproject["project"]["license"] == "AGPL-3.0-only"
+
+          changelog = Path("CHANGELOG.md").read_text()
+          assert f"## {version} — " in changelog
+
+          readme = Path("README.md").read_text()
+          assert f"**Current release:** {version}" in readme
+
+          print(f"Release metadata verified for {version} / AGPL-3.0-only")
+          PY
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          bash .github/release_checked_commit.sh "$VERSION" --target "$GITHUB_SHA"
+
+  cleanup-merged-branches:
+    if: github.ref == 'refs/heads/main'
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out released main
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Delete only branches already contained in the released commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+          mapfile -t refs < <(git for-each-ref --format='%(refname:short)' refs/remotes/origin/)
+          for remote_ref in "${refs[@]}"; do
+            [[ "$remote_ref" == "origin/main" || "$remote_ref" == "origin/HEAD" ]] && continue
+            branch="${remote_ref#origin/}"
+            if git merge-base --is-ancestor "$remote_ref" "$GITHUB_SHA"; then
+              echo "Deleting merged branch: $branch"
+              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${branch}"
+            else
+              echo "Keeping unmerged branch: $branch"
+            fi
+          done
