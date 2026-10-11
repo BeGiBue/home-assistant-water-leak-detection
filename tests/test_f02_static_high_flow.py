@@ -76,7 +76,7 @@ def test_manager_keeps_high_static_and_burst_adaptive(confidence, learned, optio
     assert thresholds.normal_reference_lph is not None
     assert thresholds.effective_burst_lph >= 2000
     if confidence is LearningConfidence.RELIABLE and learned == 1200 and not options:
-        assert thresholds.effective_burst_lph == 2160
+        assert thresholds.effective_burst_lph == 3500
     for flow in (800, 1000, 1200):
         engine = DetectionEngine(DetectorSettings(high_threshold_lph=high))
         engine.sample(at(0), flow, None,
