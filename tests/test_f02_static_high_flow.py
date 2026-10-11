@@ -120,21 +120,21 @@ def test_short_legitimate_use_resets_after_existing_quiet_window():
 
 def test_bypass_suppresses_high_but_not_burst_and_static_boundary_returns():
     engine = DetectionEngine()
-    engine.sample(at(0), 2500, None, high_flow_bypassed=True)
-    engine.sample(at(30), 2500, None, high_flow_bypassed=True)
+    engine.sample(at(0), 4000, None, high_flow_bypassed=True)
+    engine.sample(at(30), 4000, None, high_flow_bypassed=True)
     assert phase(engine, DetectorKind.HIGH_FLOW) is DetectorPhase.IDLE
     assert phase(engine, DetectorKind.BURST_LEAK) is DetectorPhase.ACTIVE
     engine.sample(at(31), 600, None, effective_high_threshold_lph=1500)
     assert phase(engine, DetectorKind.HIGH_FLOW) is DetectorPhase.MONITORING
 
 
-def test_dynamic_burst_floor_uses_static_high_reference():
+def test_rapid_burst_requires_absolute_threshold_with_static_high_reference():
     engine = DetectionEngine()
     engine.sample(at(0), 0, None, effective_high_threshold_lph=1500)
     engine.sample(at(10), 1500, None, effective_high_threshold_lph=1500)
-    assert phase(engine, DetectorKind.BURST_LEAK) is DetectorPhase.MONITORING
+    assert phase(engine, DetectorKind.BURST_LEAK) is DetectorPhase.IDLE
     engine.sample(at(20), 1500, None, effective_high_threshold_lph=1500)
-    assert phase(engine, DetectorKind.BURST_LEAK) is DetectorPhase.ACTIVE
+    assert phase(engine, DetectorKind.BURST_LEAK) is DetectorPhase.IDLE
 
 
 async def test_options_hide_legacy_multiplier_and_preserve_saved_value(runtime_hass, runtime_entry):

@@ -41,7 +41,7 @@ class DetectorSettings:
     high_volume_l: float = 500.0
     high_quiet_lph: float = 100.0
     high_reset_seconds: float = 300.0
-    burst_threshold_lph: float = 2000.0
+    burst_threshold_lph: float = 3500.0
     burst_detection_seconds: float = 30.0
     burst_reset_lph: float = 500.0
     burst_reset_seconds: float = 60.0
@@ -129,6 +129,24 @@ class DetectionEngine:
 
     low_stability_history: deque[tuple[float, float]] = field(default_factory=deque)
     low_stability_seconds: float = 0.0
+    burst_normal_evidence_seconds: float = 0.0
+    burst_rapid_evidence_seconds: float | None = None
+    _burst_signature: tuple | None = None
+
+    def _reset_burst_monitoring(self) -> None:
+        """Discard unconfirmed Burst evidence; never clear a confirmed event."""
+        runtime = self.runtimes[DetectorKind.BURST_LEAK]
+        if runtime.phase is DetectorPhase.MONITORING:
+            runtime.reset()
+        self.burst_normal_evidence_seconds = 0.0
+        self.burst_rapid_evidence_seconds = None
+
+    @staticmethod
+    def _burst_settings_signature(settings: DetectorSettings) -> tuple:
+        return (
+            settings.burst_threshold_lph, settings.burst_rate_rise_lph_10s,
+            settings.burst_detection_seconds, settings.burst_rate_confirm_seconds,
+        )
 
     def _clear_low_stability(self) -> None:
         """Discard only the continuous Low stability series, never normal progress."""
@@ -211,6 +229,12 @@ class DetectionEngine:
         """Apply updated thresholds without discarding current state."""
         if settings != self.settings:
             self._clear_low_stability()
+        if self._burst_settings_signature(settings) != self._burst_settings_signature(
+            self.settings
+        ):
+            self._reset_burst_monitoring()
+            self.last_flow_lph = None
+            self._burst_signature = None
         self.settings = settings
 
     def suspend_for_unavailable_source(self) -> None:
@@ -221,6 +245,7 @@ class DetectionEngine:
         cleared because an unavailable source is not evidence of zero flow.
         """
         self._clear_low_stability()
+        self._reset_burst_monitoring()
         for runtime in self.runtimes.values():
             runtime.quiet_since = None
             if runtime.phase is DetectorPhase.MONITORING:
@@ -238,6 +263,7 @@ class DetectionEngine:
         Source rebinds continue to use the separate destructive suspension.
         """
         self._clear_low_stability()
+        self._reset_burst_monitoring()
         for kind, runtime in self.runtimes.items():
             runtime.quiet_since = None
             if kind is DetectorKind.BURST_LEAK and runtime.phase is DetectorPhase.MONITORING:
@@ -291,6 +317,7 @@ class DetectionEngine:
                         runtime.quiet_since = None
                 if paused > 0:
                     self.last_evidence_gap = True
+                    self._reset_burst_monitoring()
                     self._clear_low_stability()
                     self.last_flow_lph = None  # No rapid-rise evidence across an unknown gap.
                 raw_delta_seconds = credit
@@ -351,6 +378,11 @@ class DetectionEngine:
             if effective_burst_threshold_lph is None
             else max(effective_high, float(effective_burst_threshold_lph))
         )
+        signature = (effective_burst, *self._burst_settings_signature(self.settings)[1:])
+        if self._burst_signature is not None and signature != self._burst_signature:
+            self._reset_burst_monitoring()
+            self.last_flow_lph = None
+        self._burst_signature = signature
 
         self._record_low_stability(flow_lph, raw_delta_seconds)
 
@@ -405,6 +437,7 @@ class DetectionEngine:
                 effective_high,
                 previous_flow,
                 previous_at,
+                raw_delta_seconds,
             )
         )
 
@@ -735,6 +768,7 @@ class DetectionEngine:
         high_threshold_lph: float,
         previous_flow: float | None,
         previous_at: datetime | None,
+        evidence_seconds: float,
     ) -> list[DetectorTransition]:
         kind = DetectorKind.BURST_LEAK
         runtime = self.runtimes[kind]
@@ -747,16 +781,15 @@ class DetectionEngine:
             if 0 < elapsed <= 60:
                 rise_lph_10s = max(0.0, flow - previous_flow) * 10.0 / elapsed
 
-        dynamic_floor = max(high_threshold_lph * 1.8, burst_threshold_lph * 0.75)
-        dynamic_candidate = (
-            rise_lph_10s >= s.burst_rate_rise_lph_10s
-            and flow >= dynamic_floor
-        )
         absolute_candidate = flow >= burst_threshold_lph
+        rapid_candidate = (
+            rise_lph_10s >= s.burst_rate_rise_lph_10s
+            and absolute_candidate
+        )
 
         if runtime.phase is DetectorPhase.IDLE:
             if (
-                (absolute_candidate or dynamic_candidate)
+                absolute_candidate
                 and self._append_transition(
                     out,
                     kind,
@@ -765,26 +798,39 @@ class DetectionEngine:
                     total_l=total_l,
                 )
             ):
-                runtime.reason = (
-                    "rapid_rise"
-                    if dynamic_candidate and not absolute_candidate
-                    else "absolute_flow"
-                )
+                self.burst_normal_evidence_seconds = 0.0
+                self.burst_rapid_evidence_seconds = 0.0 if rapid_candidate else None
+                runtime.reason = "rapid_rise" if rapid_candidate else "absolute_flow"
             return out
 
         if runtime.phase is DetectorPhase.MONITORING:
-            if runtime.reason == "rapid_rise":
-                still_candidate = flow >= dynamic_floor
-                confirmation = s.burst_rate_confirm_seconds
-            else:
-                still_candidate = absolute_candidate
-                confirmation = s.burst_detection_seconds
-
-            if not still_candidate:
+            if not absolute_candidate:
                 self._append_transition(
                     out, kind, DetectorPhase.IDLE, now=now, total_l=total_l
                 )
-            elif self._elapsed(now, runtime.started_at) >= confirmation:
+                self._reset_burst_monitoring()
+                return out
+            self.burst_normal_evidence_seconds += evidence_seconds
+            if self.burst_rapid_evidence_seconds is not None:
+                self.burst_rapid_evidence_seconds += evidence_seconds
+            elif rapid_candidate:
+                # Qualification starts here: previous normal evidence is never
+                # backdated into the additional accelerated confirmation path.
+                self.burst_rapid_evidence_seconds = 0.0
+            normal_ready = self.burst_normal_evidence_seconds >= s.burst_detection_seconds
+            rapid_ready = (
+                self.burst_rapid_evidence_seconds is not None
+                and self.burst_rapid_evidence_seconds >= s.burst_rate_confirm_seconds
+            )
+            if normal_ready or rapid_ready:
+                rapid_deadline = (
+                    self.burst_normal_evidence_seconds - self.burst_rapid_evidence_seconds
+                    + s.burst_rate_confirm_seconds
+                ) if self.burst_rapid_evidence_seconds is not None else float("inf")
+                runtime.reason = (
+                    "rapid_rise" if rapid_ready and rapid_deadline < s.burst_detection_seconds
+                    else "absolute_flow"
+                )
                 self._append_transition(
                     out, kind, DetectorPhase.ACTIVE, now=now, total_l=total_l
                 )
@@ -880,6 +926,7 @@ class DetectionEngine:
         # let a pre-restart MONITORING or quiet/reset timer mature while HA was
         # offline. Confirmed ACTIVE events are retained for safety.
         self._clear_low_stability()
+        self._reset_burst_monitoring()
         self.last_sample_at = None
         self.last_flow_lph = None
         self.reset_total_reference()
