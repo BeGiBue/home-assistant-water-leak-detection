@@ -41,6 +41,9 @@ async def runtime_hass(tmp_path, monkeypatch):
 
 @pytest.fixture
 def runtime_entry(runtime_hass):
+    er.async_get(runtime_hass).async_get_or_create(
+        "sensor", "test", "flow", suggested_object_id="flow"
+    )
     entry = ConfigEntry(
         domain=DOMAIN, title="Review meter", data={CONF_FLOW_ENTITY: "sensor.flow"},
         options={}, version=1, minor_version=1, source="user", unique_id=None,

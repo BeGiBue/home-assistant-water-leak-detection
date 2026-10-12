@@ -175,7 +175,11 @@ class ExternalLeakController:
                 source = _restore_source(item, now)
                 if source is None:
                     continue
-                if field == "external_alarm_ledger" or source.source_id in self.sources:
+                if (
+                    field == "external_alarm_ledger"
+                    or source.tombstone
+                    or source.source_id in self.sources
+                ):
                     if source.phase is ExternalPhase.ACTIVE:
                         source.tombstone = True
                         self.tombstones[(source.source_id, source.identity.generation)] = source
@@ -184,10 +188,15 @@ class ExternalLeakController:
 
 
 def _restore_source(raw: Any, now: datetime) -> ExternalSource | None:
-    if not isinstance(raw, dict) or not all(
-        valid_id(raw.get(key)) for key in ("source_id", "generation", "learning_epoch")
-    ):
+    if not isinstance(raw, dict):
         return None
+    if not all(valid_id(raw.get(key)) for key in ("source_id", "generation", "learning_epoch")):
+        if raw.get("phase") != ExternalPhase.ACTIVE.value:
+            return None
+        raw = {**raw, "tombstone": True}
+        for key in ("source_id", "generation", "learning_epoch"):
+            if not valid_id(raw.get(key)):
+                raw[key] = new_id()
     if not isinstance(raw.get("entity_id"), str) or not raw["entity_id"].startswith(
         "binary_sensor."
     ):

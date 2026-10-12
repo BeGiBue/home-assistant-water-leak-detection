@@ -42,21 +42,32 @@ def resolve_source(hass, entity_id: str, previous: Any = None) -> SourceIdentity
     Without a registry identity a restart cannot prove physical continuity, so it
     intentionally starts new learning. Confirmed alarms are handled separately.
     """
-    registered = er.async_get(hass).async_get(entity_id)
+    registry = er.async_get(hass)
+    registered = registry.async_get(entity_id)
+    if registered is None and isinstance(previous, dict) and previous.get("entity_id") == entity_id:
+        # Registry UUID survives a rename while HA or this integration was offline.
+        old_registry_id = previous.get("registry_id")
+        if isinstance(old_registry_id, str):
+            registered = registry.async_get(old_registry_id)
+    if registered:
+        entity_id = registered.entity_id
     registry_id = registered.id if registered else None
     signature = None
     if registered:
         payload = [registered.platform, registered.unique_id, registered.device_id]
         signature = sha256(json.dumps(payload, separators=(",", ":")).encode()).hexdigest()
     same = (
-        isinstance(previous, dict) and registry_id is not None
+        isinstance(previous, dict)
+        and registry_id is not None
         and previous.get("registry_id") == registry_id
         and previous.get("identity_signature") == signature
         and valid_id(previous.get("generation"))
         and valid_id(previous.get("learning_epoch"))
     )
     return SourceIdentity(
-        entity_id, registry_id, signature,
+        entity_id,
+        registry_id,
+        signature,
         previous["generation"] if same else new_id(),
         previous["learning_epoch"] if same else new_id(),
     )

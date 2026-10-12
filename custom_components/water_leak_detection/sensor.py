@@ -37,6 +37,7 @@ async def async_setup_entry(
             HydraulicReferenceFlowSensor(manager),
             EffectiveHighThresholdSensor(manager),
             EffectiveBurstThresholdSensor(manager),
+            LongTermMaximumFlowSensor(manager),
         ]
     )
 
@@ -52,6 +53,11 @@ class WaterLeakStatusSensor(WaterLeakEntity, SensorEntity):
 
     @property
     def native_value(self) -> str:
+        if (
+            self.manager.external.active_events()
+            and not self.manager.engine.snapshot().alarm_active
+        ):
+            return "external_leak"
         if not self.manager.source_available:
             return "source_unavailable"
         return self.manager.engine.snapshot(self.manager.current_total_l).status
@@ -59,26 +65,26 @@ class WaterLeakStatusSensor(WaterLeakEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         snapshot = self.manager.engine.snapshot(self.manager.current_total_l)
-        acknowledgement = self.manager.notifications.state_for(
-            snapshot.active_event_id
-        )
+        acknowledgement = self.manager.notifications.state_for(snapshot.active_event_id)
         return {
+            "hydraulic_active_events": list(self.manager.engine.active_events()),
+            "external_sources": self.manager.external_diagnostics(),
+            "aggregate_alarm_active": self.manager.alarm_active,
+            "aggregate_shutoff_request": self.manager.shutoff_request,
+            "learning_storage_ready": self.manager._migration_ready,
+            "measurement_source_generation": self.manager.measurement_source.generation,
+            "learning_epoch": self.manager.measurement_source.learning_epoch,
+            "legacy_learning_migration": self.manager.legacy_learning_migration,
             "flow_source": self.manager.flow_entity_id,
             "total_source": self.manager.total_entity_id,
             "source_available": self.manager.source_available,
             "active_event_id": snapshot.active_event_id,
-            "active_detector": snapshot.active_kind.value
-            if snapshot.active_kind
-            else None,
+            "active_detector": snapshot.active_kind.value if snapshot.active_kind else None,
             "globally_acknowledged": (
-                acknowledgement.globally_acknowledged
-                if acknowledgement is not None
-                else False
+                acknowledgement.globally_acknowledged if acknowledgement is not None else False
             ),
             "globally_acknowledged_by": (
-                acknowledgement.globally_acknowledged_by
-                if acknowledgement is not None
-                else None
+                acknowledgement.globally_acknowledged_by if acknowledgement is not None else None
             ),
             "globally_acknowledged_at": (
                 acknowledgement.globally_acknowledged_at.isoformat()
@@ -87,16 +93,13 @@ class WaterLeakStatusSensor(WaterLeakEntity, SensorEntity):
                 else None
             ),
             "muted_recipients": (
-                sorted(acknowledgement.muted_recipients)
-                if acknowledgement is not None
-                else []
+                sorted(acknowledgement.muted_recipients) if acknowledgement is not None else []
             ),
             "high_flow_bypass": self.manager.high_flow_bypass_active,
             "slow_leak_enabled": self.manager.engine.settings.slow_enabled,
             "low_flow_enabled": self.manager.engine.settings.low_enabled,
             "detectors": {
-                kind.value: self.manager.engine.runtimes[kind].phase.value
-                for kind in DetectorKind
+                kind.value: self.manager.engine.runtimes[kind].phase.value for kind in DetectorKind
             },
         }
 
@@ -117,10 +120,7 @@ class CurrentFlowSensor(WaterLeakEntity, SensorEntity):
 
     @property
     def available(self) -> bool:
-        return (
-            self.manager.source_available
-            and self.manager.current_flow_lph is not None
-        )
+        return self.manager.source_available and self.manager.current_flow_lph is not None
 
     @property
     def native_value(self) -> float | None:
@@ -162,9 +162,7 @@ class ActiveEventVolumeSensor(WaterLeakEntity, SensorEntity):
     @property
     def native_value(self) -> float:
         return round(
-            self.manager.engine.snapshot(
-                self.manager.current_total_l
-            ).active_volume_l,
+            self.manager.engine.snapshot(self.manager.current_total_l).active_volume_l,
             2,
         )
 
@@ -335,7 +333,40 @@ class EffectiveBurstThresholdSensor(WaterLeakEntity, SensorEntity):
     def extra_state_attributes(self):
         thresholds = self.manager.adaptive_thresholds()
         return {
+            "configured_burst_base_lph": self.manager.engine.settings.burst_threshold_lph,
+            "confirmed_long_term_normal_max_lph": (
+                self.manager.long_term_learner.confirmed_long_term_normal_max_lph
+            ),
             "normal_reference_lph": thresholds.normal_reference_lph,
             "hydraulic_reference_lph": thresholds.hydraulic_reference_lph,
             "hydraulic_model_is_plausibility_only": True,
+        }
+
+
+class LongTermMaximumFlowSensor(WaterLeakEntity, SensorEntity):
+    """Persistent confirmed maximum, separate from seasonal rolling confidence."""
+
+    _attr_translation_key = "long_term_normal_maximum"
+    _attr_native_unit_of_measurement = UnitOfVolumeFlowRate.LITERS_PER_HOUR
+    _attr_device_class = SensorDeviceClass.VOLUME_FLOW_RATE
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:chart-line"
+
+    def __init__(self, manager: WaterLeakManager) -> None:
+        super().__init__(manager, "long_term_normal_maximum")
+
+    @property
+    def native_value(self) -> float | None:
+        return self.manager.long_term_learner.confirmed_long_term_normal_max_lph
+
+    @property
+    def extra_state_attributes(self):
+        learner = self.manager.long_term_learner
+        return {
+            "pending_count": len(learner.pending_high_candidates),
+            "confirmed_history_count": len(learner.confirmed_high_history),
+            "startup_guard_blocked": learner._high_blocked,
+            "source_generation": learner.source_generation,
+            "learning_epoch": learner.learning_epoch,
+            "non_expiring": True,
         }

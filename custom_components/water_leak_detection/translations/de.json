@@ -41,7 +41,8 @@
         "menu_options": {
           "add_initial_recipient": "Benachrichtigungsgerät hinzufügen",
           "finish_setup": "Einrichtung abschließen",
-          "back_to_sources": "Zurück zu den Messquellen"
+          "back_to_sources": "Zurück zu den Messquellen",
+          "add_initial_external_sensor": "Externen Lecksensor hinzufügen"
         }
       },
       "add_initial_recipient": {
@@ -54,7 +55,8 @@
           "critical_enabled": "Kritische Burst-Leak-Alarme erlauben",
           "allow_global_ack": "Globales Quittieren erlauben, wenn Gerät zuhause",
           "trusted_stationary": "Stationäres vertrauenswürdiges Home-Gerät",
-          "go_back": "Zurück ohne Speichern"
+          "go_back": "Zurück ohne Speichern",
+          "allow_external_reset": "Externen Reset erlauben (nur aktuell zuhause)"
         }
       },
       "reconfigure": {
@@ -71,6 +73,16 @@
         "menu_options": {
           "reconfigure": "Messquellen bearbeiten"
         }
+      },
+      "add_initial_external_sensor": {
+        "title": "Lecksensor konfigurieren",
+        "data": {
+          "entity_id": "Lecksensor",
+          "name": "Quellname",
+          "contributes_to_shutoff": "Trägt zur Absperranforderung bei",
+          "go_back": "Zurück"
+        },
+        "description": "Konfigurierte Quellen:\n{configured_external_sources}"
       }
     },
     "error": {
@@ -81,7 +93,8 @@
       "recipient_notify_service_exists": "Dieser Companion-Benachrichtigungsdienst ist bereits als Empfänger ausgewählt.",
       "recipient_name_required": "Bitte gib einen Namen für das Benachrichtigungsgerät ein.",
       "required_fields_missing": "Bitte fülle alle erforderlichen Felder aus.",
-      "derived_source": "Abgeleitete Sensoren von Wasserwächter dürfen nicht als Messquelle verwendet werden."
+      "derived_source": "Abgeleitete Sensoren von Wasserwächter dürfen nicht als Messquelle verwendet werden.",
+      "duplicate_external_source": "Diese Quelle ist bereits konfiguriert."
     },
     "abort": {
       "already_configured": "Dieser Durchflusssensor ist bereits konfiguriert.",
@@ -96,7 +109,8 @@
         "menu_options": {
           "notifications": "Benachrichtigungsempfänger",
           "expert": "Experteneinstellungen",
-          "sources": "Messquellen"
+          "sources": "Messquellen",
+          "external_sensors": "Externe Lecksensoren"
         }
       },
       "expert": {
@@ -153,7 +167,8 @@
           "critical_enabled": "Kritische Burst-Leak-Alarme erlauben",
           "allow_global_ack": "Globales Quittieren erlauben, wenn Gerät zuhause",
           "trusted_stationary": "Stationäres vertrauenswürdiges Home-Gerät",
-          "go_back": "Zurück ohne Speichern"
+          "go_back": "Zurück ohne Speichern",
+          "allow_external_reset": "Externen Reset erlauben (nur aktuell zuhause)"
         },
         "submit": "Hinzufügen und zurück"
       },
@@ -185,7 +200,8 @@
           "critical_enabled": "Kritische Burst-Leak-Alarme erlauben",
           "allow_global_ack": "Globales Quittieren erlauben, wenn Gerät zuhause",
           "trusted_stationary": "Stationäres vertrauenswürdiges Home-Gerät",
-          "go_back": "Zurück ohne Speichern"
+          "go_back": "Zurück ohne Speichern",
+          "allow_external_reset": "Externen Reset erlauben (nur aktuell zuhause)"
         },
         "submit": "Speichern und zurück"
       },
@@ -208,6 +224,50 @@
           "go_back": "Zurück ohne Speichern"
         },
         "submit": "Speichern und zurück"
+      },
+      "external_sensors": {
+        "title": "Externe Lecksensoren",
+        "description": "Konfigurierte Quellen:\n{configured_external_sources}",
+        "menu_options": {
+          "add_external_sensor": "Sensor hinzufügen",
+          "edit_external_sensor": "Sensor bearbeiten",
+          "remove_external_sensor": "Sensor entfernen",
+          "back_to_main": "Hauptmenü"
+        }
+      },
+      "add_external_sensor": {
+        "title": "Lecksensor konfigurieren",
+        "data": {
+          "entity_id": "Lecksensor",
+          "name": "Quellname",
+          "contributes_to_shutoff": "Trägt zur Absperranforderung bei",
+          "go_back": "Zurück"
+        },
+        "description": "Konfigurierte Quellen:\n{configured_external_sources}"
+      },
+      "edit_external_sensor_details": {
+        "title": "Lecksensor konfigurieren",
+        "data": {
+          "entity_id": "Lecksensor",
+          "name": "Quellname",
+          "contributes_to_shutoff": "Trägt zur Absperranforderung bei",
+          "go_back": "Zurück"
+        }
+      },
+      "edit_external_sensor": {
+        "title": "Lecksensor auswählen",
+        "data": {
+          "id": "Quelle",
+          "go_back": "Zurück"
+        }
+      },
+      "remove_external_sensor": {
+        "title": "Lecksensor auswählen",
+        "data": {
+          "id": "Quelle",
+          "go_back": "Zurück"
+        },
+        "description": "ACTIVE kann erst nach echtem OFF oder autorisiertem External Reset entfernt werden."
       }
     },
     "error": {
@@ -224,7 +284,12 @@
       "already_configured": "Dieser Durchflusssensor wird bereits von einem anderen Eintrag verwendet.",
       "required_fields_missing": "Bitte fülle alle erforderlichen Felder aus.",
       "derived_source": "Abgeleitete Sensoren von Wasserwächter dürfen nicht als Messquelle verwendet werden.",
-      "invalid_low_stability": "Bei aktivierter Stabilitätserkennung muss das Fenster positiv und höchstens so lang wie die Früherkennung sein. Früherkennung muss kürzer als die normale Low-Erkennung sein. Toleranzen müssen positiv sein, der stabile Anteil größer als 0 und höchstens 100 %."
+      "invalid_low_stability": "Bei aktivierter Stabilitätserkennung muss das Fenster positiv und höchstens so lang wie die Früherkennung sein. Früherkennung muss kürzer als die normale Low-Erkennung sein. Toleranzen müssen positiv sein, der stabile Anteil größer als 0 und höchstens 100 %.",
+      "invalid_external_source": "Ungültige externe Leckquelle.",
+      "duplicate_external_source": "Diese Quelle ist bereits konfiguriert.",
+      "external_source_active": "Aktive Quelle: zuerst echtes OFF oder autorisierter External Reset.",
+      "external_manager_unavailable": "Integration zuerst laden, damit der sichere Quellzustand geprüft werden kann.",
+      "external_persistence_failed": "Speichern fehlgeschlagen. Der bisherige Alarmzustand bleibt erhalten."
     },
     "abort": {
       "no_mobile_app_notify_services": "Es wurden keine mobile_app-Benachrichtigungsdienste gefunden. Richte zuerst die Home Assistant Companion App ein.",
@@ -259,7 +324,8 @@
           "slow_leak": "Slow Leak",
           "low_flow": "Low Flow",
           "high_flow": "High Flow",
-          "burst_leak": "Burst Leak"
+          "burst_leak": "Burst Leak",
+          "external_leak": "Externes Leck"
         },
         "state_attributes": {
           "flow_source": {
@@ -401,6 +467,9 @@
             "name": "Hydraulikmodell nur Plausibilitätsprüfung"
           }
         }
+      },
+      "long_term_normal_maximum": {
+        "name": "Bestätigtes Langzeitmaximum"
       }
     },
     "binary_sensor": {
@@ -475,7 +544,9 @@
     "action_mute_device": "Auf diesem Gerät stummschalten",
     "action_ack_all": "Für alle quittieren",
     "global_ack_rejected_title": "Globale Quittierung abgelehnt",
-    "global_ack_rejected_message": "Dieses Gerät befindet sich aktuell nicht in der Home-Zone. Der Alarm kann nur für dieses Gerät stummgeschaltet werden."
+    "global_ack_rejected_message": "Dieses Gerät befindet sich aktuell nicht in der Home-Zone. Der Alarm kann nur für dieses Gerät stummgeschaltet werden.",
+    "action_external_reset": "Externen Alarm zurücksetzen",
+    "detector_external_leak": "Externer Lecksensor"
   },
   "services": {
     "start_high_flow_bypass": {
@@ -511,6 +582,68 @@
           "description": "Optional, wenn nur eine Instanz eingerichtet ist."
         }
       }
+    },
+    "external_reset": {
+      "name": "Externen Reset durchführen",
+      "description": "Aktuelle Home-Autorisierung erforderlich. Öffnet kein Ventil.",
+      "fields": {
+        "action_kind": {
+          "name": "action kind",
+          "description": "Aktuelle ereignisgebundene Information."
+        },
+        "config_entry_id": {
+          "name": "config entry id",
+          "description": "Aktuelle ereignisgebundene Information."
+        },
+        "source_id": {
+          "name": "source id",
+          "description": "Aktuelle ereignisgebundene Information."
+        },
+        "source_generation": {
+          "name": "source generation",
+          "description": "Aktuelle ereignisgebundene Information."
+        },
+        "event_id": {
+          "name": "event id",
+          "description": "Aktuelle ereignisgebundene Information."
+        },
+        "recipient_id": {
+          "name": "recipient id",
+          "description": "Aktuelle ereignisgebundene Information."
+        },
+        "recipient_token": {
+          "name": "recipient token",
+          "description": "Aktuelle ereignisgebundene Information."
+        },
+        "reset_nonce": {
+          "name": "reset nonce",
+          "description": "Aktuelle ereignisgebundene Information."
+        }
+      }
+    },
+    "request_external_reset_action": {
+      "name": "Neue Reset-Aktion anfordern",
+      "description": "Aktuelle Home-Autorisierung erforderlich. Öffnet kein Ventil.",
+      "fields": {
+        "config_entry_id": {
+          "name": "config entry id",
+          "description": "Aktuelle ereignisgebundene Information."
+        },
+        "source_id": {
+          "name": "source id",
+          "description": "Aktuelle ereignisgebundene Information."
+        },
+        "recipient_id": {
+          "name": "recipient id",
+          "description": "Aktuelle ereignisgebundene Information."
+        }
+      }
+    }
+  },
+  "issues": {
+    "legacy_learning_quarantined": {
+      "title": "Lerndaten sicher neu gestartet",
+      "description": "Die bisherigen gemeinsamen Lerndaten von {name} wurden einmalig quarantänisiert. Rolling- und Langzeitlernen beginnen getrennt neu. Die effektive adaptive Burst-Schwelle kann jetzt niedriger sein. Konfigurierte Schwellen, Quittierungen und bestätigte aktive Alarme bleiben erhalten. Beobachte die legitime Maximalentnahme und setze die Burst-Basis mit mindestens 20 % Sicherheitsabstand."
     }
   }
 }

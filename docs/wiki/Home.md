@@ -81,3 +81,5 @@ Jede aktive Erkennung endet nur durch ihre **physische Resetbedingung**. Eine Qu
 Der Wasserwächter ist ein Erkennungs- und Entscheidungsbackend. Er kann das Risiko eines unbemerkten Wasserverlusts reduzieren, garantiert aber keine Schadensvermeidung.
 
 Automatische physische Ventilsteuerung erfolgt derzeit nicht direkt durch die Integration. Stattdessen stellt sie eine unabhängige **Absperranforderung** bereit, die in Home Assistant gezielt mit einer bestehenden Ventil- oder Schaltentität automatisiert werden kann.
+
+- [F04 V3: Burst, Langzeitlernen, Migration und externe Sensoren](F04-V3.md)

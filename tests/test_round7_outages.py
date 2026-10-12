@@ -112,12 +112,14 @@ async def test_f05_returned_real_quiet_flow_still_runs_normal_monitoring_reset(
         assert runtime.phase is DetectorPhase.IDLE
 
 
-@pytest.mark.parametrize('kind,flow', BANDS + [(DetectorKind.BURST_LEAK, 2500)])
+@pytest.mark.parametrize('kind,flow', BANDS + [(DetectorKind.BURST_LEAK, 4000)])
 async def test_f05_active_leak_shutoff_and_quiet_reset_survive_unknown_time(
     runtime_hass, runtime_entry, measurement_clock, kind, flow
 ):
     manager = await start_manager(runtime_hass, runtime_entry, measurement_clock, flow)
     manager.engine.update_settings(settings(10))
+    # A changed Burst signature starts a fresh evidential deadline (V3).
+    await fresh(runtime_hass, manager, measurement_clock, flow)
     for _ in range(3):
         measurement_clock.advance(10)
         await fresh(runtime_hass, manager, measurement_clock, flow)

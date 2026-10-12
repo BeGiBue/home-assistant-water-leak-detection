@@ -41,7 +41,8 @@
         "menu_options": {
           "add_initial_recipient": "Add notification device",
           "finish_setup": "Finish setup",
-          "back_to_sources": "Back to sources"
+          "back_to_sources": "Back to sources",
+          "add_initial_external_sensor": "Add external leak sensor"
         }
       },
       "add_initial_recipient": {
@@ -54,7 +55,8 @@
           "critical_enabled": "Allow critical Burst Leak alerts",
           "allow_global_ack": "Allow global acknowledgement when device is home",
           "trusted_stationary": "Trusted stationary home device",
-          "go_back": "Back without saving"
+          "go_back": "Back without saving",
+          "allow_external_reset": "Allow external reset (only currently at Home)"
         }
       },
       "reconfigure": {
@@ -71,6 +73,16 @@
         "menu_options": {
           "reconfigure": "Edit sources"
         }
+      },
+      "add_initial_external_sensor": {
+        "title": "Configure leak sensor",
+        "data": {
+          "entity_id": "Leak sensor",
+          "name": "Source name",
+          "contributes_to_shutoff": "Contributes to shutoff request",
+          "go_back": "Back"
+        },
+        "description": "Configured sources:\n{configured_external_sources}"
       }
     },
     "error": {
@@ -81,7 +93,8 @@
       "recipient_notify_service_exists": "This Companion notification service is already selected as a recipient.",
       "recipient_name_required": "Enter a name for the notification device.",
       "required_fields_missing": "Please complete all required fields.",
-      "derived_source": "Water Leak Guard output sensors cannot be used as measurement sources."
+      "derived_source": "Water Leak Guard output sensors cannot be used as measurement sources.",
+      "duplicate_external_source": "This source is already configured."
     },
     "abort": {
       "already_configured": "This flow sensor is already configured.",
@@ -96,7 +109,8 @@
         "menu_options": {
           "notifications": "Notification recipients",
           "expert": "Expert settings",
-          "sources": "Measurement sources"
+          "sources": "Measurement sources",
+          "external_sensors": "External leak sensors"
         }
       },
       "expert": {
@@ -153,7 +167,8 @@
           "critical_enabled": "Allow critical Burst Leak alerts",
           "allow_global_ack": "Allow global acknowledgement when device is home",
           "trusted_stationary": "Trusted stationary home device",
-          "go_back": "Back without saving"
+          "go_back": "Back without saving",
+          "allow_external_reset": "Allow external reset (only currently at Home)"
         },
         "submit": "Add and go back"
       },
@@ -185,7 +200,8 @@
           "critical_enabled": "Allow critical Burst Leak alerts",
           "allow_global_ack": "Allow global acknowledgement when device is home",
           "trusted_stationary": "Trusted stationary home device",
-          "go_back": "Back without saving"
+          "go_back": "Back without saving",
+          "allow_external_reset": "Allow external reset (only currently at Home)"
         },
         "submit": "Save and go back"
       },
@@ -208,6 +224,50 @@
           "go_back": "Back without saving"
         },
         "submit": "Save and go back"
+      },
+      "external_sensors": {
+        "title": "External leak sensors",
+        "description": "Configured sources:\n{configured_external_sources}",
+        "menu_options": {
+          "add_external_sensor": "Add sensor",
+          "edit_external_sensor": "Edit sensor",
+          "remove_external_sensor": "Remove sensor",
+          "back_to_main": "Main menu"
+        }
+      },
+      "add_external_sensor": {
+        "title": "Configure leak sensor",
+        "data": {
+          "entity_id": "Leak sensor",
+          "name": "Source name",
+          "contributes_to_shutoff": "Contributes to shutoff request",
+          "go_back": "Back"
+        },
+        "description": "Configured sources:\n{configured_external_sources}"
+      },
+      "edit_external_sensor_details": {
+        "title": "Configure leak sensor",
+        "data": {
+          "entity_id": "Leak sensor",
+          "name": "Source name",
+          "contributes_to_shutoff": "Contributes to shutoff request",
+          "go_back": "Back"
+        }
+      },
+      "edit_external_sensor": {
+        "title": "Select leak sensor",
+        "data": {
+          "id": "Source",
+          "go_back": "Back"
+        }
+      },
+      "remove_external_sensor": {
+        "title": "Select leak sensor",
+        "data": {
+          "id": "Source",
+          "go_back": "Back"
+        },
+        "description": "ACTIVE can only be removed after a real OFF or authorized External Reset."
       }
     },
     "error": {
@@ -224,7 +284,12 @@
       "already_configured": "This flow sensor is already used by another entry.",
       "required_fields_missing": "Please complete all required fields.",
       "derived_source": "Water Leak Guard output sensors cannot be used as measurement sources.",
-      "invalid_low_stability": "When stability detection is enabled, its window must be positive and no longer than early detection; early detection must be shorter than normal Low detection. Tolerances must be positive and the required share must be greater than 0 and at most 100%."
+      "invalid_low_stability": "When stability detection is enabled, its window must be positive and no longer than early detection; early detection must be shorter than normal Low detection. Tolerances must be positive and the required share must be greater than 0 and at most 100%.",
+      "invalid_external_source": "Invalid external leak source.",
+      "duplicate_external_source": "This source is already configured.",
+      "external_source_active": "Active source: first observe a real OFF or use an authorized External Reset.",
+      "external_manager_unavailable": "Load the integration first so the safe source state can be verified.",
+      "external_persistence_failed": "Saving failed. The previous alarm state is retained."
     },
     "abort": {
       "no_mobile_app_notify_services": "No mobile_app notification services were found. Set up the Home Assistant Companion App first.",
@@ -259,7 +324,8 @@
           "slow_leak": "Slow Leak",
           "low_flow": "Low Flow",
           "high_flow": "High Flow",
-          "burst_leak": "Burst Leak"
+          "burst_leak": "Burst Leak",
+          "external_leak": "External leak"
         },
         "state_attributes": {
           "flow_source": {
@@ -401,6 +467,9 @@
             "name": "Hydraulic model is plausibility only"
           }
         }
+      },
+      "long_term_normal_maximum": {
+        "name": "Confirmed long-term maximum"
       }
     },
     "binary_sensor": {
@@ -475,7 +544,9 @@
     "action_mute_device": "Mute for this device",
     "action_ack_all": "Acknowledge for everyone",
     "global_ack_rejected_title": "Global acknowledgement rejected",
-    "global_ack_rejected_message": "This device is not currently in the Home zone. The alarm can only be muted for this device."
+    "global_ack_rejected_message": "This device is not currently in the Home zone. The alarm can only be muted for this device.",
+    "action_external_reset": "Reset external alarm",
+    "detector_external_leak": "External leak sensor"
   },
   "services": {
     "start_high_flow_bypass": {
@@ -511,6 +582,68 @@
           "description": "Optional when only one instance is configured."
         }
       }
+    },
+    "external_reset": {
+      "name": "Reset external alarm",
+      "description": "Current Home authorization required. Never opens a valve.",
+      "fields": {
+        "action_kind": {
+          "name": "action kind",
+          "description": "Current event-bound information."
+        },
+        "config_entry_id": {
+          "name": "config entry id",
+          "description": "Current event-bound information."
+        },
+        "source_id": {
+          "name": "source id",
+          "description": "Current event-bound information."
+        },
+        "source_generation": {
+          "name": "source generation",
+          "description": "Current event-bound information."
+        },
+        "event_id": {
+          "name": "event id",
+          "description": "Current event-bound information."
+        },
+        "recipient_id": {
+          "name": "recipient id",
+          "description": "Current event-bound information."
+        },
+        "recipient_token": {
+          "name": "recipient token",
+          "description": "Current event-bound information."
+        },
+        "reset_nonce": {
+          "name": "reset nonce",
+          "description": "Current event-bound information."
+        }
+      }
+    },
+    "request_external_reset_action": {
+      "name": "Request fresh reset action",
+      "description": "Current Home authorization required. Never opens a valve.",
+      "fields": {
+        "config_entry_id": {
+          "name": "config entry id",
+          "description": "Current event-bound information."
+        },
+        "source_id": {
+          "name": "source id",
+          "description": "Current event-bound information."
+        },
+        "recipient_id": {
+          "name": "recipient id",
+          "description": "Current event-bound information."
+        }
+      }
+    }
+  },
+  "issues": {
+    "legacy_learning_quarantined": {
+      "title": "Learning restarted safely",
+      "description": "The previous shared learning data for {name} was quarantined once. Rolling and long-term learning restart separately. The effective adaptive Burst threshold may now be lower. Configured thresholds, acknowledgements and confirmed active alarms are preserved. Observe the legitimate maximum flow and set the Burst base with at least 20% safety margin."
     }
   }
 }

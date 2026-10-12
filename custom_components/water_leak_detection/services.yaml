@@ -40,3 +40,57 @@ reset_learning:
       required: false
       selector:
         text:
+
+external_reset:
+  name: external reset
+  description: Requires current event bindings and Home authorization. Never opens a valve.
+  fields:
+    action_kind:
+      required: true
+      selector:
+        text:
+    config_entry_id:
+      required: true
+      selector:
+        text:
+    source_id:
+      required: true
+      selector:
+        text:
+    source_generation:
+      required: true
+      selector:
+        text:
+    event_id:
+      required: true
+      selector:
+        text:
+    recipient_id:
+      required: true
+      selector:
+        text:
+    recipient_token:
+      required: true
+      selector:
+        text:
+    reset_nonce:
+      required: true
+      selector:
+        text:
+
+request_external_reset_action:
+  name: request external reset action
+  description: Requires current event bindings and Home authorization. Never opens a valve.
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        text:
+    source_id:
+      required: true
+      selector:
+        text:
+    recipient_id:
+      required: true
+      selector:
+        text:

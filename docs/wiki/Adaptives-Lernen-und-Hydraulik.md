@@ -52,20 +52,24 @@ Sonst könnte bereits ein einzelnes knapp vor der Bestätigung endendes gefährl
 
 ## Wiederholt bestätigte normale High-Episoden
 
-High bleibt **statisch**: standardmäßig 600 L/h, ACTIVE nach 45 Minuten **oder** 500 Litern, Reset nach 5 Minuten strikt unter 100 L/h. Lernen verändert keine dieser Grenzen. Es kann ausschließlich die bestehende adaptive Normalreferenz für Burst beeinflussen.
+F04 V3 führt einen getrennten Langzeitkanal ein. High bleibt statisch: 600 L/h,
+45 Minuten ODER 500 Liter und fünf Minuten strikt unter 100 L/h als Standard.
+Nur vollständig beobachtete, sauber beendete High-MONITORING-Episoden mit Peak
+**unter der konfigurierten Burst-Basis** dürfen kandidieren. Drei unabhängige
+Episoden mit `max_peak <= min_peak × 1,15` bestätigen das erste Maximum. Jede
+spätere Erhöhung benötigt drei **neue** Episoden über dem bisherigen Maximum.
+Alte Bestätigungen liefern diese neuen Stimmen nicht. High-Peaks gelangen niemals
+in den Rolling-Sample-Pool und wirken nicht zusätzlich über dessen Faktor 1,8.
 
-Der allgemeine Lernpfad schließt High-MONITORING weiterhin aus. Ein separater Bestätigungspfad verfolgt den Peak ab High IDLE → MONITORING und speichert erst beim normalen physischen MONITORING → IDLE einen abgeschlossenen Kandidaten. Eine einzelne Episode, etwa 750 L/h für 12 Minuten, reicht nicht. Auch zwei Episoden beeinflussen die normale Lernreferenz noch nicht.
-
-Mindestens **drei** ähnliche saubere Episoden müssen innerhalb des bestehenden `learning_window_days` liegen, standardmäßig **30 Tage**. Für jeden bestätigenden Cluster gilt exakt und symmetrisch: `max_peak <= min_peak × 1,15`. Die 15-%-Grenze zählt mit. 750/780/800 sowie 700/800/805 passen zusammen; 650/850/1400 nicht. Sortierte, gegebenenfalls überlappende gültige Bänder werden deterministisch bewertet, ohne reihenfolgeabhängiges Aufbrauchen von Kandidaten.
-
-Beim dritten passenden Kandidaten werden bisher unbestätigte Mitglieder höchstens einmal als normale LearningSamples aufgenommen. Ihre **ursprünglichen Abschlusszeitpunkte** bleiben erhalten. Bereits bestätigte High-Episoden können einen vierten Kandidaten sofort bestätigen, wenn weiterhin mindestens drei passende Episoden einschließlich des neuen Kandidaten im Fenster liegen. Gelernt wird nur der Peak, keine Dauer, Litergrenze oder Resetzeit. P95, kurze/lange Referenz, saisonale Gewichtung und bestehende Confidence bleiben unverändert. Drei High-Episoden umgehen INSUFFICIENT nicht. Bei ausreichender Confidence wirken bestätigte Peaks über Normalreferenz, Burst-Multiplikator und hydraulische Obergrenze auf Burst; High bleibt statisch.
-
-Bypass-Episoden werden niemals gelernt. High ACTIVE, jeder andere aktive Leckagealarm sowie Burst MONITORING/ACTIVE einschließlich eines später verworfenen Rapid-Rise-Kandidaten schließen die Episode dauerhaft aus. Dasselbe gilt für unknown/unavailable, ungültige Werte, echte ausgeschlossene Evidenzlücken, Source-Rebind und Neustart. Die bestehende Engine-Entscheidung einschließlich der absoluten 2-µs-Rundungstoleranz wird wiederverwendet; explizite Null-Evidenz bleibt null. Das Abbrechen eines Bypass während fortgesetzten hohen Verbrauchs macht diesen nicht lernfähig. Nach Ablehnung muss die konfigurierte physische High-Ruhebedingung erfüllt werden. Nach jedem Startup oder Restore bleibt High-Lernen bis zur vollständig durch gültige Reports bestätigten, konfigurierten High-Ruhebedingung gesperrt. Ein kurzer Nullfluss oder ein Report unter High hebt die Sperre nicht auf; Ausfälle und echte Evidenzlücken unterbrechen den Ruhefortschritt.
-
-Laufende Kandidaten und Ablehnungs-/Ruhetracking werden nicht persistiert. Abgeschlossene Pending-Kandidaten und bestätigte High-Historie werden getrennt mit Timestamp und Peak gespeichert. Optionale Felder benötigen keine neue Storage-Version. Beide Listen verwenden denselben F15-Kontext mit begrenzten, exakt gebundenen Rücksprungberechtigungen; Promotion verschiebt keine Zeitstempel und erzeugt keine Duplikate. Alte Stores liefern leere High-Historien. Ungültige Einträge werden ignoriert; die Bestätigungshistorie ist auf die neuesten 4096 gültigen, deduplizierten Einträge im Lernfenster begrenzt. Die chronologische Auswahl erfolgt erst nach vollständiger Validierung und Sample-Konsistenzprüfung. Unsortierte Eingaben sowie abgelaufene oder ungültige Präfixe verdrängen keine aktuellen Einträge.
-
-Normale Samples und beide High-Historien altern gemeinsam im konfigurierten Fenster aus, auch nach Verkleinerung und Restore. Alte Winterwerte verlieren so automatisch ihre Bestätigungswirkung, ohne Monats- oder Saisonregeln. `reset_learning` löscht alle drei Historien, laufendes Tracking und zugehörigen Rollback-Kontext. Quellenwechsel neutralisieren Lernen wie bisher. Es entstehen keine neuen Optionen oder Entities; drei Bestätigungen und 15 % bleiben interne Konstanten.
-
+Pending- und Audit-Historie verfallen nicht zeitlich. Nach Validierung,
+Identitätsprüfung, Deduplizierung und deterministischer Sortierung bleiben
+höchstens die neuesten 4096 Datensätze insgesamt; das separate bestätigte Maximum
+bleibt monoton erhalten. Originalzeitstempel und exakt gebundene F15-Berechtigungen
+bleiben erhalten. Bypass, Alarme, Burst/Rapid Rise und Messlücken schließen die
+Episode aus. Laufende Episoden bleiben flüchtig. Nach jedem Neustart ist zunächst
+die vollständige konfigurierte physische High-Ruhe neu zu bestätigen.
+Das Rolling-Modell mit 30-Tage-Fenster, P95 und Confidence bleibt für gewöhnliche
+Samples erhalten. Einzelheiten: [F04 V3](F04-V3.md).
 
 ## Warum Bypass-Zeiten nicht lernen?
 
@@ -200,7 +204,7 @@ Alarmepisoden bleiben stets vom Lernen ausgeschlossen.
 
 Basis:
 
-**2000 L/h**
+**3500 L/h**
 
 Kandidat:
 

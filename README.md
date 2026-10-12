@@ -27,7 +27,10 @@ A backend-focused Home Assistant custom integration for detecting abnormal water
 - Learning confidence states: `insufficient`, `learning`, and `reliable`.
 - Hydraulic plausibility context using nominal pipe diameter and static pressure.
 - Static High Flow and adaptive Burst Leak thresholds.
-- Rapid rate-of-rise Burst detection.
+- Evidence-based Rapid Rise acceleration above the effective Burst boundary.
+- Multiple independent external leak sensors, with persistent per-source lifecycle.
+- Separate Home-authorized External Reset with replay-safe event nonces.
+- Independent Rolling and confirmed Long-Term learning, with legacy quarantine.
 - Persistent event state, bypass expiry, acknowledgements, and learned history across Home Assistant restarts.
 
 ## Installation
@@ -83,7 +86,7 @@ Supported flow units include L/h, L/min, L/s, m³/h, m³/min, and m³/s.
 | Slow Leak | Very small continuous loss | ≥ 3 L/h for 60 min |
 | Low Flow | Moderate flow lasting too long | 150–<600 L/h for 60 min, or stable for 30 min |
 | High Flow | Sustained unusually high use | Static; default 600 L/h |
-| Burst Leak | Major leak / pipe failure | Adaptive absolute + rapid-rise detection |
+| Burst Leak | Major leak / pipe failure | Base 3,500 L/h; 30 s confirmed, accelerated to 10 s by Rapid Rise above the effective boundary |
 
 Low Flow has two activation paths in the band **150 L/h ≤ flow < the static High threshold** (default 600 L/h):
 
@@ -178,23 +181,26 @@ sequence:
 
 ## Adaptive learning
 
-The learner stores peaks from completed, non-suspicious water-use episodes. The general path still excludes High/Burst monitoring, active alarms and bypass. A separate gate can admit clean High episodes only after at least three comparable episodes in the rolling window (default 30 days), with `max_peak <= min_peak × 1.15`. Pending episodes do not affect the normal reference; promotion preserves original timestamps. High stays static; only the existing confidence-weighted adaptive Burst reference may change. See [configuration](docs/CONFIGURATION.md#repeatedly-confirmed-normal-high-episodes).
+Rolling Learning retains normal clean sub-High episodes, the default 30-day
+window, P95 and Confidence. High episodes have a separate persistent Long-Term
+channel: three independent clean episodes within a 15% spread confirm a maximum;
+every increase requires three new peaks above the old maximum, strictly below the
+configured Burst base. They never enter the Rolling pool. Long-Term history does
+not age out and cannot automatically ratchet through the adaptive threshold.
 
-The default rolling window is 30 days. Recent and longer-term references are combined so the model can adapt to seasonal changes without allowing one unusual event to redefine normal behavior.
+`water_leak_detection.reset_learning` clears both channels and rollback context.
+Bypass, any ACTIVE alarm (including external sources), Burst/Rapid-Rise candidates,
+measurement gaps and interrupted High episodes are excluded. Every startup needs
+the configured physical High quiet reset before new High learning.
 
-Learning confidence:
-
-- `insufficient` — learned values do not raise safety thresholds,
-- `learning` — learned values have reduced influence,
-- `reliable` — the robust learned reference can fully influence the adaptive Burst threshold.
-
-Use `water_leak_detection.reset_learning` to clear normal samples, pending High candidates, confirmed High history and their rollback context. Bypass, any active alarm, Burst/Rapid-Rise candidates, measurement gaps and interrupted High episodes are never learned. High duration and the 500-litre limit stay static; older seasonal evidence ages out of the configured rolling window.
+See [F04 V3 configuration and safety contract](docs/F04_V3.md).
 
 ## Hydraulic context
 
 Nominal pipe diameter and static pressure are used as a **plausibility envelope**, not as an exact physical maximum. Actual flow depends on the meter, pressure reducer, dynamic pressure, pipe length, fittings, and upstream supply.
 
-The hydraulic model limits how far the adaptive Burst threshold can move upward.
+The hydraulic model caps the rolling/manual candidate. The independently confirmed
+Long-Term candidate is not capped by that heuristic ceiling.
 
 ## Shutoff request
 
@@ -263,8 +269,9 @@ See [LICENSE](LICENSE) for the complete license text.
 Version **1.1.0** contains the seven reviewed technical correction rounds together with
 F02 static High Flow, F08 Low Flow stability, and the repeatedly confirmed seasonal
 learning of clean High Flow episodes. High remains static and learning can influence only
-the existing adaptive Burst context. F04 / Rapid Rise remains the next separate detector
-design topic and is intentionally unchanged in this release.
+the existing adaptive Burst context in that release. The unreleased F04 V3 feature
+on this branch replaces the shared High-learning channel and Rapid-Rise rule;
+see the current [V3 contract](docs/F04_V3.md). Release metadata remains 1.1.0.
 
 Only actual flow reports supply detection/quiet evidence. Re-reading a cached HA
 state on an internal tick never matures a timer. Object identity and report
@@ -380,10 +387,10 @@ below High. Low ends exactly where High starts. Learning, manual maximum usage,
 hydraulic context and legacy High multipliers cannot raise this boundary.
 Monitoring is not an immediate alarm: duration, volume, quiet/reset rules and
 High bypass are unchanged. Burst remains active during bypass and can still use
-adaptive context; its dynamic floor uses static High as the High reference.
+adaptive context; Rapid Rise now accelerates only above its effective boundary.
 
 The general learning path still treats High MONITORING as suspicious. The separate
 High-normal confirmation gate admits only repeatedly confirmed, cleanly ended
 High episodes; bypass and alarm episodes remain excluded. This extends learning
-outside F02 without changing static High or Low stability. F04 and Rapid Rise
-remain open.
+outside F02 without changing static High or Low stability. F04 V3 now separates
+this gate into Long-Term learning; the current rules are documented above.

@@ -104,7 +104,7 @@ def test_configure_menu_covers_all_runtime_configuration() -> None:
     german = _load_json(INTEGRATION / "translations" / "de.json")
     menu = german["options"]["step"]["init"]["menu_options"]
 
-    assert set(menu) == {"sources", "notifications", "expert"}
+    assert set(menu) == {"sources", "external_sensors", "notifications", "expert"}
     assert menu["sources"] == "Messquellen"
     assert menu["notifications"] == "Benachrichtigungsempfänger"
     assert menu["expert"] == "Experteneinstellungen"
@@ -144,7 +144,7 @@ def test_all_service_actions_have_german_translations() -> None:
     assert set(german["services"]) == {
         "start_high_flow_bypass",
         "cancel_high_flow_bypass",
-        "reset_learning",
+        "reset_learning", "external_reset", "request_external_reset_action",
     }
     for service in german["services"].values():
         assert service["name"]

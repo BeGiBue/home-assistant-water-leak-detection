@@ -62,10 +62,13 @@ async def test_f18_options_back_ignores_invalid_data_and_saves_nothing(
     runtime_hass.services.async_register("notify", "mobile_app_phone", notify)
     raw = recipient("phone")
     runtime_hass.config_entries.async_update_entry(
-        runtime_entry, options={c.CONF_NOTIFICATION_RECIPIENTS: [raw]}
+        runtime_entry, options={c.CONF_NOTIFICATION_RECIPIENTS: [raw],
+                               c.CONF_EXTERNAL_SENSORS: [{"id": "kitchen_source",
+                                                         "entity_id": "binary_sensor.kitchen"}]}
     )
     flow = options_flow(runtime_hass, runtime_entry)
     flow._editing_recipient_id = raw[c.RECIPIENT_ID]
+    flow._editing_external_id = "kitchen_source"
     form = await getattr(flow, "async_step_" + step)()
     assert form["type"] == "form"
     before = dict(runtime_entry.options), dict(runtime_entry.data)
@@ -166,7 +169,8 @@ def test_f21_versions_and_current_operational_documentation_agree():
     readme = Path("README.md").read_text()
     assert f"**Current release:** {c.VERSION}" in readme
     assert "last_reported" in readme
-    assert "F04 / Rapid Rise remains" in readme
+    assert "F04 V3" in readme
+    assert "3,500 L/h" in readme
     assert "F04 and F08 remain" not in readme
     for language in ("de", "en"):
         translated = json.loads(Path(
