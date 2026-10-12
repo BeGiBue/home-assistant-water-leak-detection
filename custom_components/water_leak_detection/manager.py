@@ -314,8 +314,10 @@ class WaterLeakManager:
         self.long_term_learner.suspend_current_episode()
         self._configure_external_sources(self.external, self.entry.options, forced=True)
         configured = self.entry.options.get(CONF_EXTERNAL_SENSORS, [])
-        renamed = [{**item, "entity_id": self.external.sources[item["id"]].identity.entity_id}
-                   for item in configured]
+        renamed = [
+            {**item, "entity_id": self.external.sources[item["id"]].identity.entity_id}
+            for item in configured
+        ]
         if renamed != configured:
             self.hass.config_entries.async_update_entry(
                 self.entry, options={**self.entry.options, CONF_EXTERNAL_SENSORS: renamed}
@@ -1200,7 +1202,8 @@ class WaterLeakManager:
             source is None
             or not isinstance(payload.get("reset_nonce"), str)
             or not (
-                source.reset_nonce and compare_digest(source.reset_nonce, payload["reset_nonce"])
+                source.reset_nonce
+                and compare_digest(source.reset_nonce.encode(), payload["reset_nonce"].encode())
             )
         ):
             return False
@@ -1226,7 +1229,7 @@ class WaterLeakManager:
         if (
             not isinstance(token, str)
             or not isinstance(current_token, str)
-            or not (compare_digest(token, current_token))
+            or not (compare_digest(token.encode(), current_token.encode()))
             or not isinstance(tracker_id, str)
         ):
             return False

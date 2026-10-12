@@ -276,3 +276,133 @@ async def test_real_service_rejects_reset_without_all_bindings(
     with pytest.raises(HomeAssistantError):
         await runtime_hass.services.async_call(DOMAIN, "external_reset", payload, blocking=True)
     assert manager.shutoff_request
+
+
+@pytest.mark.parametrize("field", ["recipient_token", "reset_nonce"])
+@pytest.mark.parametrize("value", ["ä", None, [], {}, True])
+async def test_malformed_mobile_binding_fails_closed_without_exception(
+    runtime_hass, runtime_entry, measurement_clock, field, value
+):
+    manager = await configured(runtime_hass, runtime_entry, measurement_clock)
+    await manager._async_external_changed("binary_sensor.kitchen", "on")
+    payload = action(manager)
+    payload[field] = value
+    assert not await manager.async_external_reset(payload)
+    assert manager.alarm_active and manager.shutoff_request
+
+
+@pytest.mark.parametrize("language", ["de", "en"])
+async def test_restart_ack_preserved_fresh_action_requested_and_authorized(
+    runtime_hass, runtime_entry, measurement_clock, language
+):
+    from homeassistant import loader
+
+    import custom_components
+    from custom_components.water_leak_detection.notifications import EventAcknowledgement
+
+    loader.async_setup(runtime_hass)
+    runtime_hass.config.language = language
+    runtime_hass.data[loader.DATA_INTEGRATIONS][DOMAIN] = loader.Integration.resolve_from_root(
+        runtime_hass, custom_components, DOMAIN
+    )
+    manager = await configured(runtime_hass, runtime_entry, measurement_clock)
+    await manager._async_external_changed("binary_sensor.kitchen", "on")
+    old = action(manager)
+    manager.notifications.acknowledgements[old["event_id"]] = EventAcknowledgement(
+        globally_acknowledged=True, muted_recipients={"phone"}
+    )
+    runtime_hass.states.async_set("binary_sensor.kitchen", "on")
+    await runtime_hass.async_block_till_done()
+    await manager.async_unload()
+    restored = WaterLeakManager(runtime_hass, runtime_entry)
+    runtime_hass.data[DOMAIN][runtime_entry.entry_id] = restored
+    await restored.async_setup()
+    calls = []
+
+    async def notify(call):
+        calls.append(call.data)
+
+    runtime_hass.services.async_register("notify", "mobile_app_phone", notify)
+    assert await restored.async_request_external_reset_action("a", "phone")
+    assert len(calls) == 1
+    state = restored.notifications.acknowledgements[old["event_id"]]
+    assert state.globally_acknowledged and "phone" in state.muted_recipients
+    actions = calls[0]["data"]["actions"]
+    assert any("EXTERNAL_RESET" in item["action"] for item in actions)
+    assert not await restored.async_external_reset(old)
+    assert await restored.async_external_reset(action(restored))
+
+
+async def test_actual_mobile_ack_and_mute_never_release_external_safety(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    from homeassistant.core import Event
+
+    manager = await configured(runtime_hass, runtime_entry, measurement_clock)
+    await manager._async_external_changed("binary_sensor.kitchen", "on")
+    await runtime_hass.async_block_till_done()
+    source = manager.external.sources["a"]
+    for kind in ("MUTE", "ACK_ALL"):
+        await manager.notifications._async_mobile_action(
+            Event(
+                "mobile_app_notification_action",
+                {
+                    "action": (f"WLD|{kind}|{runtime_entry.entry_id}|{source.event_id}"
+                               "|phone|recipient_token")
+                },
+            )
+        )
+        assert manager.alarm_active and manager.shutoff_request
+        assert source.phase is ExternalPhase.ACTIVE
+
+
+async def test_options_ui_cannot_remove_active_and_can_edit_contribution(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    manager = await configured(runtime_hass, runtime_entry, measurement_clock)
+    await manager._async_external_changed("binary_sensor.kitchen", "on")
+    flow = options_flow(runtime_hass, runtime_entry)
+    await flow.async_step_remove_external_sensor()
+    result = await flow.async_step_remove_external_sensor({"id": "a"})
+    assert result["errors"]["base"] == "external_source_active"
+    assert manager.alarm_active
+    flow._editing_external_id = "a"
+    form = await flow.async_step_edit_external_sensor_details()
+    result = await flow.async_step_edit_external_sensor_details(
+        form["data_schema"](
+            {
+                "entity_id": "binary_sensor.kitchen",
+                "name": "Kitchen",
+                "contributes_to_shutoff": False,
+            }
+        )
+    )
+    assert result["step_id"] == "external_sensors"
+    assert manager.alarm_active and not manager.shutoff_request
+    assert runtime_entry.options[CONF_EXTERNAL_SENSORS][0]["contributes_to_shutoff"] is False
+
+
+async def test_store_failed_options_do_not_publish_shutoff_release(
+    runtime_hass, runtime_entry, measurement_clock, monkeypatch
+):
+    manager = await configured(runtime_hass, runtime_entry, measurement_clock)
+    await manager._async_external_changed("binary_sensor.kitchen", "on")
+    options = dict(runtime_entry.options)
+    proposed = {
+        **options,
+        CONF_EXTERNAL_SENSORS: [
+            {**item, "contributes_to_shutoff": False} for item in options[CONF_EXTERNAL_SENSORS]
+        ],
+    }
+
+    def fail(*args):
+        from homeassistant.util.file import WriteError
+
+        raise WriteError("controlled atomic write failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(manager._store, "_write_prepared_data", fail)
+        with pytest.raises(Exception, match="controlled atomic write failure"):
+            await manager.async_update_options(proposed)
+    assert dict(runtime_entry.options) == options
+    assert manager.alarm_active and manager.shutoff_request

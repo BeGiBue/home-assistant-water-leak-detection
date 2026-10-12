@@ -128,3 +128,19 @@ def test_public_data_never_contains_secrets_and_private_staging_does_not_release
     assert target.shutoff_request
     assert not staged.shutoff_request
     assert "reset_nonce" not in target.sources["a"].public_payload()
+
+
+@pytest.mark.parametrize("field", ["generation", "learning_epoch", "source_id", "entity_id"])
+@pytest.mark.parametrize("value", [None, [], False])
+def test_damaged_active_routing_is_quarantined_as_alarm_not_dry(field, value):
+    controller = ExternalLeakController()
+    source = SourceIdentity("binary_sensor.kitchen", "registry", "signature", "generation", "epoch")
+    controller.configure("kitchen", source, True, "Kitchen")
+    controller.observe("kitchen", "on", NOW)
+    raw = controller.to_dict()
+    raw["external_sources"][0][field] = value
+    restored = ExternalLeakController()
+    restored.restore(raw, NOW)
+    assert restored.shutoff_request
+    assert len(restored.active_events()) == 1
+    assert not restored.sources

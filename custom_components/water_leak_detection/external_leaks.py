@@ -190,8 +190,15 @@ class ExternalLeakController:
 def _restore_source(raw: Any, now: datetime) -> ExternalSource | None:
     if not isinstance(raw, dict):
         return None
+    known_active = raw.get("phase") == ExternalPhase.ACTIVE.value or (
+        (
+            not isinstance(raw.get("phase"), str)
+            or raw.get("phase") not in {phase.value for phase in ExternalPhase}
+        )
+        and valid_id(raw.get("event_id"))
+    )
     if not all(valid_id(raw.get(key)) for key in ("source_id", "generation", "learning_epoch")):
-        if raw.get("phase") != ExternalPhase.ACTIVE.value:
+        if not known_active:
             return None
         raw = {**raw, "tombstone": True}
         for key in ("source_id", "generation", "learning_epoch"):
@@ -200,7 +207,10 @@ def _restore_source(raw: Any, now: datetime) -> ExternalSource | None:
     if not isinstance(raw.get("entity_id"), str) or not raw["entity_id"].startswith(
         "binary_sensor."
     ):
-        return None
+        if not known_active:
+            return None
+        # Damaged routing metadata cannot be evidence that an alarm ended.
+        raw = {**raw, "entity_id": f"binary_sensor.unresolved_{new_id()}", "tombstone": True}
     try:
         phase = ExternalPhase(raw["phase"])
     except KeyError, TypeError, ValueError:

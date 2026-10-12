@@ -636,6 +636,12 @@
         "recipient_id": {
           "name": "recipient id",
           "description": "Current event-bound information."
+        },
+        "source_generation": {
+          "name": "Source generation (optional)"
+        },
+        "event_id": {
+          "name": "Event ID (optional)"
         }
       }
     }

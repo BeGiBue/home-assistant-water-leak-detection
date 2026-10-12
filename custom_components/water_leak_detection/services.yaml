@@ -94,3 +94,11 @@ request_external_reset_action:
       required: true
       selector:
         text:
+    source_generation:
+      required: false
+      selector:
+        text:
+    event_id:
+      required: false
+      selector:
+        text:

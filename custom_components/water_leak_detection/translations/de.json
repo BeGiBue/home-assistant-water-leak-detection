@@ -636,6 +636,12 @@
         "recipient_id": {
           "name": "recipient id",
           "description": "Aktuelle ereignisgebundene Information."
+        },
+        "source_generation": {
+          "name": "Quellengeneration (optional)"
+        },
+        "event_id": {
+          "name": "Ereignis-ID (optional)"
         }
       }
     }
