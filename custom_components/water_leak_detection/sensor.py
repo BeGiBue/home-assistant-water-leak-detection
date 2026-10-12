@@ -13,6 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN, DetectorKind
+from .duration import human_duration
 from .entity import WaterLeakEntity
 from .manager import WaterLeakManager
 
@@ -67,6 +68,18 @@ class WaterLeakStatusSensor(WaterLeakEntity, SensorEntity):
         snapshot = self.manager.engine.snapshot(self.manager.current_total_l)
         acknowledgement = self.manager.notifications.state_for(snapshot.active_event_id)
         return {
+            "hydraulic_detectors": self.manager.hydraulic_diagnostics(),
+            "measurement_diagnostics": self.manager.source_diagnostics(),
+            "notification_events": {
+                event_id: {
+                    "globally_acknowledged": state.globally_acknowledged,
+                    "globally_acknowledged_by": state.globally_acknowledged_by,
+                    "muted_recipients": sorted(state.muted_recipients),
+                    "accepted_recipient_ids": sorted(state.accepted_recipients),
+                    "dispatch_states": dict(state.dispatch_states),
+                }
+                for event_id, state in self.manager.notifications.acknowledgements.items()
+            },
             "hydraulic_active_events": list(self.manager.engine.active_events()),
             "external_sources": self.manager.external_diagnostics(),
             "aggregate_alarm_active": self.manager.alarm_active,
@@ -145,6 +158,24 @@ class ActiveEventDurationSensor(WaterLeakEntity, SensorEntity):
         if snapshot.active_event_id is None:
             return 0
         return int(self.manager.event_elapsed_seconds(snapshot.active_event_id))
+
+    @property
+    def extra_state_attributes(self):
+        snapshot = self.manager.engine.snapshot(self.manager.current_total_l)
+        seconds = self.native_value
+        return {
+            "event_id": snapshot.active_event_id,
+            "duration_human": human_duration(seconds, self.manager.hass.config.language),
+            "duration_human_de": human_duration(seconds, "de"),
+            "duration_human_en": human_duration(seconds, "en"),
+            "started_at": snapshot.active_started_at.isoformat()
+            if snapshot.active_started_at
+            else None,
+            "active_since": snapshot.active_detected_at.isoformat()
+            if snapshot.active_detected_at
+            else None,
+            "duration_basis": "monitoring_start_excluding_ha_offline_time",
+        }
 
 
 class ActiveEventVolumeSensor(WaterLeakEntity, SensorEntity):

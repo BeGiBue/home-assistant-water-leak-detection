@@ -394,3 +394,11 @@ High-normal confirmation gate admits only repeatedly confirmed, cleanly ended
 High episodes; bypass and alarm episodes remain excluded. This extends learning
 outside F02 without changing static High or Low stability. F04 V3 now separates
 this gate into Long-Term learning; the current rules are documented above.
+
+## Low reset, acknowledgement and duration follow-up
+
+MQTT Flow sensors need `force_update: true` to expose repeated equal telegrams.
+Short MQTT expiry or explicit source timeout can repeatedly interrupt reset
+evidence. Missing reports never mean zero. Configure now provides an authorized
+active-event acknowledgement form; numeric event seconds gain DE/EN display
+attributes. Full diagnostics, semantics and limits: [follow-up contract](docs/F04_LOW_ACK_DURATION.md).

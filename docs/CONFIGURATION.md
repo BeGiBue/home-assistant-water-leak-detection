@@ -281,3 +281,11 @@ Recipients have independent `allow_external_reset` (default false) and global AC
 permissions. External reset always requires the current tracker to be Home.
 See [F04 V3](F04_V3.md) for all lifecycle, restart, nonce, migration, failed-write,
 calibration and separate Rolling/Long-Term threshold rules.
+
+## Low reset, acknowledgement and duration follow-up
+
+MQTT Flow sensors need `force_update: true` to expose repeated equal telegrams.
+Short MQTT expiry or explicit source timeout can repeatedly interrupt reset
+evidence. Missing reports never mean zero. Configure now provides an authorized
+active-event acknowledgement form; numeric event seconds gain DE/EN display
+attributes. Full diagnostics, semantics and limits: [follow-up contract](F04_LOW_ACK_DURATION.md).

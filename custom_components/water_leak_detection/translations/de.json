@@ -110,7 +110,8 @@
           "notifications": "Benachrichtigungsempfänger",
           "expert": "Experteneinstellungen",
           "sources": "Messquellen",
-          "external_sensors": "Externe Lecksensoren"
+          "external_sensors": "Externe Lecksensoren",
+          "acknowledgements": "Aktive Meldungen quittieren"
         }
       },
       "expert": {
@@ -268,6 +269,15 @@
           "go_back": "Zurück"
         },
         "description": "ACTIVE kann erst nach echtem OFF oder autorisiertem External Reset entfernt werden."
+      },
+      "acknowledgements": {
+        "title": "Aktive Meldungen quittieren",
+        "description": "Quittiert nur Benachrichtigungen für das gewählte Ereignis. Der gewählte Empfänger muss zur globalen Quittierung berechtigt und aktuell zuhause sein. Alarm und Absperranforderung bleiben erhalten. ✓ bedeutet bereits quittiert.",
+        "data": {
+          "event_id": "Aktives Ereignis",
+          "recipient_id": "Berechtigter Empfänger",
+          "go_back": "Zurück"
+        }
       }
     },
     "error": {
@@ -289,7 +299,9 @@
       "duplicate_external_source": "Diese Quelle ist bereits konfiguriert.",
       "external_source_active": "Aktive Quelle: zuerst echtes OFF oder autorisierter External Reset.",
       "external_manager_unavailable": "Integration zuerst laden, damit der sichere Quellzustand geprüft werden kann.",
-      "external_persistence_failed": "Speichern fehlgeschlagen. Der bisherige Alarmzustand bleibt erhalten."
+      "external_persistence_failed": "Speichern fehlgeschlagen. Der bisherige Alarmzustand bleibt erhalten.",
+      "acknowledgement_rejected": "Quittierung abgelehnt: aktuelles Ereignis, berechtigter Empfänger und Home erforderlich.",
+      "acknowledgement_persistence_failed": "Quittierung konnte nicht gespeichert werden."
     },
     "abort": {
       "no_mobile_app_notify_services": "Es wurden keine mobile_app-Benachrichtigungsdienste gefunden. Richte zuerst die Home Assistant Companion App ein.",
@@ -644,12 +656,34 @@
           "name": "Ereignis-ID (optional)"
         }
       }
+    },
+    "acknowledge_event": {
+      "name": "Aktive Meldungen quittieren",
+      "description": "Nur Benachrichtigungen quittieren; kein Alarmende und keine Ventilaktion.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Config-Entry-ID"
+        },
+        "event_id": {
+          "name": "Ereignis-ID"
+        },
+        "recipient_id": {
+          "name": "Empfänger-ID"
+        },
+        "recipient_token": {
+          "name": "Empfänger-Token"
+        }
+      }
     }
   },
   "issues": {
     "legacy_learning_quarantined": {
       "title": "Lerndaten sicher neu gestartet",
       "description": "Die bisherigen gemeinsamen Lerndaten von {name} wurden einmalig quarantänisiert. Rolling- und Langzeitlernen beginnen getrennt neu. Die effektive adaptive Burst-Schwelle kann jetzt niedriger sein. Konfigurierte Schwellen, Quittierungen und bestätigte aktive Alarme bleiben erhalten. Beobachte die legitime Maximalentnahme und setze die Burst-Basis mit mindestens 20 % Sicherheitsabstand."
+    },
+    "mqtt_identical_reports": {
+      "title": "MQTT-Nullmeldungen werden möglicherweise unterdrückt",
+      "description": "Die Durchflussquelle {entity_id} verwendet kein force_update. Home Assistant kann identische gültige MQTT-Messungen unterdrücken. Ein einzelner Nullwert und interne Ticks reichen nicht für den sicheren Low-Reset. Setze force_update: true in der MQTT-Sensor-/Discovery-Konfiguration und prüfe expire_after sowie den expliziten Source-Timeout anhand der tatsächlichen Telegrammabstände. Fehlende Telegramme gelten niemals als Nullverbrauch."
     }
   }
 }

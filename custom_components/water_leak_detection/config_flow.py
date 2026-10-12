@@ -122,6 +122,7 @@ from .const import (
     RECIPIENT_TOKEN,
     RECIPIENT_TRACKER_ENTITY,
     RECIPIENT_TRUSTED_STATIONARY,
+    DetectorKind,
 )
 from .low_flow_options import low_stability_minutes
 from .units import is_supported_flow_unit, is_supported_volume_unit
@@ -698,6 +699,7 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
         "edit_external_sensor": "external_sensors",
         "edit_external_sensor_details": "edit_external_sensor",
         "remove_external_sensor": "external_sensors",
+        "acknowledgements": "init",
     }
 
     def __init__(self) -> None:
@@ -710,7 +712,77 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
         """Show the options menu."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["sources", "external_sensors", "notifications", "expert"],
+            menu_options=[
+                "sources",
+                "external_sensors",
+                "notifications",
+                "acknowledgements",
+                "expert",
+            ],
+        )
+
+    async def async_step_acknowledgements(self, user_input=None):
+        """Admin Configure UI acknowledges an exact event as an authorized recipient."""
+        if user_input is not None and user_input.get("go_back"):
+            return await self.async_step_init()
+        if error := self._navigation_error("acknowledgements", user_input):
+            return error
+        manager = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        errors = {}
+        if manager is not None and user_input is not None:
+            raw = next(
+                (
+                    item
+                    for item in self._raw_recipients()
+                    if item.get(RECIPIENT_ID) == user_input["recipient_id"]
+                ),
+                None,
+            )
+            try:
+                accepted = raw is not None and await manager.async_acknowledge_event(
+                    user_input["event_id"], user_input["recipient_id"], raw.get(RECIPIENT_TOKEN)
+                )
+            except Exception:
+                errors["base"] = "acknowledgement_persistence_failed"
+            else:
+                if accepted:
+                    return await self.async_step_init()
+                errors["base"] = "acknowledgement_rejected"
+        events = manager.active_events() if manager is not None else {}
+        choices = []
+        for event_id, kind in events.items():
+            name = (
+                kind.value.replace("_", " ").title()
+                if isinstance(kind, DetectorKind)
+                else kind.name
+            )
+            state = manager.notifications.state_for(event_id)
+            marker = "✓" if state and state.globally_acknowledged else "—"
+            choices.append(
+                SelectOptionDict(value=event_id, label=f"{name} · {event_id} · {marker}")
+            )
+        return self.async_show_form(
+            step_id="acknowledgements",
+            errors=errors,
+            data_schema=probatio.Schema(
+                {
+                    probatio.Required("event_id"): SelectSelector(
+                        SelectSelectorConfig(options=choices)
+                    ),
+                    probatio.Required("recipient_id"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                SelectOptionDict(
+                                    value=raw[RECIPIENT_ID],
+                                    label=str(raw.get(RECIPIENT_NAME, raw[RECIPIENT_ID])),
+                                )
+                                for raw in self._raw_recipients()
+                                if raw.get(RECIPIENT_ID)
+                            ]
+                        )
+                    ),
+                }
+            ),
         )
 
     async def async_step_sources(

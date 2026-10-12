@@ -69,6 +69,15 @@ async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
         manager = _manager_for_call(hass, call)
         await manager.async_reset_learning()
 
+    async def _acknowledge_event(call: ServiceCall) -> None:
+        manager = _manager_for_call(hass, call)
+        if not await manager.async_acknowledge_event(
+            call.data["event_id"], call.data["recipient_id"], call.data["recipient_token"]
+        ):
+            raise HomeAssistantError(
+                "Acknowledgement rejected: current recipient, event and Home required"
+            )
+
     async def _external_reset(call: ServiceCall) -> None:
         manager = _manager_for_call(hass, call)
         if not await manager.async_external_reset(dict(call.data)):
@@ -136,6 +145,19 @@ async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
                 probatio.Required("recipient_id"): str,
                 probatio.Optional("source_generation"): str,
                 probatio.Optional("event_id"): str,
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "acknowledge_event",
+        _acknowledge_event,
+        schema=probatio.Schema(
+            {
+                probatio.Optional(ATTR_CONFIG_ENTRY_ID): str,
+                probatio.Required("event_id"): str,
+                probatio.Required("recipient_id"): str,
+                probatio.Required("recipient_token"): str,
             }
         ),
     )

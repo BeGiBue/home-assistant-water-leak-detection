@@ -106,7 +106,7 @@ class NotificationRecipient:
             notify_service=notify_service,
             tracker_entity=tracker_entity,
             critical_enabled=bool(raw.get(RECIPIENT_CRITICAL_ENABLED, True)),
-            allow_global_ack=bool(raw.get(RECIPIENT_ALLOW_GLOBAL_ACK, True)),
+            allow_global_ack=raw.get(RECIPIENT_ALLOW_GLOBAL_ACK, True) is True,
             trusted_stationary=bool(raw.get(RECIPIENT_TRUSTED_STATIONARY, False)),
             token=token,
             allow_external_reset=raw.get(RECIPIENT_ALLOW_EXTERNAL_RESET) is True,
@@ -500,7 +500,9 @@ class NotificationController:
             self._persist_callback()
 
     async def _async_mobile_action(self, event: Event) -> None:
-        writer = getattr(self.manager, "async_notification_action", None)
+        writer = getattr(self.manager, "async_mobile_notification_action", None) or getattr(
+            self.manager, "async_notification_action", None
+        )
         if writer is not None:
             await writer(lambda: self._async_handle_mobile_action(event))
         else:

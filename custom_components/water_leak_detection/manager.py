@@ -31,6 +31,7 @@ from homeassistant.helpers.event import (
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    ACTION_ACK_ALL,
     ACTION_EXTERNAL_RESET,
     CONF_BURST_DETECTION_SEC,
     CONF_BURST_LEARNED_MULTIPLIER,
@@ -132,7 +133,7 @@ from .learning import AdaptiveFlowLearner, LearningConfidence, LearningSnapshot
 from .long_term_learning import LONG_TERM_MULTIPLIER, LongTermHighLearner
 from .low_flow_options import low_stability_minutes
 from .notifications import NotificationController
-from .repairs import reconcile_legacy_repair
+from .repairs import reconcile_legacy_repair, reconcile_mqtt_reports_repair
 from .source_identity import SourceIdentity, new_id, resolve_source, valid_id
 from .storage import LEARNING_SCHEMA_VERSION, RuntimeStore, migrate_snapshot
 from .units import UnsupportedUnitError, normalize_flow_lph, normalize_volume_l
@@ -201,6 +202,10 @@ class WaterLeakManager:
         self.current_flow_lph: float | None = None
         self.current_total_l: float | None = None
         self.source_available = False
+        self._last_valid_received_at: float | None = None
+        self._last_valid_reported_at = None
+        self._last_valid_flow_lph: float | None = None
+        self._mqtt_report_warning: bool | None = None
         self.bypass_until = None
         self._listeners: set[Listener] = set()
         self._unsubs: list[Callable[[], None]] = []
@@ -523,6 +528,10 @@ class WaterLeakManager:
         self.source_available = True
         self.current_flow_lph = flow
         self.current_total_l = total
+        self._last_valid_received_at = self._flow_evidence.received_at
+        self._last_valid_reported_at = flow_state.last_reported
+        self._last_valid_flow_lph = flow
+        self._reconcile_mqtt_reports()
         # Detector intervals use process timing; event labels and historical
         # learning timestamps independently use actual UTC.
         now = self.timer_now
@@ -1031,6 +1040,114 @@ class WaterLeakManager:
         """All physical events, independent of the hydraulic display priority."""
         return {**self.engine.active_events(), **self.external.active_events()}
 
+    def source_diagnostics(self) -> dict:
+        """Observation age is monotonic; UTC labels never determine evidence."""
+        state = self.hass.states.get(self.flow_entity_id)
+        registry = er.async_get(self.hass).async_get(self.flow_entity_id)
+        component = self.hass.data.get("sensor")
+        entity = (
+            component.get_entity(self.flow_entity_id) if hasattr(component, "get_entity") else None
+        )
+        mqtt = registry is not None and registry.platform == "mqtt"
+        force = bool(entity.force_update) if mqtt and entity is not None else None
+        quiet = self.engine.runtimes[DetectorKind.LOW_FLOW].quiet_since
+        last = self.engine.last_sample_at
+        progress = max(0.0, (last - quiet).total_seconds()) if last and quiet else 0.0
+        return {
+            "flow_source": self.flow_entity_id,
+            "total_source": self.total_entity_id,
+            "source_state": state.state if state else None,
+            "source_available": self.source_available,
+            "last_valid_flow_lph": self._last_valid_flow_lph,
+            "last_valid_ha_reported_at": (
+                self._last_valid_reported_at.isoformat() if self._last_valid_reported_at else None
+            ),
+            "last_valid_observation_age_seconds": (
+                max(0.0, monotonic() - self._last_valid_received_at)
+                if self._last_valid_received_at is not None
+                else None
+            ),
+            "source_max_age_seconds_stored": self.entry.options.get(CONF_SOURCE_MAX_AGE_SEC),
+            "source_max_age_seconds_default": DEFAULT_SOURCE_MAX_AGE_SEC,
+            "source_max_age_seconds_effective": self.source_max_age_seconds,
+            "source_timeout_exceeded": self._flow_evidence.expired(
+                monotonic(), self.source_max_age_seconds
+            ),
+            "last_interval_credit_seconds": self._flow_evidence.credited_seconds,
+            "last_evidence_gap": self.engine.last_evidence_gap,
+            "mqtt_force_update": force,
+            "mqtt_expire_after_seconds": getattr(entity, "_expire_after", None) if mqtt else None,
+            "mqtt_identical_reports_may_be_suppressed": mqtt and force is False,
+            "low_reset_confirmed_seconds": min(progress, self.engine.settings.low_reset_seconds),
+            "low_reset_required_seconds": self.engine.settings.low_reset_seconds,
+            "low_quiet_lph": self.engine.settings.low_quiet_lph,
+            "low_reset_in_progress": quiet is not None,
+            "observation_age_basis": "monotonic_since_valid_ha_state_observation",
+        }
+
+    def hydraulic_diagnostics(self) -> dict:
+        """Expose every detector, not just the display-priority event."""
+        return {
+            kind.value: {
+                "phase": runtime.phase.value,
+                "event_id": runtime.event_id,
+                "started_at": runtime.utc_started_at.isoformat()
+                if runtime.utc_started_at
+                else None,
+                "active_since": runtime.utc_detected_at.isoformat()
+                if runtime.utc_detected_at
+                else None,
+                "event_duration_seconds": self.event_elapsed_seconds(runtime.event_id)
+                if runtime.event_id
+                else 0,
+                "quiet_since_runtime": runtime.quiet_since.isoformat()
+                if runtime.quiet_since
+                else None,
+            }
+            for kind, runtime in self.engine.runtimes.items()
+        }
+
+    def _reconcile_mqtt_reports(self) -> None:
+        warning = self.source_diagnostics()["mqtt_identical_reports_may_be_suppressed"]
+        if warning == self._mqtt_report_warning:
+            return
+        reconcile_mqtt_reports_repair(self.hass, self.entry, warning)
+        self._mqtt_report_warning = warning
+
+    @serialized
+    async def async_mobile_notification_action(self, action) -> None:
+        # Current options, including permission revocation, are authoritative.
+        self.notifications.reload_recipients()
+        return await action()
+
+    @serialized
+    async def async_acknowledge_event(self, event_id: str, recipient_id: str, token: str) -> bool:
+        """Native service/admin Options form uses the same mobile validator."""
+        self.notifications.reload_recipients()
+        recipient = self.notifications.recipients.get(recipient_id)
+        if (
+            self._closed
+            or recipient is None
+            or event_id not in self.active_events()
+            or not isinstance(token, str)
+            or not compare_digest(token.encode(), recipient.token.encode())
+            or not recipient.allow_global_ack
+        ):
+            return False
+        tracker = self.hass.states.get(recipient.tracker_entity)
+        if tracker is None or tracker.state != "home":
+            return False
+        event = Event(
+            "mobile_app_notification_action",
+            {"action": self.notifications._action_id(ACTION_ACK_ALL, event_id, recipient)},
+        )
+        await self.notifications._async_handle_mobile_action(event)
+        state = self.notifications.state_for(event_id)
+        if state is None or not state.globally_acknowledged:
+            return False
+        await self._save_current_locked()
+        return True
+
     def external_diagnostics(self) -> list[dict]:
         return [source.public_payload() for source in self.external.all_sources()]
 
@@ -1301,6 +1418,9 @@ class WaterLeakManager:
         if identity.generation == previous.generation:
             return
         self.measurement_source = identity
+        self._last_valid_received_at = None
+        self._last_valid_reported_at = None
+        self._last_valid_flow_lph = None
         self.engine.rebind_sources()
         self._flow_evidence.interrupt()
         self.learner.reset()
@@ -1313,6 +1433,9 @@ class WaterLeakManager:
         if not changed:
             return False
         old_flow = self.flow_entity_id
+        self._last_valid_received_at = None
+        self._last_valid_reported_at = None
+        self._last_valid_flow_lph = None
         self.hass.config_entries.async_update_entry(self.entry, data=data)
         self.flow_entity_id = data[CONF_FLOW_ENTITY]
         self.total_entity_id = data.get(CONF_TOTAL_ENTITY)

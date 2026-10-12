@@ -104,7 +104,13 @@ def test_configure_menu_covers_all_runtime_configuration() -> None:
     german = _load_json(INTEGRATION / "translations" / "de.json")
     menu = german["options"]["step"]["init"]["menu_options"]
 
-    assert set(menu) == {"sources", "external_sensors", "notifications", "expert"}
+    assert set(menu) == {
+        "sources",
+        "external_sensors",
+        "notifications",
+        "acknowledgements",
+        "expert",
+    }
     assert menu["sources"] == "Messquellen"
     assert menu["notifications"] == "Benachrichtigungsempfänger"
     assert menu["expert"] == "Experteneinstellungen"
@@ -144,7 +150,10 @@ def test_all_service_actions_have_german_translations() -> None:
     assert set(german["services"]) == {
         "start_high_flow_bypass",
         "cancel_high_flow_bypass",
-        "reset_learning", "external_reset", "request_external_reset_action",
+        "reset_learning",
+        "external_reset",
+        "request_external_reset_action",
+        "acknowledge_event",
     }
     for service in german["services"].values():
         assert service["name"]
@@ -160,7 +169,6 @@ def test_entity_platforms_do_not_hardcode_visible_names() -> None:
     ):
         source = (INTEGRATION / filename).read_text(encoding="utf-8")
         assert "_attr_name =" not in source
-
 
 
 def test_configure_translations_do_not_contain_literal_newline_escapes() -> None:
@@ -195,11 +203,7 @@ def test_configure_navigation_labels_are_translated() -> None:
 
     assert german["options"]["step"]["sources"]["submit"] == "Speichern und zurück"
     assert german["options"]["step"]["expert"]["submit"] == "Speichern und zurück"
-    assert (
-        german["options"]["step"]["add_recipient"]["submit"]
-        == "Hinzufügen und zurück"
-    )
-
+    assert german["options"]["step"]["add_recipient"]["submit"] == "Hinzufügen und zurück"
 
 
 def test_repository_license_metadata() -> None:

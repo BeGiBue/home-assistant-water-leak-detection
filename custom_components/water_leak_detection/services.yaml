@@ -102,3 +102,23 @@ request_external_reset_action:
       required: false
       selector:
         text:
+
+acknowledge_event:
+  name: Acknowledge event
+  description: Acknowledge notifications only; current recipient/token and Home authorization required.
+  fields:
+    config_entry_id:
+      selector:
+        text:
+    event_id:
+      required: true
+      selector:
+        text:
+    recipient_id:
+      required: true
+      selector:
+        text:
+    recipient_token:
+      required: true
+      selector:
+        text:
