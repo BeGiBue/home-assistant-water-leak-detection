@@ -176,3 +176,15 @@ Nur fehlende Stabilitätszeiten werden für UI und Runtime gemeinsam abgeleitet:
 | 20 min | 10 min | 5 min |
 | 30 min | 15 min | 7,5 min |
 | 60 min | 30 min | 15 min |
+
+## F04 V3 Upgrade und externe Quellen
+
+Die neue Burst-Basis beträgt für nicht gesetzte Werte 3.500 L/h; explizit
+gespeicherte Werte bleiben erhalten. Prüfe den Sicherheitsabstand zu normalem
+Maximalverbrauch. Beim Upgrade werden alte gemeinsame Lerndaten quarantänisiert;
+die effektive Burst-Schwelle kann sinken. Ein tatsächlicher Lern-Upgrade erzeugt
+einen HA-Repair-Hinweis. ACTIVE-Alarme, ACK, Empfänger und Optionen bleiben erhalten.
+Unter Configure können mehrere externe binary_sensor hinzugefügt und verwaltet
+werden. Shutoff-Beitrag je Quelle ist standardmäßig true, External-Reset-Recht
+je Empfänger false. Einzelheiten zu Migration, Home-Zone und defekten Sensoren:
+[F04 V3](F04-V3.md).

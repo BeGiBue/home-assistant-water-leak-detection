@@ -307,3 +307,15 @@ Englisch:
 **Water Leak Guard**
 
 Technische IDs bleiben sprachunabhängig.
+
+## F04 V3 Schnittstellen
+
+Configure → Externe Lecksensoren verwaltet mehrere binary_sensor ohne YAML,
+einschließlich Bearbeiten, Entfernen und Shutoff-Beitrag. Empfänger erhalten die
+getrennte Reset-Berechtigung. Die Dienste external_reset und
+request_external_reset_action verwenden aktuelle Ereignisbindungen und Home-
+Autorisierung. Letzterer fordert nur eine frische Action an und hebt ACK nicht auf.
+Status/Alarm/Shutoff aggregieren alle Ereignisse; Attribute zeigen externe
+ACTIVE/WAITING-Quellen, hydraulische Alarme, Beiträge und Migrationsstatus.
+Ein diagnostischer Langzeitmaximum-Sensor zeigt den getrennt bestätigten Wert.
+Alle Sicherheits- und Persistenzregeln: [F04 V3](F04-V3.md).

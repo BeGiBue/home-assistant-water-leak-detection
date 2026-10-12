@@ -347,8 +347,10 @@ async def test_actual_mobile_ack_and_mute_never_release_external_safety(
             Event(
                 "mobile_app_notification_action",
                 {
-                    "action": (f"WLD|{kind}|{runtime_entry.entry_id}|{source.event_id}"
-                               "|phone|recipient_token")
+                    "action": (
+                        f"WLD|{kind}|{runtime_entry.entry_id}|{source.event_id}"
+                        "|phone|recipient_token"
+                    )
                 },
             )
         )
@@ -406,3 +408,26 @@ async def test_store_failed_options_do_not_publish_shutoff_release(
             await manager.async_update_options(proposed)
     assert dict(runtime_entry.options) == options
     assert manager.alarm_active and manager.shutoff_request
+
+
+async def test_actual_ha_platform_setup_registers_new_diagnostic_and_aggregate_entities(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    from homeassistant import loader
+
+    import custom_components
+
+    loader.async_setup(runtime_hass)
+    integration = loader.Integration.resolve_from_root(runtime_hass, custom_components, DOMAIN)
+    runtime_hass.data[loader.DATA_INTEGRATIONS][DOMAIN] = integration
+    report(runtime_hass, measurement_clock, 0)
+    assert await runtime_hass.config_entries.async_setup(runtime_entry.entry_id)
+    await runtime_hass.async_block_till_done()
+    registry = er.async_get(runtime_hass)
+    registered = er.async_entries_for_config_entry(registry, runtime_entry.entry_id)
+    suffixes = [entry.unique_id for entry in registered]
+    assert any(item.endswith("_long_term_normal_maximum") for item in suffixes)
+    assert len(suffixes) == len(set(suffixes))
+    assert any(item.endswith("_leak_alarm") for item in suffixes)
+    assert any(item.endswith("_shutoff_request") for item in suffixes)
+    await runtime_hass.config_entries.async_unload(runtime_entry.entry_id)
