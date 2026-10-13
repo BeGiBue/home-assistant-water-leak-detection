@@ -13,6 +13,9 @@ A backend-focused Home Assistant custom integration for detecting abnormal water
 
 ## Highlights
 
+- Conservative Store recovery and external identity-conflict quarantine preserve
+  alarm/Shutoff contributions. See the [backup recovery and MQTT-boundary guide](docs/F04_LOW_ACK_DURATION.md#safety-recovery-and-mqtt-interruption-boundaries).
+
 - Separate **Slow Leak**, **Low Flow**, **High Flow**, and **Burst Leak** detectors.
 - Independent enable/disable switches for Slow Leak and Low Flow.
 - Temporary High Flow bypass for intentional high consumption such as pool filling.

@@ -688,6 +688,10 @@
     "mqtt_measurement_provenance": {
       "title": "MQTT measurement origin not verified",
       "description": "No new original measurement was verified for {entity_id}. Flow detection is blocked for this message; existing alarms remain active. Preserve the original radio measurement time as a timezone-aware timestamp in the MQTT JSON payload. force_update alone is insufficient. Retained, replayed, late or future packets provide no evidence. Check the MQTT provenance instructions and diagnostic status."
+    },
+    "runtime_safety_recovery": {
+      "title": "Safety state requires recovery",
+      "description": "The runtime store for {name} is damaged or contains conflicting alarm identities. Alarm and shutoff requests are conservatively retained; affected acknowledgements and resets are blocked. Preserve the original file, stop Home Assistant and restore a verified complete backup. Do not delete the store to clear an alarm. Then verify sources and diagnostics. The integration does not operate a valve."
     }
   }
 }

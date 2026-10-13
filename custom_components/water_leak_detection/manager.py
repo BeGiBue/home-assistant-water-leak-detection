@@ -138,9 +138,10 @@ from .repairs import (
     reconcile_legacy_repair,
     reconcile_mqtt_provenance_repair,
     reconcile_mqtt_reports_repair,
+    reconcile_runtime_recovery,
 )
 from .source_identity import SourceIdentity, new_id, resolve_source, valid_id
-from .storage import LEARNING_SCHEMA_VERSION, RuntimeStore, migrate_snapshot
+from .storage import LEARNING_SCHEMA_VERSION, RuntimeStore, migrate_snapshot, validate_snapshot_body
 from .units import UnsupportedUnitError, normalize_flow_lph, normalize_volume_l
 from .validation import nonnegative_float, parse_datetime
 
@@ -228,6 +229,7 @@ class WaterLeakManager:
         self._save_handle: asyncio.TimerHandle | None = None
         self._save_task: asyncio.Task | None = None
         self._flow_evidence = SourceEvidence()
+        self._reported_wall_time = None
         self._total_signature = None
         self._total_state: State | None = None
         self._total_report_pending = False
@@ -252,14 +254,18 @@ class WaterLeakManager:
     async def _async_setup_locked(self) -> None:
         """Restore persisted state and start tracking source entities."""
         existed = Path(self._store.path).is_file()
+        self._store.recovered_data = None  # Recovery may only use this load attempt's valid body.
         try:
             stored = await self._store.async_load()
+            if existed:
+                validate_snapshot_body(stored)
         except Exception:
             _LOGGER.exception("Runtime load/migration failed; preserving recoverable alarms")
             stored = self._store.recovered_data
             self._storage_load_failed = stored is None
-        if existed and stored is None:
+        if existed and not isinstance(stored, dict):
             self._storage_load_failed = True
+            stored = None
         if not self._storage_load_failed:
             stored = migrate_snapshot(
                 stored, self.measurement_source, dt_util.utcnow(), self.entry.entry_id
@@ -302,6 +308,7 @@ class WaterLeakManager:
                 self.engine.settings.burst_threshold_lph,
             )
             self.external.restore(stored, dt_util.utcnow())
+            self._quarantine_external_conflicts(self.external)
             self._mqtt_provenance = MqttProvenance(self.measurement_source.generation)
             self._mqtt_provenance.restore(stored.get("mqtt_measurement_provenance"))
             bypass_until = stored.get("bypass_until")
@@ -326,6 +333,7 @@ class WaterLeakManager:
         # configured physical quiet reset before admitting any new High episode.
         self.long_term_learner.suspend_current_episode()
         self._configure_external_sources(self.external, self.entry.options, forced=True)
+        self._reconcile_runtime_recovery()
         configured = self.entry.options.get(CONF_EXTERNAL_SENSORS, [])
         renamed = [
             {**item, "entity_id": self.external.sources[item["id"]].identity.entity_id}
@@ -436,7 +444,9 @@ class WaterLeakManager:
                 self.hass.async_create_task(self._async_external_changed(entity_id, state.state))
                 return
             if entity_id == self.flow_entity_id:
-                self._flow_evidence.report(monotonic())
+                received = monotonic()
+                self._reported_wall_time = (state, received, dt_util.utcnow())
+                self._flow_evidence.report(received)
             elif entity_id == self.total_entity_id:
                 self._total_report_pending = True
             self.hass.async_create_task(self.async_refresh())
@@ -458,7 +468,7 @@ class WaterLeakManager:
             )
             return
         if entity_id == self.flow_entity_id and not self._usable_state(new_state):
-            self._suspend_source()
+            await self._suspend_source()
         elif entity_id == self.total_entity_id:
             try:
                 if not self._usable_source_state(new_state):
@@ -486,23 +496,38 @@ class WaterLeakManager:
         self._apply_controls()
         flow_state = self.hass.states.get(self.flow_entity_id)
         if not self._usable_source_state(flow_state):
-            self._suspend_source()
+            await self._suspend_source()
             return
         fresh = False
+        observed_at = monotonic()
+        observed_utc = dt_util.utcnow()
         if allow_measurement:
+            # A direct report can reveal the same excluded gap as a tick. Close
+            # and persist the old chain before observing that return report.
+            if (
+                self._flow_evidence.expired(observed_at, self.source_max_age_seconds)
+                and not await self._suspend_source()
+            ):
+                return
             fresh, _ = self._flow_evidence.observe(
-                flow_state, monotonic(), self.source_max_age_seconds
+                flow_state, observed_at, self.source_max_age_seconds
             )
         if not fresh:
             if self._flow_evidence.expired(monotonic(), self.source_max_age_seconds):
-                self.source_available = False
-                for runtime in self.engine.runtimes.values():
-                    runtime.quiet_since = None
-                self.learner.suspend_current_episode()
-                self.long_term_learner.suspend_current_episode()
-                self._notify_listeners()
+                await self._suspend_source()
             return
 
+        received_at = self._flow_evidence.received_at
+        measurement_now = self._clock_origin + timedelta(
+            seconds=(received_at if received_at is not None else observed_at)
+            - self._monotonic_origin
+        )
+        receipt = self._reported_wall_time
+        measurement_utc = (
+            receipt[2]
+            if receipt and receipt[0] is flow_state and receipt[1] == received_at
+            else observed_utc
+        )
         await self._check_measurement_identity()
         registry = er.async_get(self.hass).async_get(self.flow_entity_id)
         if registry is not None and registry.platform == "mqtt":
@@ -511,7 +536,7 @@ class WaterLeakManager:
             )
             if stamp is None:
                 reconcile_mqtt_provenance_repair(self.hass, self.entry, True)
-                self._suspend_source()
+                await self._suspend_source()
                 return
             previous_stamp = self._mqtt_provenance.timestamp
             if previous_stamp is not None:
@@ -525,7 +550,7 @@ class WaterLeakManager:
             try:
                 await self._save_current_locked()
             except Exception:
-                self._suspend_source()
+                await self._suspend_source()
                 self._mqtt_provenance.reason = "provenance_persistence_failed"
                 _LOGGER.exception("MQTT provenance not committed; measurement rejected")
                 return
@@ -536,7 +561,7 @@ class WaterLeakManager:
             )
         except (TypeError, ValueError, UnsupportedUnitError) as err:
             _LOGGER.warning("Unable to normalize flow source %s: %s", self.flow_entity_id, err)
-            self._suspend_source()
+            await self._suspend_source()
             return
 
         total: float | None = None
@@ -571,7 +596,9 @@ class WaterLeakManager:
         self._reconcile_mqtt_reports()
         # Detector intervals use process timing; event labels and historical
         # learning timestamps independently use actual UTC.
-        now = self.timer_now
+        # Persistence is not a measurement. Keep the same reception clock used
+        # for interval credit; variable write latency must not fabricate gaps.
+        now = measurement_now
         thresholds = self.adaptive_thresholds(dt_util.utcnow())
         bypass_active = self.high_flow_bypass_active
         transitions = self.engine.sample(
@@ -590,7 +617,7 @@ class WaterLeakManager:
         snapshot = self.engine.snapshot(total)
         suspicious = (
             snapshot.alarm_active
-            or bool(self.external.active_events())
+            or self.external.has_active_sources
             or not self._migration_ready
             or self.engine.runtimes[DetectorKind.HIGH_FLOW].phase is not DetectorPhase.IDLE
             or self.engine.runtimes[DetectorKind.BURST_LEAK].phase is not DetectorPhase.IDLE
@@ -598,7 +625,7 @@ class WaterLeakManager:
         if self.engine.last_evidence_gap:
             self.learner.suspend_current_episode()
         learning_changed = self.learner.observe(
-            dt_util.utcnow(),
+            measurement_utc,
             flow,
             runtime_now=now,
             suspicious=suspicious,
@@ -617,14 +644,14 @@ class WaterLeakManager:
             for transition in transitions
         )
         high_changed = self.long_term_learner.observe_high(
-            dt_util.utcnow(),
+            measurement_utc,
             flow,
             runtime_now=now,
             started=high_started,
             finished=high_finished,
             disqualified=(
                 snapshot.alarm_active
-                or bool(self.external.active_events())
+                or self.external.has_active_sources
                 or not self._migration_ready
                 or bypass_active
                 or self.engine.last_evidence_gap
@@ -643,7 +670,7 @@ class WaterLeakManager:
         if (
             self._migration_ready
             and not snapshot.alarm_active
-            and not self.external.active_events()
+            and not self.external.has_active_sources
             and not bypass_active
             and not self.engine.last_evidence_gap
             and self.engine.runtimes[DetectorKind.BURST_LEAK].phase is DetectorPhase.IDLE
@@ -705,8 +732,10 @@ class WaterLeakManager:
                 return max(0, (self.timer_now - runtime.started_at).total_seconds())
         return 0.0
 
-    def _suspend_source(self) -> None:
-        if self.source_available:
+    async def _suspend_source(self) -> bool:
+        """One exclusion boundary for outage, timeout, invalid and direct gaps."""
+        interrupted = self.source_available or self._flow_evidence.received_at is not None
+        if interrupted:
             self._mqtt_provenance.interrupt(self.timer_now)
         self._flow_evidence.interrupt()
         self.source_available = False
@@ -715,8 +744,16 @@ class WaterLeakManager:
         self.engine.pause_source_evidence()
         self.learner.suspend_current_episode()
         self.long_term_learner.suspend_current_episode()
-        self._schedule_save()
         self._notify_listeners()
+        if interrupted:
+            try:
+                await self._save_current_locked()
+            except Exception:
+                # No return report is admitted on this failed transaction.
+                # MQTT admission also commits the retained boundary before credit.
+                _LOGGER.exception("Source exclusion boundary not committed; source remains blocked")
+                return False
+        return True
 
     @staticmethod
     def _usable_state(state: State | None) -> bool:
@@ -1071,7 +1108,7 @@ class WaterLeakManager:
     def alarm_active(self) -> bool:
         return (
             self._storage_load_failed
-            or bool(self.external.active_events())
+            or self.external.has_active_sources
             or self.engine.snapshot().alarm_active
         )
 
@@ -1087,7 +1124,8 @@ class WaterLeakManager:
 
     def active_events(self) -> dict:
         """All physical events, independent of the hydraulic display priority."""
-        return {**self.engine.active_events(), **self.external.active_events()}
+        events = {**self.engine.active_events(), **self.external.active_events()}
+        return {k: v for k, v in events.items() if k not in self.external.conflicted_event_ids}
 
     def display_event(self) -> dict:
         """One selection for status, ACK attributes and duration, including externals."""
@@ -1298,8 +1336,7 @@ class WaterLeakManager:
         for source_id in set(controller.sources) - configured:
             current = controller.sources[source_id]
             if forced and current.phase is ExternalPhase.ACTIVE:
-                current.tombstone = True
-                controller.tombstones[(source_id, current.identity.generation)] = current
+                controller.retain_tombstone(current)
                 controller.sources.pop(source_id)
             else:
                 controller.remove(source_id)
@@ -1320,6 +1357,7 @@ class WaterLeakManager:
     async def _commit_external(self, staged: ExternalLeakController) -> None:
         """Persist the private revision; readers see the conservative old state during I/O."""
         before = self.external.active_events()
+        self._quarantine_external_conflicts(staged)
         after = staged.active_events()
         try:
             self._ensure_storage_writable()
@@ -1328,14 +1366,17 @@ class WaterLeakManager:
             self._retain_uncommitted_external_on(staged)
             raise
         self.external = staged
+        self._reconcile_runtime_recovery()
         for event_id in after.keys() - before.keys():
             self._restored_elapsed[event_id] = (0.0, monotonic())
         for event_id in before.keys() - after.keys():
             self._restored_elapsed.pop(event_id, None)
-        if after:
+        if staged.has_active_sources:
             self.learner.suspend_current_episode()
             self.long_term_learner.suspend_current_episode()
         for event_id in before.keys() - after.keys():
+            if event_id in staged.conflicted_event_ids:
+                continue  # Quarantine is not a physical event end.
             self.hass.bus.async_fire(
                 EVENT_LEAK_ENDED,
                 {
@@ -1356,19 +1397,25 @@ class WaterLeakManager:
 
     def _retain_uncommitted_external_on(self, staged) -> None:
         """Failed/recovery writes may add physical ON, never publish a release."""
-        for event_id, source in staged.active_events().items():
-            if event_id in self.external.active_events():
+        existing = {
+            (s.source_id, s.identity.generation, s.event_id)
+            for s in self.external.all_sources()
+            if s.phase is ExternalPhase.ACTIVE
+        }
+        for source in staged.all_sources():
+            event_id = source.event_id
+            if (
+                source.phase is not ExternalPhase.ACTIVE
+                or (source.source_id, source.identity.generation, event_id) in existing
+            ):
                 continue
             current = self.external.sources.get(source.source_id)
             if not source.tombstone:
                 if current and current.phase is ExternalPhase.ACTIVE:
-                    current.tombstone = True
-                    self.external.tombstones[(current.source_id, current.identity.generation)] = (
-                        current
-                    )
+                    self.external.retain_tombstone(current)
                 self.external.sources[source.source_id] = source
             else:
-                self.external.tombstones[(source.source_id, source.identity.generation)] = source
+                self.external.retain_tombstone(source)
             self._restored_elapsed[event_id] = (0.0, monotonic())
             self.hass.bus.async_fire(
                 EVENT_LEAK_STARTED,
@@ -1377,10 +1424,30 @@ class WaterLeakManager:
                     **source.public_payload(),
                 },
             )
+        self._quarantine_external_conflicts(self.external)
         self.learner.suspend_current_episode()
         self.long_term_learner.suspend_current_episode()
         self._handle_shutoff_transition()
         self._notify_listeners()
+
+    def _quarantine_external_conflicts(self, controller) -> None:
+        conflicted = controller.quarantine_conflicts(self.engine.active_events())
+        for event_id in conflicted:
+            # An ACK/dispatch keyed by an ambiguous ID belongs to no safe source.
+            self.notifications.acknowledgements.pop(event_id, None)
+        if controller is self.external:
+            self._reconcile_runtime_recovery()
+
+    def _reconcile_runtime_recovery(self) -> None:
+        try:
+            reconcile_runtime_recovery(
+                self.hass,
+                self.entry,
+                self._storage_load_failed or bool(self.external.conflicted_event_ids),
+            )
+        except Exception:
+            # The repair UI is diagnostic, never the safety barrier itself.
+            _LOGGER.exception("Runtime safety recovery repair could not be reconciled")
 
     @serialized
     async def async_configure_external(self, options: dict) -> None:
@@ -1411,6 +1478,7 @@ class WaterLeakManager:
             registered = er.async_get(self.hass).async_get(entity_id)
             if (
                 state == "off"
+                and not source.identity_conflict
                 and source.identity.entity_id == entity_id
                 and registered
                 and (
@@ -1433,10 +1501,7 @@ class WaterLeakManager:
                     if current and current.identity.generation == source.identity.generation:
                         self.external.sources[source.source_id] = source
                     else:
-                        source.tombstone = True
-                        self.external.tombstones[(source.source_id, source.identity.generation)] = (
-                            source
-                        )
+                        self.external.retain_tombstone(source)
                     self.hass.bus.async_fire(
                         EVENT_LEAK_STARTED,
                         {"config_entry_id": self.entry.entry_id, **source.public_payload()},

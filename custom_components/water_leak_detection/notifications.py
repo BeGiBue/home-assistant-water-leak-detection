@@ -237,6 +237,11 @@ class NotificationController:
         self.reload_recipients()
         self._migrate_routes()
         for event_id, kind in self.manager.engine.active_events().items():
+            if (
+                hasattr(self.manager, "active_events")
+                and event_id not in self.manager.active_events()
+            ):
+                continue
             runtime = self.manager.engine.runtimes[kind]
             self._events[event_id] = {
                 "type": kind.value,

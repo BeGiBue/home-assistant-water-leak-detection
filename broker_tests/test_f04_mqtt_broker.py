@@ -107,7 +107,13 @@ async def test_real_broker_discovery_reconnect_retained_qos(
         await eventually(lambda: er.async_get(hass).async_get("sensor.review_flow") is not None)
         await eventually(lambda: bool(broker._subscriptions.get("review/hydrus")))
         hass.config_entries.async_update_entry(
-            runtime_entry, data={"flow_entity": "sensor.review_flow"}, options={"shutoff_low": True}
+            runtime_entry,
+            data={"flow_entity": "sensor.review_flow"},
+            options={
+                "shutoff_low": True,
+                "source_max_age_seconds": 120,
+                "source_gap_policy_explicit": True,
+            },
         )
         await publish(
             "review/hydrus", {"flow_m3h": 0.25, "timestamp": measurement_clock.utcnow().isoformat()}
@@ -123,6 +129,26 @@ async def test_real_broker_discovery_reconnect_retained_qos(
             )
         low = manager.engine.runtimes[DetectorKind.LOW_FLOW]
         assert low.phase is DetectorPhase.ACTIVE and manager.shutoff_request
+        last = measurement_clock.utcnow()
+        measurement_clock.advance(400)
+        await manager._async_tick(measurement_clock.utcnow())
+        assert not manager.source_available
+        # Previously unseen, ascending physical samples buffered before timeout:
+        # actual TCP deliveries within the allowed 300-s transport age must not reset.
+        from datetime import timedelta
+
+        for i in range(4):
+            if i:
+                measurement_clock.advance(60)
+            await publish(
+                "review/hydrus",
+                {
+                    "flow_m3h": 0,
+                    "timestamp": (last + timedelta(seconds=100 + 60 * i)).isoformat(),
+                },
+            )
+        assert low.phase is DetectorPhase.ACTIVE and manager.shutoff_request
+        assert manager.source_diagnostics()["low_reset_confirmed_seconds"] == 0
         old = {"flow_m3h": 0, "timestamp": "2026-10-06T00:00:00Z"}
         for _ in range(4):
             measurement_clock.advance(60)

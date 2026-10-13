@@ -239,3 +239,49 @@ otherwise the earliest active external source with deterministic identity ties.
 External event elapsed time uses process-monotonic time and is saved/restored;
 HA offline time is excluded. UTC rollback never makes it negative. All concurrent
 alarms remain visible separately and keep their own ACK/Shutoff contribution.
+
+## Safety recovery and MQTT interruption boundaries
+
+A supported Store version does not make a damaged body valid. Version 1 and 2
+bodies must be dictionaries; lists, strings, numbers, booleans and null in an
+existing file trigger recovery. The original file is never normalized into an
+empty installation. A missing file remains a normal new installation. All writers
+respect the recovery barrier; aggregate alarm and shutoff requests remain held.
+
+An explicit source timeout, invalid/unknown/unavailable flow or direct return after
+an excluded gap closes the same evidence chain. Its generation-bound
+`admission_since` exclusion boundary is saved before return evidence may act.
+It never moves backwards during UTC rollback. A failed write leaves the source
+blocked; MQTT evidence must commit its boundary and original marker before credit.
+Ticks only exclude unknown time, never confirm water consumption or quiet.
+Buffered measurements originating before this boundary are rejected even when
+previously unseen, strictly ordered, non-retained and within the 300-second
+delivery-age allowance. First accepted return contributes zero interval seconds.
+The 2-µs engine tolerance and configured timeout semantics remain unchanged.
+
+External alarm and shutoff aggregation uses every ACTIVE source, including
+tombstones and quarantined records. Conflicting Event-IDs or repeated
+Source/Generation keys cannot discard a contribution. `identity_conflict=true`
+identifies affected records. Their original IDs and safety contributions remain,
+but reset nonces are removed and ambiguous IDs are excluded from notification,
+ACK and reset capability lookup. Old ACKs are not inherited. They are not renamed
+into apparently trustworthy events. A conflicting OFF cannot identify which record
+ended, so quarantined alarms remain held for verified recovery. Unaffected events
+retain their normal lifecycle and authorization. Learning stays blocked while any
+external source is ACTIVE, including quarantine. Conflicts remain sticky at restart.
+
+Home Assistant displays an ERROR repair when runtime safety recovery is required.
+To recover: preserve the original file and diagnostics, stop HA fully, and restore
+a verified complete HA backup (or the exact entry's verified runtime Store with
+its matching ConfigEntry/source identities). Do not edit learning provenance,
+invent event identities, delete the Store to clear alarms, or restore while HA is
+running. Restart HA and verify `storage_recovery_required=false`, no conflicting
+sources, all expected ACTIVE alarms/ACKs and the aggregate shutoff request. A valid
+backup retains its ACTIVE state; only genuine physical reset or a currently
+authorized unambiguous external reset can then end it. The repair clears when the
+valid state is restored. The integration never operates a valve.
+
+The MQTT component/Store regressions have also been exercised against declared
+minimum HA 2026.9.0. This does not prove the actual Hydrus Discovery configuration;
+that installation's original payloads, timezone, relay behavior, force_update and
+expire_after still require a field export and verification.

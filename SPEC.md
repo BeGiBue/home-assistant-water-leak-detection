@@ -5,6 +5,12 @@
 > Kontext; abweichende Burst-/High-Lernanforderungen werden durch V3 ersetzt.
 > Keine Release- oder Merge-Freigabe, Produktversion unverändert 1.1.0.
 
+> Sicherheitskorrektur: Unterstützte Store-Versionen mit nicht-dict Body werden
+> konservativ gesperrt. MQTT-Timeouts und direkte Gap-Rückkehr verwenden eine
+> persistierte Ausschlussgrenze; Vor-Ausfall-Messungen sind keine Reset-Evidenz.
+> Externe Konfliktidentitäten behalten alle ACTIVE-/Shutoff-Beiträge und sperren
+> betroffene ACK-/Reset-Capabilities. [Recovery-Vertrag](docs/F04_LOW_ACK_DURATION.md#safety-recovery-and-mqtt-interruption-boundaries).
+
 # Water Leak Guard
 
 ## 1. Purpose

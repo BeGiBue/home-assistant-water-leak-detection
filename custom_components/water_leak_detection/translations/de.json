@@ -688,6 +688,10 @@
     "mqtt_measurement_provenance": {
       "title": "MQTT-Messherkunft nicht bestätigt",
       "description": "Für {entity_id} wurde keine neue originale Messung bestätigt. Die Durchflusserkennung ist für diese Nachricht gesperrt; bestehende Alarme bleiben erhalten. Übernimm die originale Radio-Messzeit als timezone-aware timestamp in den MQTT-JSON-Payload. force_update allein reicht nicht. Retained, wiederholte, verspätete oder zukünftige Pakete liefern keine Evidenz. Prüfe die Anleitung zur MQTT-Messherkunft und den Diagnosestatus."
+    },
+    "runtime_safety_recovery": {
+      "title": "Sicherheitszustand muss wiederhergestellt werden",
+      "description": "Für {name} ist der Laufzeitspeicher beschädigt oder enthält widersprüchliche Alarmidentitäten. Alarm- und Absperranforderungen bleiben konservativ erhalten; betroffene Quittierungen und Resets sind gesperrt. Sichern Sie die Originaldatei, stoppen Sie Home Assistant und stellen Sie ein geprüftes vollständiges Backup wieder her. Löschen Sie den Speicher nicht, um den Alarm zu beenden. Prüfen Sie anschließend Quellen und Diagnose. Die Integration betätigt kein Ventil."
     }
   }
 }

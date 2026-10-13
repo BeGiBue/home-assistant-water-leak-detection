@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
@@ -30,6 +31,7 @@ class ExternalSource:
     started_at: datetime | None = None
     name: str = ""
     tombstone: bool = False
+    identity_conflict: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -42,6 +44,7 @@ class ExternalSource:
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "name": self.name,
             "tombstone": self.tombstone,
+            "identity_conflict": self.identity_conflict,
         }
 
     def public_payload(self) -> dict:
@@ -55,6 +58,7 @@ class ExternalSource:
             "source_name": self.name,
             "phase": self.phase.value,
             "tombstone": self.tombstone,
+            "identity_conflict": self.identity_conflict,
             "contributes_to_shutoff": self.contributes_to_shutoff,
             "started_at": self.started_at.isoformat() if self.started_at else None,
         }
@@ -66,23 +70,80 @@ class ExternalLeakController:
     def __init__(self) -> None:
         self.sources: dict[str, ExternalSource] = {}
         self.tombstones: dict[tuple[str, str], ExternalSource] = {}
+        self.quarantined_sources: list[ExternalSource] = []
 
     def copy(self) -> ExternalLeakController:
         return deepcopy(self)
 
     def all_sources(self) -> list[ExternalSource]:
-        return [*self.sources.values(), *self.tombstones.values()]
+        # During a forced replacement the same object briefly has two handles.
+        # Distinct restored records remain distinct, even with identical keys.
+        records = [*self.sources.values(), *self.tombstones.values(), *self.quarantined_sources]
+        return list({id(source): source for source in records}.values())
+
+    @property
+    def has_active_sources(self) -> bool:
+        return any(s.phase is ExternalPhase.ACTIVE for s in self.all_sources())
+
+    @property
+    def conflicted_event_ids(self) -> set[str]:
+        return {s.event_id for s in self.all_sources() if s.identity_conflict and s.event_id}
+
+    def quarantine_conflicts(self, hydraulic_event_ids=()) -> set[str]:
+        """Preserve every safety record; ambiguous identities grant no capabilities.
+
+        The flag is sticky and persisted: OFF/actions cannot guess which damaged
+        record owns an identity. A verified backup is required to resolve it.
+        """
+        events = {}
+        identities = {}
+        hydraulic = set(hydraulic_event_ids)
+        for source in self.all_sources():
+            identities.setdefault((source.source_id, source.identity.generation), []).append(source)
+            if source.phase is ExternalPhase.ACTIVE and source.event_id:
+                events.setdefault(source.event_id, []).append(source)
+        groups = [g for g in identities.values() if len(g) > 1]
+        groups.extend(g for event, g in events.items() if len(g) > 1 or event in hydraulic)
+        for group in groups:
+            for source in group:
+                source.identity_conflict = True
+                source.reset_nonce = None
+        for source in self.all_sources():
+            if source.identity_conflict:
+                source.reset_nonce = None
+        return self.conflicted_event_ids
+
+    def retain_tombstone(self, source: ExternalSource) -> None:
+        """A repeated ledger key must never overwrite another ACTIVE record."""
+        source.tombstone = True
+        key = (source.source_id, source.identity.generation)
+        current = self.tombstones.get(key)
+        if current is None or current is source:
+            self.tombstones[key] = source
+        else:
+            self.quarantined_sources.append(source)
 
     def active_events(self) -> dict[str, ExternalSource]:
+        records = self.all_sources()
+        events = Counter(s.event_id for s in records if s.phase is ExternalPhase.ACTIVE)
+        identities = Counter((s.source_id, s.identity.generation) for s in records)
         return {
             source.event_id: source
-            for source in self.all_sources()
-            if source.phase is ExternalPhase.ACTIVE and source.event_id
+            for source in records
+            if source.phase is ExternalPhase.ACTIVE
+            and source.event_id
+            and not source.identity_conflict
+            and events[source.event_id] == 1
+            and identities[(source.source_id, source.identity.generation)] == 1
         }
 
     @property
     def shutoff_request(self) -> bool:
-        return any(source.contributes_to_shutoff for source in self.active_events().values())
+        return any(
+            source.contributes_to_shutoff
+            for source in self.all_sources()
+            if source.phase is ExternalPhase.ACTIVE
+        )
 
     def configure(
         self,
@@ -97,14 +158,15 @@ class ExternalLeakController:
         if current and current.identity.generation == identity.generation:
             current.identity = identity
             current.name = name
-            current.contributes_to_shutoff = contributes
+            if not current.identity_conflict:
+                current.contributes_to_shutoff = contributes
             return
         if current and current.phase is ExternalPhase.ACTIVE:
             if not forced:
                 raise ValueError("external_source_active")
-            current.tombstone = True
-            self.tombstones[(source_id, current.identity.generation)] = current
+            self.retain_tombstone(current)
         self.sources[source_id] = ExternalSource(source_id, identity, contributes, name=name)
+        self.quarantine_conflicts()
 
     def remove(self, source_id: str) -> None:
         source = self.sources.get(source_id)
@@ -114,7 +176,7 @@ class ExternalLeakController:
 
     def observe(self, source_id: str, state: str, now: datetime) -> None:
         source = self.sources.get(source_id)
-        if source is None:
+        if source is None or source.identity_conflict:
             return
         if state == "on" and source.phase is ExternalPhase.ARMED:
             source.phase = ExternalPhase.ACTIVE
@@ -126,18 +188,17 @@ class ExternalLeakController:
             source.event_id = None
             source.reset_nonce = None
             source.started_at = None
+        self.quarantine_conflicts()
         # unknown/unavailable never means OFF, including after a manual reset.
 
     def event_for(self, source_id: str, generation: str, event_id: str) -> ExternalSource | None:
-        for source in self.all_sources():
-            if (
-                source.source_id == source_id
-                and source.identity.generation == generation
-                and source.event_id == event_id
-                and source.phase is ExternalPhase.ACTIVE
-            ):
-                return source
-        return None
+        source = self.active_events().get(event_id)
+        return (
+            source
+            if source
+            and (source.source_id == source_id and source.identity.generation == generation)
+            else None
+        )
 
     def reset(self, source_id: str, generation: str, event_id: str) -> None:
         source = self.event_for(source_id, generation, event_id)
@@ -154,7 +215,8 @@ class ExternalLeakController:
             "external_sources": [source.to_dict() for _, source in sorted(self.sources.items())],
             "external_alarm_ledger": [
                 source.to_dict() for _, source in sorted(self.tombstones.items())
-            ],
+            ]
+            + [source.to_dict() for source in self.quarantined_sources],
         }
 
     def restore(self, raw: Any, now: datetime) -> None:
@@ -165,6 +227,7 @@ class ExternalLeakController:
         """
         self.sources.clear()
         self.tombstones.clear()
+        self.quarantined_sources.clear()
         if not isinstance(raw, dict):
             return
         for field in ("external_sources", "external_alarm_ledger"):
@@ -181,10 +244,10 @@ class ExternalLeakController:
                     or source.source_id in self.sources
                 ):
                     if source.phase is ExternalPhase.ACTIVE:
-                        source.tombstone = True
-                        self.tombstones[(source.source_id, source.identity.generation)] = source
+                        self.retain_tombstone(source)
                 else:
                     self.sources[source.source_id] = source
+        self.quarantine_conflicts()
 
 
 def _restore_source(raw: Any, now: datetime) -> ExternalSource | None:
@@ -238,4 +301,5 @@ def _restore_source(raw: Any, now: datetime) -> ExternalSource | None:
         (parse_datetime(raw.get("started_at")) or now) if active else None,
         raw.get("name") if isinstance(raw.get("name"), str) else raw["entity_id"],
         raw.get("tombstone") is True,
+        raw.get("identity_conflict") is True,
     )

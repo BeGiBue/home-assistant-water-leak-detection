@@ -1,5 +1,12 @@
 # Configuration reference
 
+Runtime safety recovery never resets an alarm by discarding its Store. An ERROR
+repair explains damaged bodies or conflicting external event identities. Preserve
+the file, stop HA and restore a verified complete backup; see the
+[recovery procedure](F04_LOW_ACK_DURATION.md#safety-recovery-and-mqtt-interruption-boundaries).
+`identity_conflict` sources retain alarm/Shutoff and cannot use ambiguous ACK/reset
+actions. MQTT timeout/restart boundaries also reject buffered pre-outage values.
+
 ## Reopening the configuration
 
 After installation, open **Settings → Devices & services → Integrations → Water Leak Guard → Configure**.

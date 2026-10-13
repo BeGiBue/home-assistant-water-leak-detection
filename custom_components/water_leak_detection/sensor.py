@@ -55,7 +55,7 @@ class WaterLeakStatusSensor(WaterLeakEntity, SensorEntity):
     @property
     def native_value(self) -> str:
         if (
-            self.manager.external.active_events()
+            self.manager.external.has_active_sources
             and not self.manager.engine.snapshot().alarm_active
         ):
             return "external_leak"
