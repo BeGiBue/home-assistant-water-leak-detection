@@ -273,3 +273,76 @@ async def test_invalid_reading_consumes_origin_so_older_zero_cannot_reopen_chain
         await deliver(0, last - timedelta(seconds=1))
     assert manager.alarm_active
     assert manager.source_diagnostics()["low_reset_confirmed_seconds"] == 0
+
+
+def test_provenance_binds_rendered_ha_units_not_native_units():
+    from collections import deque
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from homeassistant.components.mqtt.models import ReceiveMessage
+    from homeassistant.core import State
+
+    from custom_components.water_leak_detection.mqtt_provenance import MqttProvenance
+
+    now = datetime(2026, 10, 13, tzinfo=UTC)
+    packet = ReceiveMessage(
+        "meter/flow",
+        json.dumps({"flow_m3h": 0.25, "timestamp": now.isoformat()}),
+        0,
+        False,
+        "meter/flow",
+        0,
+    )
+    # HA has converted the native 0.25 m³/h to the configured 250.0 L/h.
+    entity = SimpleNamespace(native_value=0.25, state=250.0, _config={"state_topic": "meter/flow"})
+    hass = SimpleNamespace(
+        data={
+            "sensor": SimpleNamespace(get_entity=lambda _: entity),
+            "mqtt": SimpleNamespace(
+                debug_info_entities={
+                    "sensor.flow": {"subscriptions": {"meter/flow": {"messages": deque([packet])}}}
+                }
+            ),
+        }
+    )
+    proof = MqttProvenance("generation")
+    assert proof.validate(hass, "sensor.flow", State("sensor.flow", "250.0"), now) == (now, None)
+    assert proof.validate(hass, "sensor.flow", State("sensor.flow", "999"), now) is None
+
+
+async def test_unknown_outage_excludes_pre_outage_original_measurements(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    from datetime import timedelta
+
+    from homeassistant.components.mqtt.models import ReceiveMessage
+
+    transport, manager = await running(runtime_hass, runtime_entry, measurement_clock)
+    measurement_clock.advance(100)
+    boundary = manager.timer_now
+    runtime_hass.states.async_set("sensor.flow", "unavailable")
+    await runtime_hass.async_block_till_done()
+    assert manager._mqtt_provenance.started_at == boundary
+    for _ in range(4):
+        measurement_clock.advance(60)
+        packet = json.dumps(
+            {"flow_m3h": 0, "timestamp": (boundary - timedelta(seconds=1)).isoformat()}
+        )
+        msg = ReceiveMessage(
+            "wmbusmeters/hydrus",
+            packet,
+            1,
+            False,
+            "wmbusmeters/hydrus",
+            measurement_clock.monotonic(),
+        )
+        transport.sensor._message_callback(
+            transport.sensor._state_message_received,
+            {"_attr_native_value", "_attr_last_reset", "_expired"},
+            msg,
+        )
+        transport.data.state_write_requests.process_write_state_requests(msg)
+        await runtime_hass.async_block_till_done()
+    assert manager.alarm_active
+    assert manager.source_diagnostics()["low_reset_confirmed_seconds"] == 0

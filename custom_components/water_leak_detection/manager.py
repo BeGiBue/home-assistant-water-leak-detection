@@ -706,6 +706,8 @@ class WaterLeakManager:
         return 0.0
 
     def _suspend_source(self) -> None:
+        if self.source_available:
+            self._mqtt_provenance.interrupt(self.timer_now)
         self._flow_evidence.interrupt()
         self.source_available = False
         self.current_flow_lph = None

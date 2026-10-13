@@ -25,11 +25,13 @@ class MqttProvenance:
         self.timestamp = None
         self.sequence = None
         self.started_at = None
+        self._startup_bound = False
         self.reason = "awaiting_original_measurement"
 
     def restore(self, raw) -> None:
         if isinstance(raw, dict) and raw.get("source_generation") == self.generation:
             self.timestamp = parse_datetime(raw.get("measurement_timestamp"))
+            self.started_at = parse_datetime(raw.get("admission_since"))
             seq = raw.get("telegram_id")
             self.sequence = seq if type(seq) is int and 0 <= seq < 2**63 else None
 
@@ -38,12 +40,14 @@ class MqttProvenance:
             "source_generation": self.generation,
             "measurement_timestamp": self.timestamp.isoformat() if self.timestamp else None,
             "telegram_id": self.sequence,
+            "admission_since": self.started_at.isoformat() if self.started_at else None,
         }
 
     def validate(self, hass, entity_id, state, now):
         """Return a new provenance marker or refuse all consumption/reset credit."""
-        if self.started_at is None:
-            self.started_at = now
+        if not self._startup_bound:
+            self.started_at = max(self.started_at, now) if self.started_at else now
+            self._startup_bound = True
         component = hass.data.get("sensor")
         entity = component.get_entity(entity_id) if hasattr(component, "get_entity") else None
         config = getattr(entity, "_config", {})
@@ -69,6 +73,27 @@ class MqttProvenance:
         except ValueError, TypeError, UnicodeError:
             return None
         stamp = parse_datetime(raw.get("timestamp")) if isinstance(raw, dict) else None
+        # Invalid/template-suppressed packets are still observed by MQTT. An
+        # older valid value must not outrun a newer original frame in that queue.
+        for earlier in messages:
+            if earlier is msg or earlier.retain or earlier.topic != topic:
+                continue
+            body = earlier.payload
+            if not isinstance(body, (str, bytes)) or len(body) > MAX_PAYLOAD_BYTES:
+                continue
+            try:
+                record = json.loads(body)
+            except ValueError, TypeError, UnicodeError:
+                continue
+            observed = parse_datetime(record.get("timestamp")) if isinstance(record, dict) else None
+            if (
+                stamp is not None
+                and observed is not None
+                and observed > stamp
+                and (observed - now).total_seconds() <= MAX_MEASUREMENT_FUTURE_SKEW_SECONDS
+            ):
+                self.reason = "out_of_order_original_message"
+                return None
         if stamp is None:
             return None
         if stamp < self.started_at:
@@ -76,7 +101,12 @@ class MqttProvenance:
             return None
         # Match the actual MQTT entity rendering; an unrelated HA state write is
         # not a measurement even when it happens to share a numerical flow.
-        if str(getattr(entity, "native_value", None)) != state.state:
+        try:
+            # Sensor.state includes HA unit conversion; native_value does not.
+            rendered = entity.state
+        except AttributeError, TypeError, ValueError:
+            rendered = None
+        if rendered is None or str(rendered) != state.state:
             self.reason = "unbound_rendered_state"
             return None
         seq = raw.get("telegram_id")
@@ -107,3 +137,7 @@ class MqttProvenance:
 
     def commit(self, marker) -> None:
         self.timestamp, self.sequence = marker
+
+    def interrupt(self, now) -> None:
+        """An exclusion boundary is not evidence; require post-outage originals."""
+        self.started_at = max(self.started_at, now) if self.started_at else now
