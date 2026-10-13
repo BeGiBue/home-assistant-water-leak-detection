@@ -87,7 +87,7 @@ class NotificationRecipient:
             name = str(raw[RECIPIENT_NAME])
             notify_service = str(raw[RECIPIENT_NOTIFY_SERVICE])
             tracker_entity = str(raw[RECIPIENT_TRACKER_ENTITY])
-            token = str(raw[RECIPIENT_TOKEN])
+            token = raw[RECIPIENT_TOKEN]
         except KeyError, TypeError, ValueError:
             return None
 
@@ -96,7 +96,8 @@ class NotificationRecipient:
             or not name
             or not notify_service.startswith("notify.")
             or not tracker_entity.startswith("device_tracker.")
-            or not token
+            or not isinstance(token, str)
+            or not token.strip()
         ):
             return None
 
@@ -592,6 +593,11 @@ class NotificationController:
                 "global_ack_rejected_title",
                 "global_ack_rejected_message",
             )
+            return
+
+        native_ack = getattr(self.manager, "async_acknowledge_event", None)
+        if native_ack is not None:
+            await native_ack(event_id, recipient_id, token)
             return
 
         state.globally_acknowledged = True

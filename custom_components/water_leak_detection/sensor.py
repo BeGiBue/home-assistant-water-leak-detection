@@ -65,8 +65,8 @@ class WaterLeakStatusSensor(WaterLeakEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        snapshot = self.manager.engine.snapshot(self.manager.current_total_l)
-        acknowledgement = self.manager.notifications.state_for(snapshot.active_event_id)
+        display = self.manager.display_event()
+        acknowledgement = self.manager.notifications.state_for(display["event_id"])
         return {
             "hydraulic_detectors": self.manager.hydraulic_diagnostics(),
             "measurement_diagnostics": self.manager.source_diagnostics(),
@@ -85,14 +85,15 @@ class WaterLeakStatusSensor(WaterLeakEntity, SensorEntity):
             "aggregate_alarm_active": self.manager.alarm_active,
             "aggregate_shutoff_request": self.manager.shutoff_request,
             "learning_storage_ready": self.manager._migration_ready,
+            "storage_recovery_required": self.manager._storage_load_failed,
             "measurement_source_generation": self.manager.measurement_source.generation,
             "learning_epoch": self.manager.measurement_source.learning_epoch,
             "legacy_learning_migration": self.manager.legacy_learning_migration,
             "flow_source": self.manager.flow_entity_id,
             "total_source": self.manager.total_entity_id,
             "source_available": self.manager.source_available,
-            "active_event_id": snapshot.active_event_id,
-            "active_detector": snapshot.active_kind.value if snapshot.active_kind else None,
+            "active_event_id": display["event_id"],
+            "active_detector": display["type"],
             "globally_acknowledged": (
                 acknowledgement.globally_acknowledged if acknowledgement is not None else False
             ),
@@ -154,26 +155,19 @@ class ActiveEventDurationSensor(WaterLeakEntity, SensorEntity):
 
     @property
     def native_value(self) -> int:
-        snapshot = self.manager.engine.snapshot(self.manager.current_total_l)
-        if snapshot.active_event_id is None:
-            return 0
-        return int(self.manager.event_elapsed_seconds(snapshot.active_event_id))
+        return int(self.manager.event_elapsed_seconds(self.manager.display_event()["event_id"]))
 
     @property
     def extra_state_attributes(self):
-        snapshot = self.manager.engine.snapshot(self.manager.current_total_l)
+        display = self.manager.display_event()
         seconds = self.native_value
         return {
-            "event_id": snapshot.active_event_id,
+            "event_id": display["event_id"],
             "duration_human": human_duration(seconds, self.manager.hass.config.language),
             "duration_human_de": human_duration(seconds, "de"),
             "duration_human_en": human_duration(seconds, "en"),
-            "started_at": snapshot.active_started_at.isoformat()
-            if snapshot.active_started_at
-            else None,
-            "active_since": snapshot.active_detected_at.isoformat()
-            if snapshot.active_detected_at
-            else None,
+            "started_at": display["started_at"].isoformat() if display["started_at"] else None,
+            "active_since": display["detected_at"].isoformat() if display["detected_at"] else None,
             "duration_basis": "monitoring_start_excluding_ha_offline_time",
         }
 

@@ -38,3 +38,21 @@ def reconcile_mqtt_reports_repair(hass, entry, warning: bool) -> None:
         translation_key="mqtt_identical_reports",
         translation_placeholders={"entity_id": entry.data["flow_entity"]},
     )
+
+
+def reconcile_mqtt_provenance_repair(hass, entry, rejected: bool) -> None:
+    """A blocked stream needs upstream origin data, never synthetic zero reports."""
+    issue_id = f"{entry.entry_id}_mqtt_measurement_provenance"
+    if not rejected:
+        ir.async_delete_issue(hass, DOMAIN, issue_id)
+        return
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=False,
+        is_persistent=False,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key="mqtt_measurement_provenance",
+        translation_placeholders={"entity_id": entry.data["flow_entity"]},
+    )

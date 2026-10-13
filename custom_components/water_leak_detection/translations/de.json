@@ -684,6 +684,10 @@
     "mqtt_identical_reports": {
       "title": "MQTT-Nullmeldungen werden möglicherweise unterdrückt",
       "description": "Die Durchflussquelle {entity_id} verwendet kein force_update. Home Assistant kann identische gültige MQTT-Messungen unterdrücken. Ein einzelner Nullwert und interne Ticks reichen nicht für den sicheren Low-Reset. Setze force_update: true in der MQTT-Sensor-/Discovery-Konfiguration und prüfe expire_after sowie den expliziten Source-Timeout anhand der tatsächlichen Telegrammabstände. Fehlende Telegramme gelten niemals als Nullverbrauch."
+    },
+    "mqtt_measurement_provenance": {
+      "title": "MQTT-Messherkunft nicht bestätigt",
+      "description": "Für {entity_id} wurde keine neue originale Messung bestätigt. Die Durchflusserkennung ist für diese Nachricht gesperrt; bestehende Alarme bleiben erhalten. Übernimm die originale Radio-Messzeit als timezone-aware timestamp in den MQTT-JSON-Payload. force_update allein reicht nicht. Retained, wiederholte, verspätete oder zukünftige Pakete liefern keine Evidenz. Prüfe die Anleitung zur MQTT-Messherkunft und den Diagnosestatus."
     }
   }
 }

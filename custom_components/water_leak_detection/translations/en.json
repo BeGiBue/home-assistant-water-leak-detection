@@ -684,6 +684,10 @@
     "mqtt_identical_reports": {
       "title": "MQTT zero reports may be suppressed",
       "description": "Flow source {entity_id} does not use force_update. Home Assistant may suppress identical valid MQTT measurements. A single zero value and internal ticks cannot safely reset Low Flow. Set force_update: true in the MQTT sensor/discovery configuration and check expire_after and the explicit source timeout against actual telegram intervals. Missing telegrams never mean zero consumption."
+    },
+    "mqtt_measurement_provenance": {
+      "title": "MQTT measurement origin not verified",
+      "description": "No new original measurement was verified for {entity_id}. Flow detection is blocked for this message; existing alarms remain active. Preserve the original radio measurement time as a timezone-aware timestamp in the MQTT JSON payload. force_update alone is insufficient. Retained, replayed, late or future packets provide no evidence. Check the MQTT provenance instructions and diagnostic status."
     }
   }
 }

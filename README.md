@@ -402,3 +402,17 @@ Short MQTT expiry or explicit source timeout can repeatedly interrupt reset
 evidence. Missing reports never mean zero. Configure now provides an authorized
 active-event acknowledgement form; numeric event seconds gain DE/EN display
 attributes. Full diagnostics, semantics and limits: [follow-up contract](docs/F04_LOW_ACK_DURATION.md).
+
+
+### F04 Sicherheitsreview: MQTT-Messherkunft und Quittierung
+
+MQTT-Durchflussquellen benötigen jetzt die originale timezone-aware Radio-/
+Empfänger-Messzeit im JSON-Feld `timestamp`; `force_update` allein beweist keine
+neue Messung. Retained, alte oder ungebundene Nachrichten liefern keine Evidenz.
+Fehlende Messherkunft sperrt die Auswertung und erzeugt einen Repair-Hinweis;
+bestehende ACTIVE-Alarme bleiben erhalten. Die fremde Discovery wird nicht
+überschrieben. Details und Vertrauensgrenzen: [Low/ACK/Dauer](docs/F04_LOW_ACK_DURATION.md).
+
+ACK wird erst nach erfolgreicher Persistenz veröffentlicht. Das Configure-ACK ist
+administrative Delegation anhand des ausgewählten Recipients und dessen Home-
+Tracker. Status und Dauer wählen dasselbe hydraulische oder externe Ereignis.

@@ -6,6 +6,7 @@ reset settings or MQTT change-suppression algorithms are replaced.
 
 import json
 from collections import deque
+from datetime import timedelta
 
 import pytest
 from homeassistant.components.mqtt.models import DATA_MQTT, MqttData, ReceiveMessage
@@ -95,6 +96,7 @@ class HydrusTransport:
         }
         hass.data[DATA_MQTT] = self.data
         self.total_m3 = 123.456
+        self.telegram_id = 0
         total_config = DISCOVERY_SCHEMA(
             {
                 "name": "Hydrus total",
@@ -124,10 +126,21 @@ class HydrusTransport:
 
     async def telegram(self, flow, seconds=60):
         self.clock.advance(seconds)
+        self.telegram_id += 1
         self.total_m3 += float(flow) * seconds / 3600
         message = ReceiveMessage(
             TOPIC,
-            json.dumps({"flow_m3h": flow, "total_m3": self.total_m3}),
+            json.dumps(
+                {
+                    "flow_m3h": flow,
+                    "total_m3": self.total_m3,
+                    "telegram_id": self.telegram_id,
+                    # Original radio clock is independent of HA UTC rollback.
+                    "timestamp": (
+                        self.clock.origin + timedelta(seconds=self.clock.seconds)
+                    ).isoformat(),
+                }
+            ),
             0,
             False,
             TOPIC,
@@ -284,6 +297,10 @@ async def test_restart_quiet_must_rebuild_and_duration_excludes_offline_time(
     await restored.async_setup()
     assert restored.event_elapsed_seconds(event_id) == elapsed
     assert restored.source_diagnostics()["low_reset_confirmed_seconds"] == 0
+    # The retained/cached pre-restart zero cannot start the physical quiet chain.
+    # A genuinely new post-restart frame first establishes it with zero credit.
+    await transport.telegram(0, 0)
+    assert restored._flow_evidence.credited_seconds == 0
     await transport.telegram(0, 179)
     assert restored.engine.runtimes[DetectorKind.LOW_FLOW].event_id == event_id
     await transport.telegram(0, 1)
