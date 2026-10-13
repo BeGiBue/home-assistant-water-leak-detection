@@ -281,6 +281,16 @@ backup retains its ACTIVE state; only genuine physical reset or a currently
 authorized unambiguous external reset can then end it. The repair clears when the
 valid state is restored. The integration never operates a valve.
 
+Restore validates external safety roles before normalizing event fields. A retained
+alarm-ledger entry cannot claim ARMED or RESET_WAITING_FOR_OFF: a committed reset
+of a tombstone removes that entry. An inactive source cannot retain an active
+Event-ID/reset nonce or claim a tombstone/conflict. Such contradictions trigger the
+same recovery barrier before any version-1 migration or startup save; original
+Store bytes, generation, event start and shutoff information remain untouched.
+Both aggregate alarm and shutoff remain held until verified recovery. A normal
+WAITING source may retain its historical start time after an authorized reset,
+without an active Event-ID or nonce; normal ARMED/WAITING restores remain supported.
+
 The MQTT component/Store regressions have also been exercised against declared
 minimum HA 2026.9.0. This does not prove the actual Hydrus Discovery configuration;
 that installation's original payloads, timezone, relay behavior, force_update and

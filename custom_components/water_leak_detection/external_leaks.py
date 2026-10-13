@@ -20,6 +20,38 @@ class ExternalPhase(StrEnum):
     RESET_WAITING_FOR_OFF = "RESET_WAITING_FOR_OFF"
 
 
+def validate_external_snapshot(raw: dict) -> None:
+    """Reject contradictory safety roles before deleting any alarm identity.
+
+    The ledger contains only retained ACTIVE generations: an authorized
+    tombstone reset removes its record. A valid enum alone cannot prove that
+    such an alarm ended. Raise into the Store recovery barrier, preserving the
+    original event, time, generation, conflict and shutoff data byte for byte.
+    Unknown phases still use the existing conservative ACTIVE recovery.
+    """
+    for role in ("external_sources", "external_alarm_ledger"):
+        for record in raw.get(role, []):
+            if record.get("phase") not in (
+                ExternalPhase.ARMED.value,
+                ExternalPhase.RESET_WAITING_FOR_OFF.value,
+            ):
+                continue
+            if (
+                role == "external_alarm_ledger"
+                or record.get("tombstone") is True
+                or record.get("identity_conflict") is True
+                or record.get("event_id") is not None
+                or record.get("reset_nonce") is not None
+                or (
+                    record.get("phase") == ExternalPhase.ARMED.value
+                    and record.get("started_at") is not None
+                )
+            ):
+                raise ValueError("Contradictory external alarm identity; restore a verified backup")
+            # WAITING legitimately retains started_at after a committed reset,
+            # but owns no active event/nonce and is never a retained tombstone.
+
+
 @dataclass(slots=True)
 class ExternalSource:
     source_id: str
@@ -225,6 +257,8 @@ class ExternalLeakController:
         Never discard a valid active alarm simply to satisfy a count cap: active
         tombstones are safety evidence, not expendable statistical history.
         """
+        if isinstance(raw, dict):
+            validate_external_snapshot(raw)
         self.sources.clear()
         self.tombstones.clear()
         self.quarantined_sources.clear()

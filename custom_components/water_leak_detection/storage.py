@@ -8,6 +8,7 @@ from typing import Any
 
 from homeassistant.helpers.storage import Store
 
+from .external_leaks import validate_external_snapshot
 from .source_identity import SourceIdentity
 
 LEARNING_SCHEMA_VERSION = 2
@@ -37,6 +38,9 @@ def validate_snapshot_body(raw: Any) -> None:
             or any(not isinstance(record, dict) for record in raw[field])
         ):
             raise ValueError("Invalid external safety records")
+    # Run before version-1 migration writes as well as version-2 normalization.
+    # A contradictory retained alarm must not become an empty fresh snapshot.
+    validate_external_snapshot(raw)
 
 
 def migrate_snapshot(raw: Any, source: SourceIdentity, now: datetime, entry_id: str) -> dict:
