@@ -2,6 +2,13 @@
 
 All notable changes to Water Leak Guard are documented here.
 
+## Unreleased
+
+- Prepared the `water-leak-guard-card` Lovelace card (frontend only, no backend change):
+  status, flow, detectors, bypass, external sensors and learning, DE/EN, light/dark.
+  Acknowledge (anywhere) and clear alarm (Home only) call proposed WebSocket commands
+  and fall back to the Configure dialog. See [docs/CARD.md](docs/CARD.md).
+
 ## 1.2.0-beta.1 — 2026-10-14 (release candidate, not published)
 
 - Prepared restricted household beta for hydraulic Slow/Low/High/Burst detection,

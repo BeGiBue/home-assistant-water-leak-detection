@@ -131,6 +131,15 @@ The integration creates a Home Assistant device with backend entities including:
 - **High Flow threshold**
 - **Effective Burst Leak threshold**
 
+## Dashboard card (prepared)
+
+A dependency-free Lovelace card ships in
+`custom_components/water_leak_detection/frontend/water-leak-guard-card.js`. It shows
+status, flow, detectors, High Flow bypass, external leak sensors and learning, and controls
+the existing switches and actions. Acknowledge and clear-alarm buttons are prepared for a
+future backend interface and fall back to the protected Configure dialog until then.
+Installation and the proposed interface: [docs/CARD.md](docs/CARD.md).
+
 ## Language and later configuration
 
 The integration follows the configured Home Assistant backend language.
