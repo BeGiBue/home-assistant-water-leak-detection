@@ -290,16 +290,16 @@
       },
       "add_display": {
         "title": "Add wall display",
-        "description": "**Already configured: {recipient_count}**\n\n{configured_recipients}\n\nA fixed display (e.g. TouchKio on a Raspberry Pi) receives no notifications, needs no device tracker and always counts as home. The dashboard card there may do what you allow below – whoever stands in front of the display has these rights. Recommended: a dedicated non-admin HA user for the kiosk device, paired as that user.",
+        "description": "**Already configured: {recipient_count}**\n\n{configured_recipients}\n\nA fixed display (e.g. TouchKio on a Raspberry Pi) receives no notifications, needs no device tracker and always counts as home. The dashboard card there may do what you allow below – whoever stands in front of the display has these rights. Exactly the kiosk device's login is paired; whoever uses that login – also remotely with the same browser session – has these rights. Recommended: a dedicated non-admin HA user for the kiosk device.",
         "data": {
           "name": "Display name",
-          "session_pairing": "Pairing for the dashboard card (required)",
+          "session_pairing": "Login of the display (required)",
           "allow_global_ack": "Allow global acknowledgement",
           "allow_external_reset": "Allow external reset",
           "go_back": "Back without saving"
         },
         "data_description": {
-          "session_pairing": "Required: the card recognises the display only through this pairing. “👤 …” (recommended) = every login of this user, e.g. a dedicated kiosk user; “🔑 …” = exactly one login. A paired login takes precedence over a user pairing. Long-lived tokens never count.",
+          "session_pairing": "Required: exactly the login (🔑) the kiosk device uses in Home Assistant – ideally a dedicated non-admin kiosk user. A user (👤) is not allowed here: the display always counts as home, so otherwise every login of that user (laptop, phone) would be “at home” anywhere. After the kiosk device logs in anew, select the new login. Long-lived tokens never count.",
           "allow_global_ack": "May the card on this display acknowledge alarms for everyone? The display always counts as home.",
           "allow_external_reset": "May the card on this display reset external leaks (ends that sensor's alarm)? The display always counts as home. Independently, the card offers “Disable detection” and “Start bypass” during an alarm to every paired device at home."
         },
@@ -310,13 +310,13 @@
         "description": "The kind (wall display) cannot be changed; for a phone, remove this entry and add it as a recipient. Internal ID and token are kept.\n\n**Already configured: {recipient_count}**\n\n{configured_recipients}",
         "data": {
           "name": "Display name",
-          "session_pairing": "Pairing for the dashboard card (required)",
+          "session_pairing": "Login of the display (required)",
           "allow_global_ack": "Allow global acknowledgement",
           "allow_external_reset": "Allow external reset",
           "go_back": "Back without saving"
         },
         "data_description": {
-          "session_pairing": "Required: the card recognises the display only through this pairing. “👤 …” (recommended) = every login of this user, e.g. a dedicated kiosk user; “🔑 …” = exactly one login. A paired login takes precedence over a user pairing. Long-lived tokens never count.",
+          "session_pairing": "Required: exactly the login (🔑) the kiosk device uses in Home Assistant – ideally a dedicated non-admin kiosk user. A user (👤) is not allowed here: the display always counts as home, so otherwise every login of that user (laptop, phone) would be “at home” anywhere. After the kiosk device logs in anew, select the new login. Long-lived tokens never count.",
           "allow_global_ack": "May the card on this display acknowledge alarms for everyone? The display always counts as home.",
           "allow_external_reset": "May the card on this display reset external leaks (ends that sensor's alarm)? The display always counts as home. Independently, the card offers “Disable detection” and “Start bypass” during an alarm to every paired device at home."
         },
@@ -349,7 +349,8 @@
       "session_already_paired": "This login is already paired with another recipient. Remove that pairing first.",
       "session_user_not_found": "This user no longer exists or is deactivated. Please reload the list.",
       "session_user_already_paired": "This user is already paired with another recipient. Remove that pairing first or pick a single login here.",
-      "display_pairing_required": "A wall display needs a pairing (user or login); otherwise the card cannot recognise it."
+      "display_pairing_required": "A wall display needs a pairing (user or login); otherwise the card cannot recognise it.",
+      "display_requires_login": "A wall display can only be paired with a single login (🔑), not with a user."
     },
     "abort": {
       "no_mobile_app_notify_services": "No mobile_app notification services were found. Set up the Home Assistant Companion App first.",

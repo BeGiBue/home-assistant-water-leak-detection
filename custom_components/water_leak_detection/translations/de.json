@@ -290,16 +290,16 @@
       },
       "add_display": {
         "title": "Wanddisplay hinzufügen",
-        "description": "**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}\n\nEin fest montiertes Display (z. B. TouchKio auf einem Raspberry Pi) bekommt keine Benachrichtigungen, braucht keinen Device Tracker und gilt immer als zuhause. Die Dashboard-Karte darf dort, was du unten erlaubst – wer vor dem Display steht, hat diese Rechte. Empfohlen: ein eigener HA-Benutzer ohne Adminrechte für das Kiosk-Gerät und die Kopplung an diesen Benutzer.",
+        "description": "**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}\n\nEin fest montiertes Display (z. B. TouchKio auf einem Raspberry Pi) bekommt keine Benachrichtigungen, braucht keinen Device Tracker und gilt immer als zuhause. Die Dashboard-Karte darf dort, was du unten erlaubst – wer vor dem Display steht, hat diese Rechte. Gekoppelt wird genau die Anmeldung des Kiosk-Geräts; wer diese Anmeldung nutzt – auch aus der Ferne mit derselben Browser-Sitzung –, hat diese Rechte. Empfohlen: ein eigener HA-Benutzer ohne Adminrechte für das Kiosk-Gerät.",
         "data": {
           "name": "Anzeigename",
-          "session_pairing": "Kopplung für die Dashboard-Karte (erforderlich)",
+          "session_pairing": "Anmeldung des Displays (erforderlich)",
           "allow_global_ack": "Globales Quittieren erlauben",
           "allow_external_reset": "Externen Reset erlauben",
           "go_back": "Zurück ohne Speichern"
         },
         "data_description": {
-          "session_pairing": "Pflicht: Nur über die Kopplung erkennt die Karte das Display. „👤 …“ (empfohlen) = jede Anmeldung dieses Benutzers, z. B. ein eigener Kiosk-Benutzer; „🔑 …“ = genau eine Anmeldung. Eine gekoppelte Anmeldung hat Vorrang vor einer Benutzer-Kopplung. Long-Lived-Tokens zählen nie.",
+          "session_pairing": "Pflicht: genau die Anmeldung (🔑), mit der das Kiosk-Gerät in Home Assistant angemeldet ist – am besten ein eigener Kiosk-Benutzer ohne Adminrechte. Ein Benutzer (👤) ist hier nicht erlaubt: Das Display gilt immer als zuhause, und sonst wäre jede Anmeldung dieses Benutzers (Laptop, Handy) überall „zuhause“. Nach einer Neuanmeldung des Kiosk-Geräts die neue Anmeldung wählen. Long-Lived-Tokens zählen nie.",
           "allow_global_ack": "Darf die Karte auf diesem Display Alarme für alle quittieren? Das Display gilt immer als zuhause.",
           "allow_external_reset": "Darf die Karte auf diesem Display externe Lecks zurücksetzen (beendet den Alarm des Sensors)? Das Display gilt immer als zuhause. Unabhängig davon bietet die Karte „Erkennung abschalten“ und „Bypass starten“ im Alarm jedem gekoppelten Gerät zuhause an."
         },
@@ -310,13 +310,13 @@
         "description": "Die Art (Wanddisplay) lässt sich nicht ändern; für ein Handy den Eintrag entfernen und neu als Empfänger anlegen. Interne Kennung und Token bleiben erhalten.\n\n**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}",
         "data": {
           "name": "Anzeigename",
-          "session_pairing": "Kopplung für die Dashboard-Karte (erforderlich)",
+          "session_pairing": "Anmeldung des Displays (erforderlich)",
           "allow_global_ack": "Globales Quittieren erlauben",
           "allow_external_reset": "Externen Reset erlauben",
           "go_back": "Zurück ohne Speichern"
         },
         "data_description": {
-          "session_pairing": "Pflicht: Nur über die Kopplung erkennt die Karte das Display. „👤 …“ (empfohlen) = jede Anmeldung dieses Benutzers, z. B. ein eigener Kiosk-Benutzer; „🔑 …“ = genau eine Anmeldung. Eine gekoppelte Anmeldung hat Vorrang vor einer Benutzer-Kopplung. Long-Lived-Tokens zählen nie.",
+          "session_pairing": "Pflicht: genau die Anmeldung (🔑), mit der das Kiosk-Gerät in Home Assistant angemeldet ist – am besten ein eigener Kiosk-Benutzer ohne Adminrechte. Ein Benutzer (👤) ist hier nicht erlaubt: Das Display gilt immer als zuhause, und sonst wäre jede Anmeldung dieses Benutzers (Laptop, Handy) überall „zuhause“. Nach einer Neuanmeldung des Kiosk-Geräts die neue Anmeldung wählen. Long-Lived-Tokens zählen nie.",
           "allow_global_ack": "Darf die Karte auf diesem Display Alarme für alle quittieren? Das Display gilt immer als zuhause.",
           "allow_external_reset": "Darf die Karte auf diesem Display externe Lecks zurücksetzen (beendet den Alarm des Sensors)? Das Display gilt immer als zuhause. Unabhängig davon bietet die Karte „Erkennung abschalten“ und „Bypass starten“ im Alarm jedem gekoppelten Gerät zuhause an."
         },
@@ -349,7 +349,8 @@
       "session_already_paired": "Diese Anmeldung ist bereits mit einem anderen Empfänger gekoppelt. Dort zuerst die Kopplung aufheben.",
       "session_user_not_found": "Dieser Benutzer existiert nicht mehr oder ist deaktiviert. Bitte die Liste neu laden.",
       "session_user_already_paired": "Dieser Benutzer ist bereits mit einem anderen Empfänger gekoppelt. Dort zuerst die Kopplung aufheben oder hier eine einzelne Anmeldung wählen.",
-      "display_pairing_required": "Ein Wanddisplay braucht eine Kopplung (Benutzer oder Anmeldung), sonst kann die Karte es nicht erkennen."
+      "display_pairing_required": "Ein Wanddisplay braucht eine Kopplung (Benutzer oder Anmeldung), sonst kann die Karte es nicht erkennen.",
+      "display_requires_login": "Ein Wanddisplay kann nur mit einer einzelnen Anmeldung (🔑) gekoppelt werden, nicht mit einem Benutzer."
     },
     "abort": {
       "no_mobile_app_notify_services": "Es wurden keine mobile_app-Benachrichtigungsdienste gefunden. Richte zuerst die Home Assistant Companion App ein.",

@@ -1594,7 +1594,9 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
         settings; it is always treated as Home. "—" (no pairing) is not offered.
         """
         current = current or {}
-        options = [o for o in session_options if o["value"] != _NO_PAIRING]
+        # Only single logins (🔑): a display is always Home, so a user pairing
+        # would make every login of that user "at home" anywhere.
+        options = [o for o in session_options if o["value"].startswith(_PAIR_TOKEN)]
         paired = _pairing_value(current)
         pairing_key = (
             probatio.Required(FORM_SESSION_PAIRING, default=paired)
@@ -1636,6 +1638,8 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                 errors["base"] = "recipient_name_required"
             elif session_id == _NO_PAIRING:
                 errors["base"] = "display_pairing_required"
+            elif not session_id.startswith(_PAIR_TOKEN):
+                errors["base"] = "display_requires_login"
             elif session_error := self._session_error(session_id, sessions, existing, None):
                 errors["base"] = session_error
             else:
@@ -1696,6 +1700,8 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                 errors["base"] = "recipient_name_required"
             elif session_id == _NO_PAIRING:
                 errors["base"] = "display_pairing_required"
+            elif not session_id.startswith(_PAIR_TOKEN):
+                errors["base"] = "display_requires_login"
             elif session_id != current_pairing and (
                 session_error := self._session_error(session_id, sessions, recipients, recipient_id)
             ):

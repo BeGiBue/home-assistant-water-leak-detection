@@ -119,6 +119,8 @@ from .const import (
     RECIPIENT_ID,
     RECIPIENT_KIND,
     RECIPIENT_KIND_DISPLAY,
+    RECIPIENT_KIND_MOBILE,
+    RECIPIENT_KINDS,
     RECIPIENT_TOKEN,
     RECIPIENT_TRACKER_ENTITY,
     STORAGE_KEY_PREFIX,
@@ -1590,6 +1592,9 @@ class WaterLeakManager:
         )
         if recipient is None or recipient.get(RECIPIENT_ALLOW_EXTERNAL_RESET) is not True:
             return False
+        # Same kinds as NotificationRecipient.from_dict: an unknown kind authorizes nothing.
+        if recipient.get(RECIPIENT_KIND, RECIPIENT_KIND_MOBILE) not in RECIPIENT_KINDS:
+            return False
         token = payload.get("recipient_token")
         current_token = recipient.get(RECIPIENT_TOKEN)
         tracker_id = recipient.get(RECIPIENT_TRACKER_ENTITY)
@@ -1657,7 +1662,8 @@ class WaterLeakManager:
         ]
         source = deepcopy(candidates[0]) if len(candidates) == 1 else None
         if source is None or recipient is None or recipient.is_display:
-            # This sends a notification; a display never receives one.
+            # This sends a notification; a display never receives one. Defense in
+            # depth: authorized() below already fails without a tracker.
             return None
 
         def authorized():

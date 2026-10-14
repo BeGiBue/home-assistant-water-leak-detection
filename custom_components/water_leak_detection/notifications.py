@@ -56,6 +56,16 @@ if TYPE_CHECKING:
     from .manager import WaterLeakManager
 
 _LOGGER = logging.getLogger(__name__)
+_WARNED: set[tuple[str, str]] = set()
+
+
+def _warn_once(reason: str, raw: dict[str, Any], message: str) -> None:
+    """Log a configuration problem of one recipient once per process (not per query)."""
+    key = (reason, str(raw.get(RECIPIENT_ID)))
+    if key in _WARNED:
+        return
+    _WARNED.add(key)
+    _LOGGER.warning(message, raw.get(RECIPIENT_ID), raw.get(RECIPIENT_NAME))
 
 
 def notification_writer(method):
@@ -98,10 +108,17 @@ class NotificationRecipient:
         """Create a recipient from config-entry options.
 
         Entries without ``kind`` are mobile recipients (all entries before the
-        display kind existed); an unknown kind is ignored entirely.
+        display kind existed). An unknown or empty kind is ignored entirely and
+        logged, because such a recipient would silently receive no alarms.
         """
         kind = raw.get(RECIPIENT_KIND, RECIPIENT_KIND_MOBILE)
         if kind not in RECIPIENT_KINDS:
+            _warn_once(
+                "unknown_kind",
+                raw,
+                "Notification recipient %s (%s) has an unknown kind and is ignored: "
+                "it receives no leak notifications. Edit or re-add it under Configure.",
+            )
             return None
         display = kind == RECIPIENT_KIND_DISPLAY
         try:
@@ -135,6 +152,16 @@ class NotificationRecipient:
             if session_token_id is None and isinstance(session_user_id, str) and session_user_id
             else None
         )
+        if display and session_user_id is not None:
+            # A display is always Home. A user pairing would make every login of
+            # that user (laptop, phone) "at home" anywhere: never honoured.
+            _warn_once(
+                "display_user_pairing",
+                raw,
+                "Wall display %s (%s) is paired with a user; displays may only be paired "
+                "with a single login. The pairing is ignored.",
+            )
+            session_user_id = None
 
         return cls(
             id=recipient_id,
@@ -142,7 +169,8 @@ class NotificationRecipient:
             notify_service=notify_service,
             tracker_entity=tracker_entity,
             critical_enabled=not display and bool(raw.get(RECIPIENT_CRITICAL_ENABLED, True)),
-            allow_global_ack=raw.get(RECIPIENT_ALLOW_GLOBAL_ACK, True) is True,
+            # Mobile default True (as before); a display defaults to False.
+            allow_global_ack=raw.get(RECIPIENT_ALLOW_GLOBAL_ACK, not display) is True,
             trusted_stationary=not display and bool(raw.get(RECIPIENT_TRUSTED_STATIONARY, False)),
             token=token,
             allow_external_reset=raw.get(RECIPIENT_ALLOW_EXTERNAL_RESET) is True,
