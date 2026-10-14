@@ -9,8 +9,8 @@
 - Card no longer offers acknowledge/clear buttons that the backend cannot serve; it explains
   personal mute, Home-only global acknowledgement, external reset and physical hydraulic reset.
 - Backend contract for dashboard card actions (not yet used by the card): pair a recipient with one
-  HA login under Configure → Notification recipients → Pair device; WebSocket commands `session`,
-  `mute` (device-scoped, anywhere), `acknowledge` (global, Home checked at commit) and
+  HA login as an optional field of the recipient entry (add/edit; alarm settings unchanged);
+  WebSocket commands `session`, `mute` (device-scoped, anywhere), `acknowledge` (global, Home checked at commit) and
   `external_reset` (Home, permission). Identity is the paired login, never a client token; hydraulic
   alarms keep ending only physically. Stable error codes for the card.
 - Card uses the Home Assistant device name as title; unavailable external sensors are no

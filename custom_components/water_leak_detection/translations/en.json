@@ -169,9 +169,13 @@
           "allow_global_ack": "Allow global acknowledgement when device is home",
           "trusted_stationary": "Trusted stationary home device",
           "go_back": "Back without saving",
-          "allow_external_reset": "Allow external reset (only currently at Home)"
+          "allow_external_reset": "Allow external reset (only currently at Home)",
+          "session_token_id": "Paired login for the dashboard card (optional)"
         },
-        "submit": "Add and go back"
+        "submit": "Add and go back",
+        "data_description": {
+          "session_token_id": "The Home Assistant login of exactly this device (user · app/browser · last used). The card identifies the device by it: muting applies to this device only; global acknowledgement and external reset need the permissions above and the device tracker at home. “—” = not paired. Select again after the device logs in anew."
+        }
       },
       "remove_recipient": {
         "title": "Remove notification device",
@@ -202,9 +206,13 @@
           "allow_global_ack": "Allow global acknowledgement when device is home",
           "trusted_stationary": "Trusted stationary home device",
           "go_back": "Back without saving",
-          "allow_external_reset": "Allow external reset (only currently at Home)"
+          "allow_external_reset": "Allow external reset (only currently at Home)",
+          "session_token_id": "Paired login for the dashboard card (optional)"
         },
-        "submit": "Save and go back"
+        "submit": "Save and go back",
+        "data_description": {
+          "session_token_id": "The Home Assistant login of exactly this device (user · app/browser · last used). The card identifies the device by it: muting applies to this device only; global acknowledgement and external reset need the permissions above and the device tracker at home. “—” = not paired. Select again after the device logs in anew."
+        }
       },
       "notifications": {
         "title": "Notification recipients",
@@ -213,8 +221,7 @@
           "add_recipient": "Add recipient",
           "edit_recipient": "Edit recipient",
           "remove_recipient": "Remove recipient",
-          "back_to_main": "Back to configuration",
-          "pair_device": "Pair device for the dashboard card"
+          "back_to_main": "Back to configuration"
         }
       },
       "sources": {
@@ -279,16 +286,6 @@
           "recipient_id": "Authorized recipient",
           "go_back": "Back"
         }
-      },
-      "pair_device": {
-        "title": "Pair device",
-        "description": "Assign the Home Assistant login of this device (Companion app or browser) to a recipient. The dashboard card then identifies the device on the server: muting applies to this device only; global acknowledgement and external reset need the permission and its device tracker at home.\n\nA paired recipient is marked with 🔗. “—” removes the pairing. If the device logs in again or the login is deleted under Profile → Security, pair it again.",
-        "data": {
-          "id": "Recipient",
-          "session_token_id": "Login (user · app/browser · last used)",
-          "go_back": "Back without saving"
-        },
-        "submit": "Save and return"
       }
     },
     "error": {

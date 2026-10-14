@@ -6,6 +6,7 @@ mute itself. All tests use the real manager, Store, event bus and HA auth.
 """
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,7 @@ from custom_components.water_leak_detection.const import (
     DetectorPhase,
 )
 from custom_components.water_leak_detection.external_leaks import ExternalPhase
+from custom_components.water_leak_detection.notifications import NotificationRecipient
 from custom_components.water_leak_detection.websocket import (
     WS_ACKNOWLEDGE,
     WS_EXTERNAL_RESET,
@@ -286,9 +288,32 @@ async def test_hydraulic_alarm_cannot_be_cleared_through_external_reset(
     assert_safety(manager)
 
 
-async def test_pair_device_options_flow(runtime_hass, runtime_entry, measurement_clock):
+ALARM_FIELDS = ("name", "notify_service", "tracker_entity", "critical_enabled",
+                "allow_global_ack", "trusted_stationary")
+
+
+def recipients_by_id(entry):
+    return {raw["id"]: dict(raw) for raw in entry.options[CONF_NOTIFICATION_RECIPIENTS]}
+
+
+def alarm_settings(raw):
+    """Everything that decides who is alerted and how, without the pairing."""
+    parsed = NotificationRecipient.from_dict(raw)
+    return replace(parsed, session_token_id=None)
+
+
+async def edit(flow, recipient_id, raw, **extra):
+    flow._editing_recipient_id = recipient_id
+    form = await flow.async_step_edit_recipient_details()
+    values = form["data_schema"]({**{key: raw[key] for key in ALARM_FIELDS}, **extra})
+    return form, await flow.async_step_edit_recipient_details(values)
+
+
+async def test_pairing_is_part_of_the_recipient_entry_and_keeps_alarm_settings(
+    runtime_hass, runtime_entry, measurement_clock
+):
     await ack_manager(runtime_hass, runtime_entry, measurement_clock)
-    ipad = recipient("ipad")
+    ipad = {**recipient("ipad"), "critical_enabled": False, "trusted_stationary": True}
     runtime_hass.config_entries.async_update_entry(
         runtime_entry,
         options={
@@ -300,39 +325,71 @@ async def test_pair_device_options_flow(runtime_hass, runtime_entry, measurement
         },
     )
     _, tokens = await logins(runtime_hass, "phone", "ipad")
+    before = recipients_by_id(runtime_entry)
     flow = options_flow(runtime_hass, runtime_entry)
-    menu = await flow.async_step_notifications()
-    assert "pair_device" in menu["menu_options"]
 
-    form = await flow.async_step_pair_device()
+    # One entry per recipient: no separate pairing menu anymore.
+    menu = await flow.async_step_notifications()
+    assert "pair_device" not in menu["menu_options"]
+
+    # Pair the phone inside its recipient form.
+    form, result = await edit(
+        flow, "phone", before["phone"], session_token_id=tokens["phone"].id
+    )
     offered = [o["value"] for o in form["data_schema"].schema["session_token_id"].config["options"]]
     assert tokens["phone"].id in offered and tokens["ipad"].id in offered
-
-    result = await flow.async_step_pair_device(
-        {"id": "phone", "session_token_id": tokens["phone"].id}
-    )
     assert result["step_id"] == "notifications"
-    raws = {r["id"]: r for r in runtime_entry.options[CONF_NOTIFICATION_RECIPIENTS]}
-    assert raws["phone"]["session_token_id"] == tokens["phone"].id
-    assert raws["phone"]["token"] == "token_phone"
+    after = recipients_by_id(runtime_entry)
+    assert after["phone"]["session_token_id"] == tokens["phone"].id
+    assert after["phone"]["token"] == before["phone"]["token"]
+    assert alarm_settings(after["phone"]) == alarm_settings(before["phone"])
+    assert after["ipad"] == before["ipad"]
 
-    await flow.async_step_pair_device()
-    duplicate = await flow.async_step_pair_device(
-        {"id": "ipad", "session_token_id": tokens["phone"].id}
-    )
+    # Saving the form again without touching the pairing keeps everything.
+    _, result = await edit(flow, "phone", after["phone"])
+    assert recipients_by_id(runtime_entry) == after
+
+    # A login belongs to at most one recipient; nothing is saved on error.
+    _, duplicate = await edit(flow, "ipad", after["ipad"], session_token_id=tokens["phone"].id)
     assert duplicate["errors"] == {"base": "session_already_paired"}
+    assert recipients_by_id(runtime_entry) == after
 
-    # Editing the recipient details keeps the pairing.
-    flow._editing_recipient_id = "phone"
-    edit = await flow.async_step_edit_recipient_details()
-    fields = ("name", "notify_service", "tracker_entity", "critical_enabled",
-              "allow_global_ack", "trusted_stationary")
-    values = edit["data_schema"]({key: raws["phone"][key] for key in fields})
-    await flow.async_step_edit_recipient_details(values)
-    raws = {r["id"]: r for r in runtime_entry.options[CONF_NOTIFICATION_RECIPIENTS]}
-    assert raws["phone"]["session_token_id"] == tokens["phone"].id
+    # Removing the pairing restores the original alarm configuration.
+    _, result = await edit(flow, "phone", after["phone"], session_token_id="__none__")
+    final = recipients_by_id(runtime_entry)
+    assert "session_token_id" not in final["phone"]
+    assert alarm_settings(final["phone"]) == alarm_settings(before["phone"])
+    assert final["ipad"] == before["ipad"]
 
-    await flow.async_step_pair_device()
-    await flow.async_step_pair_device({"id": "phone", "session_token_id": "__none__"})
-    raws = {r["id"]: r for r in runtime_entry.options[CONF_NOTIFICATION_RECIPIENTS]}
-    assert "session_token_id" not in raws["phone"]
+
+async def test_new_recipient_can_be_paired_while_adding(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    await ack_manager(runtime_hass, runtime_entry, measurement_clock)
+
+    async def notify(call):
+        pass
+
+    runtime_hass.services.async_register("notify", "mobile_app_tablet", notify)
+    _, tokens = await logins(runtime_hass, "tablet")
+    before = recipients_by_id(runtime_entry)
+    flow = options_flow(runtime_hass, runtime_entry)
+    form = await flow.async_step_add_recipient()
+    values = form["data_schema"](
+        {
+            "name": "Tablet",
+            "notify_service": "notify.mobile_app_tablet",
+            "tracker_entity": "device_tracker.tablet",
+            "critical_enabled": False,
+            "allow_global_ack": False,
+            "trusted_stationary": False,
+            "session_token_id": tokens["tablet"].id,
+        }
+    )
+    result = await flow.async_step_add_recipient(values)
+    assert result["step_id"] == "notifications"
+    after = recipients_by_id(runtime_entry)
+    added = next(raw for key, raw in after.items() if key not in before)
+    assert added["session_token_id"] == tokens["tablet"].id
+    assert added["critical_enabled"] is False and added["allow_global_ack"] is False
+    assert {key: after[key] for key in before} == before

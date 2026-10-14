@@ -169,9 +169,13 @@
           "allow_global_ack": "Globales Quittieren erlauben, wenn Gerät zuhause",
           "trusted_stationary": "Stationäres vertrauenswürdiges Home-Gerät",
           "go_back": "Zurück ohne Speichern",
-          "allow_external_reset": "Externen Reset erlauben (nur aktuell zuhause)"
+          "allow_external_reset": "Externen Reset erlauben (nur aktuell zuhause)",
+          "session_token_id": "Gekoppelte Anmeldung für die Dashboard-Karte (optional)"
         },
-        "submit": "Hinzufügen und zurück"
+        "submit": "Hinzufügen und zurück",
+        "data_description": {
+          "session_token_id": "Anmeldung, mit der genau dieses Gerät in Home Assistant angemeldet ist (Benutzer · App/Browser · zuletzt genutzt). Die Karte erkennt das Gerät daran: Stummschalten gilt nur für dieses Gerät; globales Quittieren und externes Zurücksetzen nur mit den Berechtigungen oben und wenn der Device Tracker zuhause ist. „—“ = nicht gekoppelt. Nach einer Neuanmeldung des Geräts neu auswählen."
+        }
       },
       "remove_recipient": {
         "title": "Benachrichtigungsgerät entfernen",
@@ -202,9 +206,13 @@
           "allow_global_ack": "Globales Quittieren erlauben, wenn Gerät zuhause",
           "trusted_stationary": "Stationäres vertrauenswürdiges Home-Gerät",
           "go_back": "Zurück ohne Speichern",
-          "allow_external_reset": "Externen Reset erlauben (nur aktuell zuhause)"
+          "allow_external_reset": "Externen Reset erlauben (nur aktuell zuhause)",
+          "session_token_id": "Gekoppelte Anmeldung für die Dashboard-Karte (optional)"
         },
-        "submit": "Speichern und zurück"
+        "submit": "Speichern und zurück",
+        "data_description": {
+          "session_token_id": "Anmeldung, mit der genau dieses Gerät in Home Assistant angemeldet ist (Benutzer · App/Browser · zuletzt genutzt). Die Karte erkennt das Gerät daran: Stummschalten gilt nur für dieses Gerät; globales Quittieren und externes Zurücksetzen nur mit den Berechtigungen oben und wenn der Device Tracker zuhause ist. „—“ = nicht gekoppelt. Nach einer Neuanmeldung des Geräts neu auswählen."
+        }
       },
       "notifications": {
         "title": "Benachrichtigungsempfänger",
@@ -213,8 +221,7 @@
           "add_recipient": "Empfänger hinzufügen",
           "edit_recipient": "Empfänger bearbeiten",
           "remove_recipient": "Empfänger entfernen",
-          "back_to_main": "Zurück zur Konfiguration",
-          "pair_device": "Gerät für die Dashboard-Karte koppeln"
+          "back_to_main": "Zurück zur Konfiguration"
         }
       },
       "sources": {
@@ -279,16 +286,6 @@
           "recipient_id": "Berechtigter Empfänger",
           "go_back": "Zurück"
         }
-      },
-      "pair_device": {
-        "title": "Gerät koppeln",
-        "description": "Ordne einem Empfänger die Anmeldung zu, mit der dieses Gerät in Home Assistant angemeldet ist (Companion App oder Browser). Die Dashboard-Karte erkennt das Gerät dann serverseitig: Stummschalten gilt nur für dieses Gerät, globales Quittieren und externes Zurücksetzen nur mit Berechtigung und wenn sein Device Tracker zuhause ist.\n\nEin gekoppelter Empfänger ist mit 🔗 markiert. „—“ hebt die Kopplung auf. Meldet sich das Gerät neu an oder wird die Anmeldung unter Profil → Sicherheit gelöscht, muss es neu gekoppelt werden.",
-        "data": {
-          "id": "Empfänger",
-          "session_token_id": "Anmeldung (Benutzer · App/Browser · zuletzt genutzt)",
-          "go_back": "Zurück ohne Speichern"
-        },
-        "submit": "Speichern und zurück"
       }
     },
     "error": {

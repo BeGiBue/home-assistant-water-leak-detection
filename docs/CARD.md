@@ -113,9 +113,17 @@ bis dahin `false`).
 
 Ein Gerät ist fest mit seinem HA-Benutzer angemeldet. Jede Anmeldung (Companion App oder Browser) hat
 in Home Assistant eine eigene Login-ID (Refresh-Token-ID), die die WebSocket-Verbindung serverseitig
-mitführt und die das Gerät nicht fälschen kann. Unter **Konfigurieren → Benachrichtigungsempfänger →
-Gerät koppeln** ordnet ein Admin genau eine solche Anmeldung einem Empfänger zu (Auswahl aus der Liste:
-Benutzer · App/Browser · zuletzt genutzt · IP).
+mitführt und die das Gerät nicht fälschen kann.
+
+Die Kopplung ist **Teil des Empfänger-Eintrags**: Unter **Konfigurieren → Benachrichtigungsempfänger →
+Empfänger hinzufügen / bearbeiten** gibt es das optionale Feld **Gekoppelte Anmeldung für die
+Dashboard-Karte** (Auswahl aus der Liste: Benutzer · App/Browser · zuletzt genutzt · IP). Ein Empfänger
+ist damit zugleich Alarmempfänger und, über seine Berechtigungen, Quittierberechtigter. Es gibt keinen
+zweiten Eintrag.
+
+- Das Feld ändert **keine** Alarmeinstellung: Benachrichtigungsdienst, Device Tracker, kritische
+  Burst-Alarme, Berechtigungen und Action-Token bleiben genau wie konfiguriert. Bestehende Empfänger
+  ohne Kopplung bleiben unverändert, bis jemand eine Anmeldung auswählt.
 
 - Gespeichert wird nur die Login-ID (`session_token_id` am Empfänger). Sie ist kein Geheimnis und
   erlaubt allein keine Anmeldung.
