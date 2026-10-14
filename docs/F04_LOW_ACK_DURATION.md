@@ -304,3 +304,12 @@ The MQTT component/Store regressions have also been exercised against declared
 minimum HA 2026.9.0. This does not prove the actual Hydrus Discovery configuration;
 that installation's original payloads, timezone, relay behavior, force_update and
 expire_after still require a field export and verification.
+
+For admitted continuous MQTT reports, original timestamps now determine physical
+interval credit; reception time remains the timeout/diagnostic clock. Detector
+monitoring and quiet anchors are translated by the signed transport-latency
+change. This prevents both rising and falling delivery jitter from inventing a
+gap or extra quiet evidence. Rapid-rise elapsed time uses the same physical
+interval. No report after a broken chain receives retroactive credit. The existing
+2-µs tolerance remains unchanged; explicit reception or physical interval limits
+still exclude genuine gaps. See [the restricted beta guide](BETA_1.2.0.md).

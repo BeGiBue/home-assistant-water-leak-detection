@@ -529,6 +529,7 @@ class WaterLeakManager:
             else observed_utc
         )
         await self._check_measurement_identity()
+        measurement_interval_seconds = None
         registry = er.async_get(self.hass).async_get(self.flow_entity_id)
         if registry is not None and registry.platform == "mqtt":
             stamp = self._mqtt_provenance.validate(
@@ -539,11 +540,19 @@ class WaterLeakManager:
                 await self._suspend_source()
                 return
             previous_stamp = self._mqtt_provenance.timestamp
-            if previous_stamp is not None:
+            if previous_stamp is not None and self._flow_evidence.credited_seconds > 0:
                 physical_seconds = max(0.0, (stamp[0] - previous_stamp).total_seconds())
-                self._flow_evidence.credited_seconds = min(
-                    self._flow_evidence.credited_seconds, physical_seconds
-                )
+                if (
+                    self.source_max_age_seconds > 0
+                    and physical_seconds > self.source_max_age_seconds
+                ):
+                    await self._suspend_source()
+                    return
+                # Only a continuous, admitted pair supplies physical evidence.
+                # Reception intervals remain authoritative for timeout/outage;
+                # their transport jitter must not become an Engine evidence gap.
+                measurement_interval_seconds = physical_seconds
+                self._flow_evidence.credited_seconds = physical_seconds
             self._mqtt_provenance.commit(stamp)
             # Persist deduplication before allowing physical evidence to act.
             # A restart cannot turn a consumed telegram into a fresh measurement.
@@ -607,6 +616,7 @@ class WaterLeakManager:
             total,
             high_flow_bypassed=bypass_active,
             evidence_seconds=self._flow_evidence.credited_seconds,
+            measurement_interval_seconds=measurement_interval_seconds,
             total_fresh=total_fresh,
             effective_high_threshold_lph=thresholds.effective_high_lph,
             effective_burst_threshold_lph=thresholds.effective_burst_lph,

@@ -279,6 +279,7 @@ class DetectionEngine:
         *,
         high_flow_bypassed: bool = False,
         evidence_seconds: float | None = None,
+        measurement_interval_seconds: float | None = None,
         total_fresh: bool = False,
         effective_high_threshold_lph: float | None = None,
         effective_burst_threshold_lph: float | None = None,
@@ -299,6 +300,19 @@ class DetectionEngine:
         delta_seconds = 0.0
         if self.last_sample_at is not None:
             raw_delta_seconds = max(0.0, (now - self.last_sample_at).total_seconds())
+            if measurement_interval_seconds is not None:
+                if not isfinite(measurement_interval_seconds) or measurement_interval_seconds < 0:
+                    raise ValueError("Physical interval must be finite and nonnegative")
+                # MQTT transport delay is not unobserved water use. Keep the
+                # reception clock, translating existing detector anchors so
+                # elapsed monitoring/quiet time follows verified physical time.
+                transport_change = raw_delta_seconds - measurement_interval_seconds
+                for runtime in self.runtimes.values():
+                    if runtime.phase is DetectorPhase.MONITORING and runtime.started_at:
+                        runtime.started_at += timedelta(seconds=transport_change)
+                    if runtime.quiet_since:
+                        runtime.quiet_since += timedelta(seconds=transport_change)
+                raw_delta_seconds = measurement_interval_seconds
             if evidence_seconds is not None:
                 credit = max(0.0, min(raw_delta_seconds, evidence_seconds))
                 # datetime rounds to microseconds, while monotonic credit is a
@@ -388,6 +402,8 @@ class DetectionEngine:
 
         previous_flow = self.last_flow_lph
         previous_at = self.last_sample_at
+        if previous_at is not None and measurement_interval_seconds is not None:
+            previous_at = now - timedelta(seconds=measurement_interval_seconds)
 
         transitions: list[DetectorTransition] = []
 
