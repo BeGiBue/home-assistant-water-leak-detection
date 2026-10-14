@@ -21,7 +21,7 @@
  * License: AGPL-3.0-only (same as the integration).
  */
 
-const CARD_VERSION = "0.2.0";
+const CARD_VERSION = "0.3.0";
 const DOMAIN = "water_leak_detection";
 const CARD_TAG = "water-leak-guard-card";
 const EDITOR_TAG = "water-leak-guard-card-editor";
@@ -461,6 +461,10 @@ class WaterLeakGuardCard extends HTMLElement {
     this._configEntryId = undefined;
     this._configEntryLookup = undefined;
     this.shadowRoot.addEventListener("click", (ev) => this._onClick(ev));
+  }
+
+  static get cardVersion() {
+    return CARD_VERSION;
   }
 
   static getConfigElement() {
@@ -1412,7 +1416,18 @@ class WaterLeakGuardCardEditor extends HTMLElement {
 
 /* ------------------------------------------------------------- registration */
 
-if (!customElements.get(CARD_TAG)) customElements.define(CARD_TAG, WaterLeakGuardCard);
+const loadedCard = customElements.get(CARD_TAG);
+if (!loadedCard) {
+  customElements.define(CARD_TAG, WaterLeakGuardCard);
+} else if (loadedCard.cardVersion !== CARD_VERSION) {
+  // Custom elements cannot be redefined: the first loaded copy wins. The
+  // integration loads its own copy; a manual dashboard resource is obsolete.
+  console.warn(
+    `water-leak-guard-card: version ${loadedCard.cardVersion || "≤ 0.2.0"} is already loaded, ` +
+      `${CARD_VERSION} is ignored. Remove a manually added dashboard resource ` +
+      `(/local/water-leak-guard-card.js) and reload the browser.`
+  );
+}
 if (!customElements.get(EDITOR_TAG)) customElements.define(EDITOR_TAG, WaterLeakGuardCardEditor);
 
 window.customCards = window.customCards || [];

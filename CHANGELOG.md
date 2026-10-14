@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Dashboard card 0.3.0 ships with the integration and loads automatically: the integration
+  serves the bundled file and registers it as an extra frontend module with a content-digest
+  cache buster. No file copy or dashboard resource needed. `frontend`/`http` are ordering-only
+  `after_dependencies`; leak detection still starts without the frontend. Remove an older manual
+  `/local/water-leak-guard-card.js` resource; a duplicate copy only logs a console warning.
 - Dashboard card 0.2.0: shows the new hydraulic monitoring state (active, waiting for
   measurement, blocked) separately from the alarm state, with reason and MQTT provenance.
   Green only for confirmed active monitoring; detectors show "paused" otherwise. An ACTIVE

@@ -1,6 +1,6 @@
 # Dashboard-Karte (Lovelace)
 
-**Status:** Version 0.2.0, Etappe A. Die Karte ist eine reine Ansicht auf die vorhandenen
+**Status:** Version 0.3.0 (Etappen A, B und D; Etappe C offen). Die Karte ist eine reine Ansicht auf die vorhandenen
 Entitäten und Dienste und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
 Reset-Nonce, und Berechtigung, Anwesenheit und erlaubte Alarmaktionen prüft ausschließlich das
 Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).
@@ -9,7 +9,8 @@ Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).
 (Chromium, Desktop- und Handybreite, hell/dunkel). Ein Test in einer echten HA-Installation steht aus.
 
 Datei: `custom_components/water_leak_detection/frontend/water-leak-guard-card.js`
-– eine einzelne JS-Datei ohne Build-Schritt und ohne externe Abhängigkeiten.
+– eine einzelne JS-Datei ohne Build-Schritt und ohne externe Abhängigkeiten. Sie wird mit der
+Integration installiert und automatisch geladen (siehe Installation).
 
 ## Inhalt der Karte
 
@@ -75,18 +76,39 @@ Quittieren beendet **weder** Erkennung noch Alarm noch Absperranforderung. Die K
 Ereignis, ob global quittiert ist und auf wie vielen Geräten stummgeschaltet wurde. Admins erhalten
 bei offenen Ereignissen einen Link zur Integrationsseite.
 
-## Installation (manuell, bis zur automatischen Registrierung)
+## Installation
 
-HACS installiert die Datei mit dem Integrationsordner, registriert sie aber **nicht** als
-Dashboard-Ressource. Bis Etappe D:
+Die Karte kommt **mit der Integration**. Es ist nichts zu kopieren und keine Ressource einzutragen:
 
-1. `water-leak-guard-card.js` nach `<config>/www/` kopieren.
-2. **Einstellungen → Dashboards → ⋮ → Ressourcen → Ressource hinzufügen**:
-   URL `/local/water-leak-guard-card.js?v=0.2.0`, Typ **JavaScript-Modul**.
-3. Browser neu laden und im Dashboard die Karte **Water Leak Guard** hinzufügen.
+1. Integration über HACS installieren oder aktualisieren und Home Assistant neu starten.
+2. Browser bzw. Companion App neu laden.
+3. Im Dashboard **Karte hinzufügen → Water Leak Guard** wählen.
 
-Bei einem Kartenupdate die Datei ersetzen und in der bestehenden Ressource nur `?v=` anpassen.
-So lädt der Browser die neue Version, und es entsteht keine zweite Ressource.
+So funktioniert es:
+
+- Beim Start stellt die Integration die Datei unter `/water_leak_detection/water-leak-guard-card.js`
+  bereit und lädt sie als zusätzliches Frontend-Modul (`frontend.add_extra_js_url`). Das gilt für alle
+  Dashboards, im UI- wie im YAML-Modus, ohne Eintrag unter *Ressourcen*.
+- Die Adresse enthält einen Prüfwert aus dem Dateiinhalt (`?v=…`). Nach jedem Update lädt der Browser die
+  neue Version, ohne dass ein alter Stand im Cache hängen bleibt.
+- `frontend` und `http` sind nur als **Lade-Reihenfolge** eingetragen (`after_dependencies`), nicht als
+  Pflicht. Ohne Frontend oder bei einem Fehler beim Registrieren startet die Leckerkennung trotzdem.
+  Nur die Karte fehlt dann, und im Log steht eine Warnung.
+- Mehrere Instanzen der Integration teilen sich dieselbe Karte. Pro Karte wählt man die Instanz über
+  die Status-Entität.
+
+### Umstieg von der manuellen Installation (Karte 0.1.0/0.2.0)
+
+Wer die Karte vorher von Hand eingebunden hat:
+
+1. Unter **Einstellungen → Dashboards → ⋮ → Ressourcen** den Eintrag
+   `/local/water-leak-guard-card.js…` löschen.
+2. Die Datei `<config>/www/water-leak-guard-card.js` löschen.
+3. Browser neu laden. Bestehende Karten (`type: custom:water-leak-guard-card`) bleiben unverändert.
+
+Bleibt die alte Ressource stehen, lädt der Browser zwei Kopien. Ein Custom Element kann nur einmal
+definiert werden, also gewinnt die zuerst geladene. Normalerweise ist das die Kopie der Integration.
+Die Karte schreibt dann einen Hinweis in die Browser-Konsole, welche Version aktiv ist.
 
 ```yaml
 type: custom:water-leak-guard-card
@@ -177,6 +199,4 @@ beenden weder Erkennung noch Alarm noch Absperranforderung.
 Gerät gerade darf. Abgelehnte Aktionen erscheinen mit verständlichem Text zum Fehlercode. Tests für
 mehrere Ereignisse und zuhause/unterwegs.
 
-**Etappe D – Automatische Registrierung** (z. B. `StaticPathConfig` und
-`frontend.add_extra_js_url`) mit Versionsparameter, Migrationsanleitung für manuell eingetragene
-Ressourcen und Tests mit mehreren Konfigurationseinträgen.
+**Etappe D – Automatische Registrierung:** umgesetzt (siehe Installation).

@@ -1,6 +1,10 @@
 {
   "domain": "water_leak_detection",
   "name": "Water Leak Guard",
+  "after_dependencies": [
+    "frontend",
+    "http"
+  ],
   "codeowners": [
     "@BeGiBue"
   ],

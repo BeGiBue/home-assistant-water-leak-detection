@@ -140,12 +140,14 @@ The integration creates a Home Assistant device with backend entities including:
 
 ## Dashboard card (preview)
 
-A dependency-free Lovelace card ships in
-`custom_components/water_leak_detection/frontend/water-leak-guard-card.js`. It shows the
+A dependency-free Lovelace card ships with the integration and is loaded automatically: after
+installing or updating and restarting Home Assistant, choose **Add card → Water Leak Guard**. No
+file copy and no dashboard resource are needed (remove an older manual
+`/local/water-leak-guard-card.js` resource). It shows the
 alarm state and the hydraulic monitoring state separately (active / waiting for measurement /
 blocked, with reason), flow, detectors, High Flow bypass, external leak sensors and learning,
 and controls only the existing switches and actions. It offers no acknowledge or clear buttons
-yet; it explains the current, backend-authorized ways instead. Manual installation and the
+yet; it explains the current, backend-authorized ways instead. Details, migration and the
 next stages: [docs/CARD.md](docs/CARD.md). Not yet tested on a live Home Assistant instance.
 
 ## Language and later configuration
