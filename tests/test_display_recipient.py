@@ -322,6 +322,7 @@ async def test_display_form_requires_a_login_pairing_and_keeps_mobile_unchanged(
     edited = recipients_by_id(runtime_entry)[wall["id"]]
     assert edited == {**wall, "name": "Flur oben", "allow_external_reset": True}
     # Switching the display to a user is rejected on edit, too.
+    flow._editing_recipient_id = wall["id"]
     form = await flow.async_step_edit_display_details()
     rejected = await flow.async_step_edit_display_details(
         {"name": "Flur oben", "session_pairing": f"user:{kiosk.id}", **flags}

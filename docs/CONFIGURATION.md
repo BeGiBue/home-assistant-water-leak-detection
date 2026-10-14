@@ -159,13 +159,19 @@ device tracker and no notification settings:
   (the card hides the button, the `mute` command answers `mute_not_applicable`),
 - it counts as **home** for every home check (global acknowledgement, external reset, the card's
   alarm-ending actions),
-- it **requires a pairing** (user or login, same rules and precedence as above),
+- it **requires a pairing with a single login** (🔑, the kiosk device's own login). A user pairing is
+  not allowed for a display (form error "display requires login"): the display always counts as home,
+  so a user pairing would make every login of that user (a laptop at work, a phone after a re-login)
+  "at home". A user pairing in a hand-edited entry is ignored and logged. After the kiosk device logs
+  in anew, select its new login,
 - its rights are the usual flags "Allow global acknowledgement" and "Allow external reset" (both off by
-  default),
+  default, also for a hand-edited entry without the keys),
 - the kind cannot be changed after creation (remove and add again); editing keeps id, token and pairing.
 
-Trade-off: whoever stands in front of the display has these rights. Recommended: a dedicated non-admin
-HA user for the kiosk, paired as that user. Stored entries carry `kind: display`; entries without `kind`
+Trade-off: whoever uses that kiosk login – at the display or remotely with the same browser session –
+has these rights. Recommended: a dedicated non-admin HA user for the kiosk device, and pair its login.
+A recipient with an unknown or empty `kind` is ignored and logged once; it receives no notifications and
+authorizes nothing. Stored entries carry `kind: display`; entries without `kind`
 are mobile recipients, so existing configurations stay unchanged. The admin "acknowledge active
 alerts" form offers only mobile recipients.
 

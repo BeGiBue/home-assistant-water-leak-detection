@@ -214,8 +214,8 @@ anderen Rechten als das Telefon desselben Benutzers. Das Feld ändert keine ande
 Empfängers; bestehende Kopplungen an eine Anmeldung gelten weiter.
 
 Ein fest montiertes **Wanddisplay** (z. B. TouchKio) ohne Companion-App wird unter *Konfigurieren →
-Benachrichtigungsempfänger → Wanddisplay hinzufügen* angelegt: Name, Kopplung (Pflicht; empfohlen ein
-eigener Kiosk-Benutzer ohne Adminrechte) und die Häkchen „Globales Quittieren“ und „Externer Reset“. Es
+Benachrichtigungsempfänger → Wanddisplay hinzufügen* angelegt: Name, Kopplung an die Anmeldung des
+Kiosk-Geräts (Pflicht, nur „🔑 …“; empfohlen ein eigener Kiosk-Benutzer ohne Adminrechte) und die Häkchen „Globales Quittieren“ und „Externer Reset“. Es
 bekommt keine Benachrichtigungen und gilt immer als zuhause. Details:
 [Dashboard-Karte – Wanddisplay](Dashboard-Karte#wanddisplay--touchkio).
 Der Beta-Umfang bleibt ohne externe Lecksensoren.

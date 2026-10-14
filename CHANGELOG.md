@@ -10,10 +10,13 @@
   (744 px); collapsed unchanged at about 335 px (188 px in two columns).
 - New recipient kind **wall display** (`kind: display`, options: "Add wall display") for a fixed display
   such as TouchKio: no notify service, no device tracker, never notified or part of dispatch, always
-  counts as home, requires a pairing (user or login), permissions are the usual flags (both off by
-  default). The session reports `kind` and `can_mute`; mute answers `mute_not_applicable` and the card
+  counts as home, requires a pairing with a single login only (a user pairing would make every login
+  of that user "at home"; form error `display_requires_login`, a hand-edited user pairing is ignored and
+  logged), permissions are the usual flags (both off by default, also without stored keys). The session reports `kind` and `can_mute`; mute answers `mute_not_applicable` and the card
   hides it. The kind cannot be changed after creation. Entries without `kind` stay mobile; no migration.
   The admin acknowledgement form offers only mobile recipients. Wiki: TouchKio example automation.
+- Recipients with an unknown or empty `kind` are logged once (they receive no notifications); the
+  external-reset validator rejects them as well.
 
 ## 2.0.0-beta.2 — 2026-10-14
 

@@ -405,10 +405,17 @@ Ein fest montiertes Display (TouchKio, Kiosk-Browser) wird unter *Konfigurieren 
 Benachrichtigungsempfänger → Wanddisplay hinzufügen* angelegt. Es hat keinen Benachrichtigungsdienst und
 keinen Device Tracker, bekommt nie Benachrichtigungen und gilt bei **jeder** Zuhause-Prüfung als
 zuhause (globale Quittierung, externer Reset, die alarmbeendenden Kartenaktionen). Es braucht eine
-Kopplung (Benutzer oder Anmeldung; Vorrang, Eindeutigkeit und „nur normale Anmeldungen“ wie oben). Die
-Rechte sind die üblichen Häkchen des Empfängers. Die Karte blendet dort „Stummschalten“ aus und zeigt nie
-„Nur zuhause möglich“. **Abwägung:** Wer vor dem Display steht, hat diese Rechte; empfohlen ist ein
-eigener HA-Benutzer ohne Adminrechte für das Kiosk-Gerät mit Benutzer-Kopplung. Beispiel-Automation zum
+Kopplung, und zwar **nur an eine einzelne Anmeldung** (🔑): die Anmeldung des Kiosk-Geräts. Eine
+Benutzer-Kopplung ist für ein Display nicht erlaubt (Formularfehler `display_requires_login`); in einem
+von Hand bearbeiteten Eintrag wird sie ignoriert und im Log gemeldet. Sonst wäre jede Anmeldung dieses
+Benutzers – Laptop im Büro, Handy nach einer Neuanmeldung – über den Benutzer-Rückfall „zuhause“.
+Eindeutigkeit und „nur normale Anmeldungen“ gelten wie oben. Die Rechte sind die üblichen Häkchen des
+Empfängers; „Globales Quittieren“ ist bei einem Display ohne gespeicherten Wert aus. Die Karte blendet
+dort „Stummschalten“ aus und zeigt nie „Nur zuhause möglich“. **Abwägung:** Wer diese Kiosk-Anmeldung
+nutzt – am Display oder aus der Ferne mit derselben Browser-Sitzung –, hat diese Rechte. Empfohlen ist
+ein eigener HA-Benutzer ohne Adminrechte für das Kiosk-Gerät. Meldet sich das Kiosk-Gerät neu an, muss die
+Kopplung erneuert werden. Empfänger mit unbekannter oder leerer Art (`kind`) werden ignoriert und im Log
+gemeldet; sie bekommen keine Benachrichtigungen und dürfen nichts. Beispiel-Automation zum
 Einschalten des Displays bei Alarm: Wiki-Seite *Dashboard-Karte*, Abschnitt „Wanddisplay / TouchKio“.
 
 ## Entwicklungsstand

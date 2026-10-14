@@ -106,13 +106,17 @@ Seit Karte 0.6.0 gibt es dafür den Empfängertyp **Wanddisplay**:
 - Ein Wanddisplay bekommt **keine Benachrichtigungen** und ist nie Teil der Zustellung; Stummschalten
   entfällt (die Karte zeigt den Knopf dort nicht).
 - Es gilt bei jeder Zuhause-Prüfung **immer als zuhause**.
-- Es braucht eine **Kopplung** (Pflichtfeld), sonst erkennt die Karte es nicht. Empfohlen: ein eigener
-  HA-Benutzer **ohne Adminrechte** für das Kiosk-Gerät und die Kopplung „👤 Kiosk-Benutzer“.
+- Es braucht eine **Kopplung an genau die Anmeldung des Kiosk-Geräts** („🔑 …“, Pflichtfeld). Ein
+  Benutzer („👤 …“) ist für ein Display nicht erlaubt: Weil das Display immer als zuhause gilt, wäre sonst
+  jede Anmeldung dieses Benutzers – Laptop im Büro, Handy – überall „zuhause“. Empfohlen: ein eigener
+  HA-Benutzer **ohne Adminrechte** für das Kiosk-Gerät. Meldet sich das Kiosk-Gerät neu an, die neue
+  Anmeldung wählen.
 - Die Rechte sind die üblichen Häkchen des Empfängers: „Globales Quittieren erlauben“ und „Externen Reset
   erlauben“ (beide standardmäßig aus). Im Alarm bietet die Karte dort außerdem „Erkennung abschalten“
   (Slow Leak/Low Flow) und „Bypass starten“ (High Flow) an, weil das Display als gekoppelt und zuhause gilt.
-- **Abwägung:** Wer vor dem Display steht, hat diese Rechte – ohne Anmeldung, ohne Tracker. Nur
-  freigeben, was für jeden im Haushalt (und Besuch) in Ordnung ist.
+- **Abwägung:** Wer diese Kiosk-Anmeldung nutzt – vor dem Display oder aus der Ferne mit derselben
+  Browser-Sitzung –, hat diese Rechte, ohne Device Tracker. Nur freigeben, was für jeden im Haushalt (und
+  Besuch) in Ordnung ist.
 - Die Art lässt sich nach dem Anlegen nicht ändern (Eintrag entfernen und neu anlegen).
 
 Auf dem 7″-Display hochkant (480×800) reicht der Standard; quer (800×480) `collapsed: true` setzen (siehe oben).
