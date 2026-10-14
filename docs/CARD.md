@@ -68,7 +68,7 @@ keinen sicheren Vertrag hat. Zu jedem Ereignis erklärt sie stattdessen, was heu
 |---|---|---|---|
 | Stummschalten | stoppt Benachrichtigungen nur für das eigene Gerät | überall | Benachrichtigung auf dem eigenen Gerät |
 | Global quittieren | stoppt Benachrichtigungen für alle | nur zuhause (Backend-Prüfung) | Benachrichtigung oder **Konfigurieren → Quittierung** (Admin) |
-| Externes Leck zurücksetzen | beendet den externen Alarm | nur zuhause, berechtigtes Gerät, Sensor wieder trocken | Benachrichtigung |
+| Externes Leck zurücksetzen | beendet den externen Alarm; der Sensor wird erst wieder scharf, wenn er „trocken“ meldet | nur zuhause, berechtigtes Gerät | Benachrichtigung |
 | Hydraulischer Alarm | – | – | endet nur physisch nach den Rücksetzregeln |
 
 Quittieren beendet **weder** Erkennung noch Alarm noch Absperranforderung. Die Karte zeigt pro
