@@ -146,7 +146,19 @@ Each recipient is configured independently with:
 - matching `device_tracker.*`,
 - critical-alert permission,
 - global acknowledgement permission while Home,
-- optional trusted stationary Home-device flag.
+- optional trusted stationary Home-device flag,
+- optional **paired login for the dashboard card** (since 2.0.0-beta.1).
+
+### Paired login for the dashboard card
+
+The recipient form offers the active Home Assistant logins (user · app/browser · last used · IP).
+Pairing one login lets the dashboard card on exactly that device act for this recipient: mute for
+this device anywhere, global acknowledgement and external reset only with the permissions above and
+while the recipient's tracker reports `home`. The backend checks this on every action; the card is
+not an authorization. One login can belong to one recipient only. Long-lived tokens are never
+offered. Deleting the login or a new login of the device ends the pairing; choose the new login.
+Choosing "—" removes the pairing. Pairing never changes any other recipient setting.
+Details: [dashboard card](CARD.md).
 
 ### Personal mute
 
@@ -344,3 +356,36 @@ monotones Beobachtungsalter. Nicht vorhandene optionale Werte bleiben leer/null.
 Während eines Quellenwechsels wartet die Anzeige bis zur neuen Freigabe, auch wenn
 der vorhandene Manager-Freigabewert vorübergehend noch die alte Quelle beschreibt.
 Die Anzeige verändert weder diesen Wert noch Evidenz, Erkennung oder Persistenz.
+
+#### State translations and diagnosis
+
+| Internal state | Deutsch | English |
+|---|---|---|
+| `active` | Aktiv | Active |
+| `waiting_for_measurement` | Warte auf Messung | Waiting for measurement |
+| `blocked` | Gesperrt | Blocked |
+
+The new sensor is regular, belongs to the existing integration device and remains
+available while blocked, provided the integration itself is loaded. Its entity ID
+may be renamed; identify it through the device or its translation key instead of
+assuming a fixed `sensor.*` ID. During a source rebind, waiting takes precedence
+over the temporarily retained old `source_available` value. An explicit
+unknown/unavailable report or rejected original measurement means blocked.
+
+`reason` describes the latest manager decision (for example `source_timeout`,
+`source_unavailable`, `invalid_flow_measurement`, `pre_startup_measurement` or
+`provenance_persistence_failed`). `mqtt_provenance_status` is the provenance
+adapter's status; after a later outage it may still name the earlier successful
+validation, so read it together with the current sensor state and `reason`.
+The overall status sensor also exposes these underlying diagnostics inside
+`measurement_diagnostics`, including `mqtt_measurement_provenance.admission_since`
+and the configured/effective source timeout. Follow the
+[diagnostic steps](TROUBLESHOOTING.md#hydraulic-monitoring-waiting-or-blocked).
+
+Setup records its actual start before Store I/O. After restore, the MQTT boundary
+is bound once to `max(persisted admission_since, setup start)`. Source-generation
+changes bind a new boundary. Neither first reception nor a validation call moves
+it forward just because of transport latency. Retained, replay, out-of-order,
+future, stale and pre-interruption originals remain rejected. Missing provenance
+never falls back to reception time or Total JSON attributes. The first accepted
+report starts with **zero seconds evidence**. See [beta status](BETA_1.2.0.md).

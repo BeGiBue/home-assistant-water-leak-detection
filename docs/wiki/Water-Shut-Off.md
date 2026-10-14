@@ -123,7 +123,7 @@ Daher bleibt die Absperranforderung bestehen, solange die physische Detektionslo
 
 # 6. Aktuelle Ventilsteuerung
 
-Version 1.0.2 steuert **nicht direkt** ein Ventil.
+Auch 1.2.0-beta.3 steuert **nicht direkt** ein Ventil.
 
 Stattdessen stellt die Integration einen stabilen Backend-Ausgang zur Verfügung.
 
@@ -214,3 +214,11 @@ einem fehlgeschlagenen Write bleibt ACTIVE mit Shutoff öffentlich bestehen. ACK
 und Mute entfernen keine Beiträge. High-Bypass unterdrückt externe Sensoren nicht.
 Die Integration öffnet oder schließt niemals selbst ein physisches Ventil.
 Weitere Regeln: [F04 V3](F04-V3.md).
+
+## Diagnose-Entität ohne Steuerwirkung
+
+`hydraulic_monitoring_status` erzeugt und löscht keine Absperranforderung.
+Gesperrt ist ein Diagnosezustand, keine Freigabe für Wasser: bereits bestätigte
+ACTIVE-Alarme behalten ihre konfigurierten Shutoff-Beiträge. ACK/Mute ändern
+weder Überwachungsfreigabe noch Beiträge. Die Integration öffnet niemals selbst
+ein Ventil. [Betriebszustände](Home-Assistant-Schnittstellen).

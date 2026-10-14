@@ -140,6 +140,8 @@ async def handle_session(hass: HomeAssistant, connection, msg: dict[str, Any]) -
             "recipient_id": recipient.id,
             "recipient_name": recipient.name,
             "home": _is_home(hass, recipient),
+            # Not a secret: lets the card refresh this answer when the tracker changes.
+            "tracker_entity": recipient.tracker_entity,
             "trusted_stationary": recipient.trusted_stationary,
             "can_global_ack": recipient.allow_global_ack,
             "can_external_reset": recipient.allow_external_reset,

@@ -1,7 +1,22 @@
 # Changelog
 
-## Unreleased
+## 2.0.0-beta.1 — 2026-10-14
 
+Major release for the dashboard: the card ships with the integration, shows alarm and hydraulic
+monitoring state separately, and offers alarm actions per paired device, authorized only by the
+backend. Detection, alarm, shutoff, acknowledgement semantics, persistence and MQTT provenance are
+unchanged. Beta scope as before: without configured external leak sensors (H01 remains open).
+
+- Dashboard card 0.4.1: `session` is requested only on connect/instance change, page visible again,
+  alarm start, after a card command, on a change of the paired recipient's tracker and every 60 s
+  during an alarm (no polling without an alarm; never per render); a detached card makes no requests.
+  Home-only buttons are disabled at once when the visible tracker state is not `home`. The session
+  answer now includes the recipient's `tracker_entity` (additive, not a secret).
+- Dashboard card 0.4.0 (stage C): the card asks the backend (`session`) what this device may do and
+  offers only those alarm actions – device mute, global acknowledgement (Home only) and external reset
+  (Home, permission, with confirmation) – with the exact event/source binding and `config_entry_id`.
+  Rejections are explained per error code (DE/EN). Unpaired devices and older backends stay view only.
+  "Home" comes only from the backend; the browser person-entity hint is removed. No backend change.
 - Dashboard card 0.3.2: the confirmation before ending a hydraulic alarm reads the detector phase from
   the resolved status sensor, also when the editor points at another sensor of the integration; the
   editor offers only status sensors (`include_entities`). During an ACTIVE High Flow alarm the bypass
@@ -23,7 +38,7 @@
   alarm stays in the headline even while the status reports `source_unavailable`.
 - Card no longer offers acknowledge/clear buttons that the backend cannot serve; it explains
   personal mute, Home-only global acknowledgement, external reset and how hydraulic alarms end.
-- Backend contract for dashboard card actions (not yet used by the card): pair a recipient with one
+- Backend contract for dashboard card actions (used by the card from 0.4.0): pair a recipient with one
   HA login as an optional field of the recipient entry (add/edit; alarm settings unchanged);
   WebSocket commands `session`, `mute` (device-scoped, anywhere), `acknowledge` (global, Home checked at commit) and
   `external_reset` (Home, permission). Identity is the paired login, never a client token; there is
