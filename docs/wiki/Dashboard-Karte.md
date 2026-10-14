@@ -4,6 +4,8 @@ Seit **2.0.0-beta.1** gehört die Dashboard-Karte **Water Leak Guard** zur Integ
 eine Ansicht und Bedienoberfläche, aber **keine Vertrauensgrenze**: Ob eine Aktion erlaubt ist,
 entscheidet ausschließlich das Backend. Die Integration funktioniert unverändert auch ohne Karte.
 
+![Karte im Normalzustand und bei Burst-Leak-Alarm mit Geräteaktionen](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/card-preview.png)
+
 ## Installation
 
 Es ist nichts zu kopieren und keine Ressource einzutragen.
