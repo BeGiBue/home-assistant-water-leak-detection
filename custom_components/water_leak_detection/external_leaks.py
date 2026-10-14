@@ -27,10 +27,13 @@ def validate_external_snapshot(raw: dict) -> None:
     tombstone reset removes its record. A valid enum alone cannot prove that
     such an alarm ended. Raise into the Store recovery barrier, preserving the
     original event, time, generation, conflict and shutoff data byte for byte.
-    Unknown phases still use the existing conservative ACTIVE recovery.
+    Retained records must be interpretable without inventing alarm identities;
+    their ledger role is safety evidence even when phase/event fields are lost.
     """
     for role in ("external_sources", "external_alarm_ledger"):
         for record in raw.get(role, []):
+            if role == "external_alarm_ledger" or record.get("tombstone") is True:
+                _validate_retained_alarm(record)
             if record.get("phase") not in (
                 ExternalPhase.ARMED.value,
                 ExternalPhase.RESET_WAITING_FOR_OFF.value,
@@ -50,6 +53,28 @@ def validate_external_snapshot(raw: dict) -> None:
                 raise ValueError("Contradictory external alarm identity; restore a verified backup")
             # WAITING legitimately retains started_at after a committed reset,
             # but owns no active event/nonce and is never a retained tombstone.
+
+
+def _validate_retained_alarm(record: dict) -> None:
+    """Require a reliable retained identity before parsing or capability rotation."""
+    # A committed tombstone reset removes its record. Never let damaged fields
+    # become None/continue or invented IDs in the subsequent permissive parser.
+    if (
+        record.get("phase") != ExternalPhase.ACTIVE.value
+        or not all(
+            valid_id(record.get(key))
+            for key in ("event_id", "source_id", "generation", "learning_epoch")
+        )
+        or parse_datetime(record.get("started_at")) is None
+        or not isinstance(record.get("entity_id"), str)
+        or not record["entity_id"].startswith("binary_sensor.")
+        or not isinstance(record.get("contributes_to_shutoff"), bool)
+        or not isinstance(record.get("tombstone", False), bool)
+        or not isinstance(record.get("identity_conflict", False), bool)
+    ):
+        raise ValueError(
+            "Contradictory or uninterpretable retained external alarm; restore a verified backup"
+        )
 
 
 @dataclass(slots=True)

@@ -107,6 +107,9 @@ class RuntimeStore(Store[dict[str, Any]]):
         while stopping. Neither behavior is a successful safety transaction.
         Keep HA's writer/atomic file primitive, but explicitly await its result.
         """
+        # The role contract applies to every writer, not just initial restore.
+        # Never commit a partially damaged retained identity as a new snapshot.
+        validate_snapshot_body(data)
         async with self._write_lock:
             if self._read_only:
                 raise RuntimeError("Cannot commit a safety state to a read-only Store")

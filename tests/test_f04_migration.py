@@ -26,7 +26,13 @@ def test_quarantine_all_legacy_without_guessing_origin(legacy):
         "engine": {"runtimes": {"burst_leak": {"phase": "active", "event_id": "alive"}}},
         "acknowledgements": {"alive": {"globally_acknowledged": True}},
         "options": {"burst_threshold_lph": 2000}, "recipients": ["unchanged"],
-        "bypass_until": NOW.isoformat(), "external_alarm_ledger": [{"phase": "ACTIVE"}],
+        "bypass_until": NOW.isoformat(),
+        "external_alarm_ledger": [{
+            "phase": "ACTIVE", "event_id": "external_legacy", "source_id": "legacy_source",
+            "generation": "legacy_generation", "learning_epoch": "legacy_epoch",
+            "entity_id": "binary_sensor.legacy", "started_at": NOW.isoformat(),
+            "tombstone": True, "contributes_to_shutoff": True,
+        }],
     }
     original = {**safety, "learning": legacy}
     migrated = migrate_snapshot(original, SOURCE, NOW, "entry")
@@ -37,6 +43,14 @@ def test_quarantine_all_legacy_without_guessing_origin(legacy):
     assert migrated["long_term_learning"]["pending_high_candidates"] == []
     assert migrated["legacy_learning_migration"]["legacy_learning_quarantined"] is True
     assert migrate_snapshot(migrated, SOURCE, NOW.replace(year=2020), "entry") == migrated
+
+
+def test_incomplete_legacy_ledger_blocks_migration_without_mutating_original():
+    original = {"external_alarm_ledger": [{"phase": "ACTIVE"}], "learning": {"samples": [1]}}
+    before = deepcopy(original)
+    with pytest.raises(ValueError, match="uninterpretable retained"):
+        migrate_snapshot(original, SOURCE, NOW, "entry")
+    assert original == before
 
 
 @pytest.mark.parametrize("raw", [{}, {"learning": {}}, {"learning": {"samples": []}}])

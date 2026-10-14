@@ -291,6 +291,15 @@ Both aggregate alarm and shutoff remain held until verified recovery. A normal
 WAITING source may retain its historical start time after an authorized reset,
 without an active Event-ID or nonce; normal ARMED/WAITING restores remain supported.
 
+Every retained ledger record is checked by its safety role, including records with
+an unknown/missing phase or damaged Event-ID. A retained record must have an ACTIVE
+phase, valid event/source/generation/epoch identities, an aware start time and
+interpretable shutoff/conflict metadata. A tombstone moved into the source list is
+checked the same way. Uninterpretable records require Recovery before parsing,
+migration or saving; no replacement Event-ID, generation or reset permission is
+invented. The original file remains untouched. Clean alarms, authorized household
+resets at home, WAITING and deliberate replacement after reset remain supported.
+
 The MQTT component/Store regressions have also been exercised against declared
 minimum HA 2026.9.0. This does not prove the actual Hydrus Discovery configuration;
 that installation's original payloads, timezone, relay behavior, force_update and
