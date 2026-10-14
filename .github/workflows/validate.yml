@@ -40,4 +40,17 @@ jobs:
       - name: Lint
         run: ruff check .
       - name: Test
-        run: pytest -q
+        run: |
+          set +e
+          pytest -q --tb=short -rfE -p no:cacheprovider > pytest.txt 2>&1
+          rc=$?
+          python - <<'PY'
+          d = open("pytest.txt").read()[-34000:]
+          for i in range(0, len(d), 3400):
+              c = d[i:i + 3400].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print("::error::" + c)
+          PY
+          exit $rc
+      - name: TEMP mutation check
+        if: always()
+        run: python .github/tmp/mutations.py
