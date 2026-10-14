@@ -1,9 +1,4 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-wordmark-dark.png">
-    <img src="docs/assets/logo-wordmark-light.png" alt="Water Leak Guard – Wasserwächter für Home Assistant" width="460">
-  </picture>
-</p>
+![Water Leak Guard](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/logo-160.png)
 
 # Water Leak Guard
 
@@ -139,6 +134,8 @@ The integration creates a Home Assistant device with backend entities including:
 - **Effective Burst Leak threshold**
 
 ## Dashboard card
+
+![Water Leak Guard card: normal state and Burst Leak alarm with device actions](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/card-preview.png)
 
 A dependency-free Lovelace card ships with the integration and is loaded automatically: after
 installing or updating and restarting Home Assistant, choose **Add card → Water Leak Guard**. No

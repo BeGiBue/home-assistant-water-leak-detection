@@ -12,6 +12,8 @@ Datei: `custom_components/water_leak_detection/frontend/water-leak-guard-card.js
 – eine einzelne JS-Datei ohne Build-Schritt und ohne externe Abhängigkeiten. Sie wird mit der
 Integration installiert und automatisch geladen (siehe Installation).
 
+![Karte im Normalzustand und bei Burst-Leak-Alarm mit Geräteaktionen](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/card-preview.png)
+
 ## Inhalt der Karte
 
 | Bereich | Quelle | Bedienung |
