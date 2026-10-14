@@ -207,9 +207,9 @@ entfernen.
 
 Für Alarmaktionen in der Karte beim Empfänger des jeweiligen Geräts die Kopplung wählen:
 *Konfigurieren → Benachrichtigungsempfänger → Empfänger bearbeiten → Kopplung für die Dashboard-Karte*.
-Standard ist **„Benutzer: Name“** (jede App-/Browser-Anmeldung dieses HA-Benutzers, übersteht eine
+Standard ist **„👤 Name“** (Benutzer) (jede App-/Browser-Anmeldung dieses HA-Benutzers, übersteht eine
 Neuanmeldung; auch ein Laptop-Browser dieses Benutzers erhält die Rechte, „zuhause“ kommt vom Tracker
-des Empfängers). **„Anmeldung: …“** koppelt genau eine Anmeldung und hat Vorrang, z. B. für ein iPad mit
+des Empfängers). **„🔑 Name – App/Browser“** koppelt genau eine Anmeldung und hat Vorrang, z. B. für ein iPad mit
 anderen Rechten als das Telefon desselben Benutzers. Das Feld ändert keine andere Einstellung des
 Empfängers; bestehende Kopplungen an eine Anmeldung gelten weiter.
 Der Beta-Umfang bleibt ohne externe Lecksensoren.

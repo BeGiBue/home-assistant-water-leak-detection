@@ -154,10 +154,10 @@ Each recipient is configured independently with:
 The field **Pairing for the dashboard card** offers:
 
 - "—": not paired,
-- **"User: name"** (listed first, the default kind of pairing): every normal app/browser login of
+- **"👤 name"** (user; listed first, the default kind of pairing): every normal app/browser login of
   that active, non-system Home Assistant user. It survives logging out and in, reinstalling the app
   and a new browser ("one device = always one user"). Stored as `session_user_id`.
-- **"Login: user – app/browser · last used · IP"**: exactly one login, as before. Stored as
+- **"🔑 user – app/browser · last used · IP"** (login): exactly one login, as before. Stored as
   `session_token_id`. Existing login pairings keep working without migration.
 
 A recipient stores one of the two, never both. For a dashboard connection the backend accepts only a
@@ -174,7 +174,9 @@ The paired device may mute this recipient anywhere; global acknowledgement and e
 permissions above and the recipient's tracker at `home`. The backend checks this on every action; the
 card is not an authorization. A user and a login can each belong to one recipient only (errors "user
 already paired" / "login already paired"); a deleted or deactivated user, or a deleted login, is
-rejected. Saving the form without changing the field keeps the existing pairing. Choosing "—" removes
+rejected. Saving the form without changing the field keeps the existing pairing (shown with "⚠"
+when it is no longer valid). The symbols are language-neutral because the options form cannot know the
+viewer's language. Choosing "—" removes
 it. Pairing never changes any other recipient setting. Details: [dashboard card](CARD.md).
 
 ### Personal mute

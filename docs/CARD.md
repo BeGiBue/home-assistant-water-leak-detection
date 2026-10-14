@@ -32,31 +32,62 @@ Alle Bedienelemente rufen nur vorhandene, im Backend geprüfte Schalter, Dienste
 
 ## Layout und unterstützte Bildschirme (ab Karte 0.5.0)
 
-Die ruhige Karte (Überwachung aktiv, kein Alarm) passt auf einen Bildschirm:
+**Wie breit die Karte wird, bestimmt Home Assistant.** Spalten im Masonry-Layout und Abschnitte
+(Sections) sind höchstens ca. 500 px breit. Dort ist die Karte deshalb **immer einspaltig**, auch auf
+einem Tablet oder dem Raspberry-Pi-Display. Zwei Spalten gibt es nur, wenn die Karte selbst mindestens
+ca. 600 px breit ist: in der **Panel-Ansicht** oder in einer Sections-Ansicht mit einem Abschnitt über
+mehrere Spalten (`column_span` ≥ 2) und `grid_options: columns: full` an der Karte.
 
-| Gerät | Kartenbreite | Höhe der ruhigen Karte (0.4.1 → 0.5.0, gemessen in Chromium) |
-|---|---|---|
-| iPhone 17 Pro (402×874) | ca. 386 px, eine Spalte | 884 → 457 px |
-| schmales Telefon | 320 px, eine Spalte | 930 → 457 px |
-| iPad, Karte ca. 500 px | eine Spalte | 827 → 457 px |
-| iPad, Karte ca. 744 px | zwei Spalten | 810 → 244 px |
-| Raspberry Pi 7″ (800×480), eine Spalte, Seitenleiste aus | 768 px, zwei Spalten | 810 → 244 px |
-| Raspberry Pi 7″, zwei Masonry-Spalten | ca. 380 px | 884 → 457 px (passt nicht ganz unter die HA-Leiste, ca. 420 px) |
+Höhe der ruhigen Karte (Überwachung aktiv, kein Alarm, Standardkonfiguration), gemessen in Chromium mit
+simuliertem Home Assistant. Je nach Schrift weichen echte Geräte um **ca. ±15 px** ab.
+
+| Gerät / Ansicht | Kartenbreite | Spalten | 0.4.1 | 0.5.0 |
+|---|---|---|---|---|
+| schmales Telefon | 320 px | 1 | ca. 930 px | ca. 335 px |
+| iPhone 17 Pro (402×874) | ca. 386 px | 1 | ca. 884 px | ca. 335 px |
+| iPad / Raspberry Pi 7″ (800×480) in Masonry oder Sections | ca. 490–500 px | 1 | ca. 827 px | ca. 335 px |
+| Panel-Ansicht oder Abschnitt über ganze Breite (Tablet, Pi im Panel) | ≥ ca. 600 px (z. B. 744/768 px) | 2 | ca. 810 px | ca. 190 px |
+
+Mit einem externen Sensor kommen ca. 80 px hinzu (ca. 415 px), mit aktivem Bypass bei schmaler Karte
+ca. 12 px (zweizeilige Zusammenfassung). Auf dem alten 7″-Display (800×480, ca. 420 px unter der
+HA-Leiste von 56 px) passt die ruhige einspaltige Karte damit ohne Scrollen; aufgeklappte Abschnitte oder
+ein Alarm brauchen mehr Platz.
+
+Für ein Wanddisplay oder den Pi eignet sich eine eigene Ansicht im Panel-Modus (zwei Spalten):
+
+```yaml
+views:
+  - title: Wasser
+    path: wasser
+    type: panel
+    cards:
+      - type: custom:water-leak-guard-card
+        entity: sensor.wasserwachter_status
+```
 
 - **Einklappbar:** „High-Flow-Bypass“ und „Lernmodell“ zeigen eine Zusammenfassungszeile. Sie ist ein
-  echter Button mit `aria-expanded` und Pfeil, bedienbar per Klick, Enter und Leertaste. Beide
-  Abschnitte sind anfangs zu. Der Auf/Zu-Zustand gilt pro Karte und bleibt bei jeder Aktualisierung von
-  Home Assistant erhalten (nicht über ein Neuladen der Seite hinweg).
-- **Immer sichtbar:** flacher Kopf (ca. 96 px, kleines Schild rechts; Titel, Überschrift und Kennzeichen
-  laufen nie unter das Schild, Kennzeichen dürfen umbrechen), Alarmkasten bei Alarm, Hydraulische
-  Überwachung, Durchfluss, das 2×2-Raster der Detektoren und – wenn konfiguriert – die externen Sensoren.
-- **Zwei Spalten**, sobald die **Karte selbst** mindestens ca. 600 px breit ist (CSS Container Query auf
-  der Karte, nicht auf dem Fenster): links Kopf, Alarmkasten, Überwachung, Durchfluss; rechts
-  Erkennung, Bypass, externe Sensoren, Lernmodell. Schmaler: eine Spalte in derselben Reihenfolge.
+  echter Button mit `aria-expanded` und Pfeil (mindestens 44 px hoch), bedienbar per Klick, Enter und
+  Leertaste. Beide Abschnitte sind anfangs zu. Der Auf/Zu-Zustand gilt pro Karte und bleibt bei jeder
+  Aktualisierung von Home Assistant erhalten (nicht über ein Neuladen der Seite hinweg).
+- **Überwachung kompakt:** Ist die hydraulische Überwachung bestätigt aktiv und ist weder die Messquelle
+  gestört noch der Laufzeitspeicher beschädigt, ersetzt ein grüner Hinweis „Überwachung aktiv“ in der
+  Durchflusszeile die eigene Zeile (ohne Durchflussabschnitt steht er im Kopf). In jedem anderen Zustand
+  – warten auf Messung, gesperrt, nicht verfügbar, unbekannt, Quelle gestört, Speicher beschädigt –
+  erscheint die volle Zeile „Hydraulische Überwachung“ mit Grund und Details wie bisher. Grün bleibt
+  bestätigt aktiver Überwachung vorbehalten.
+- **Immer sichtbar:** flacher Kopf (ca. 76 px, kleines Schild rechts; Titel, Überschrift und Kennzeichen
+  laufen nie unter das Schild, Kennzeichen dürfen umbrechen), Alarmkasten bei Alarm, Durchfluss, das
+  2×2-Raster der Detektoren, die beiden Zusammenfassungszeilen und – wenn konfiguriert – die externen
+  Sensoren.
+- **Zwei Spalten** ab ca. 600 px Kartenbreite (CSS Container Query auf der Karte, nicht auf dem Fenster):
+  links Kopf, Alarmkasten, Überwachung, Durchfluss; rechts Erkennung, Bypass, externe Sensoren, Lernmodell.
+- **Mindestbreite 280 px:** Die Container Query macht die Breite der Karte unabhängig von ihrem Inhalt; in
+  einem Container, der sich nach dem Inhalt richtet, würde sie sonst auf 0 px zusammenfallen.
+- **Bedienflächen:** Buttons sind mindestens 36 px hoch, Zusammenfassungszeilen und das Status-Symbol
+  44 px; kleine Textlinks (Durchflusswert, Sensornamen) haben eine unsichtbare Trefferfläche von 44 px.
 - `getGridOptions()` bleibt `{ columns: 12, min_columns: 6, rows: "auto" }`: Bestehende Dashboards im
   Abschnitte-Layout behalten Breite und Platz, die Höhe folgt dem Inhalt. `getCardSize()` (nur für das
-  Masonry-Layout zum Verteilen der Spalten, Einheit 50 px) sinkt von 9 auf 8 ohne Alarm und liefert 12
-  bei Alarm, passend zur kompakten Höhe.
+  Masonry-Layout zum Verteilen der Spalten, Einheit 50 px) liefert 7 ohne und 14 mit Alarm.
 - Hell/dunkel über die Theme-Variablen von Home Assistant; bei `prefers-reduced-motion` keine Animationen.
 
 ## Keine Schalter in der Karte (ab 0.5.0)
@@ -159,7 +190,7 @@ Ausführen erneut; die Karte entscheidet nichts.
 
 | Aktion | Wirkung | Angezeigt, wenn | Gesperrt (mit Grund) |
 |---|---|---|---|
-| Für dieses Gerät stummschalten | stoppt Benachrichtigungen nur für dieses Gerät | gekoppelt, Ereignis nicht global quittiert, dieses Gerät noch nicht stumm (sonst: „Auf diesem Gerät stummgeschaltet“) | nie (auch unterwegs erlaubt) |
+| Für *Name* stummschalten | stoppt Benachrichtigungen nur für den gekoppelten Empfänger (*Name* aus der Session-Antwort `recipient_name`; ohne Namen „Für dieses Gerät stummschalten“). Wichtig bei Benutzer-Kopplung: Ein Laptop desselben Benutzers schaltet damit den Empfänger (z. B. das Telefon) stumm | gekoppelt, Ereignis nicht global quittiert, Empfänger noch nicht stumm (sonst: „Bei *Name* stummgeschaltet“) | nie (auch unterwegs erlaubt) |
 | Global quittieren | stoppt Benachrichtigungen für alle | gekoppelt, Berechtigung „globale Quittierung“, nicht global quittiert | nicht zuhause: „Nur zuhause möglich“ |
 | Externes Leck zurücksetzen | beendet den Alarm des externen Sensors und seinen Beitrag zur Absperranforderung; der Sensor wird erst wieder scharf, wenn er „trocken“ meldet. Rückfrage vor dem Senden | nur bei aktivem externem Ereignis ohne Identitätskonflikt, gekoppelt, Berechtigung „externer Reset“ | nicht zuhause: „Nur zuhause möglich“ |
 | Erkennung abschalten (Slow Leak/Low Flow) | schaltet den Detektor aus (`switch.turn_off`) und beendet damit seinen aktiven Alarm samt Beitrag zur Absperranforderung; die Ursache bleibt. Rückfrage vor dem Senden | aktiver Alarm dieses Detektors, gekoppelt, Detektor eingeschaltet | nicht zuhause: „Nur zuhause möglich“ |
@@ -270,10 +301,11 @@ Empfänger hinzufügen / bearbeiten** gibt es das optionale Feld **Kopplung für
 Wahl stehen:
 
 - „—“: nicht gekoppelt,
-- **„Benutzer: Name“** (Standard, steht oben): jede normale App-/Browser-Anmeldung dieses HA-Benutzers.
+- **„👤 Name“** (Benutzer; Standard, steht oben): jede normale App-/Browser-Anmeldung dieses HA-Benutzers.
   Passt zum Modell „ein Gerät = immer ein Benutzer“ und übersteht Ab-/Anmelden, Neuinstallation der App
   und einen neuen Browser,
-- **„Anmeldung: Benutzer – App/Browser · zuletzt genutzt · IP“**: genau eine Anmeldung, wie bisher.
+- **„🔑 Benutzer – App/Browser · zuletzt genutzt · IP“** (einzelne Anmeldung): genau eine Anmeldung, wie bisher.
+  Die Symbole sind sprachneutral, weil das Optionsformular die Sprache des Betrachters nicht kennt.
 
 Gespeichert wird entweder `session_user_id` oder `session_token_id` am Empfänger, nie beides. Beide sind
 keine Geheimnisse und erlauben allein keine Anmeldung. Bestehende Kopplungen an eine Anmeldung
@@ -292,12 +324,12 @@ keine Geheimnisse und erlauben allein keine Anmeldung. Bestehende Kopplungen an 
 Rechte des gekoppelten Empfängers. „Zuhause“ kommt aber immer vom Device Tracker **dieses Empfängers**
 (z. B. dem Telefon), nicht vom Laptop. Wer einem Benutzer auf mehreren Geräten verschiedene Rechte geben
 will (iPad zuhause darf global quittieren, Telefon unterwegs nur stummschalten), koppelt diese Geräte
-einzeln über „Anmeldung: …“; eine solche Kopplung hat Vorrang vor der Benutzer-Kopplung.
+einzeln über „🔑 …“; eine solche Kopplung hat Vorrang vor der Benutzer-Kopplung.
 
 - Das Feld ändert **keine** Alarmeinstellung: Benachrichtigungsdienst, Device Tracker, kritische
   Burst-Alarme, Berechtigungen und Action-Token bleiben genau wie konfiguriert. Speichern ohne Änderung des
-  Felds behält die bisherige Kopplung, auch wenn die Anmeldung inzwischen gelöscht ist (sie steht dann als
-  „(nicht mehr gültig)“ in der Liste und wirkt nicht).
+  Felds behält die bisherige Kopplung, auch wenn die Anmeldung inzwischen gelöscht ist (sie steht dann mit
+  „⚠“ in der Liste und wirkt nicht).
 - Ein Benutzer kann nur mit **einem** Empfänger gekoppelt sein, eine Anmeldung ebenso
   (`session_user_already_paired`, `session_already_paired`). Ein inzwischen gelöschter oder deaktivierter
   Benutzer wird abgelehnt (`session_user_not_found`), eine gelöschte Anmeldung ebenso (`session_not_found`).

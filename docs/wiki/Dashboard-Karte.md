@@ -52,10 +52,25 @@ bypass_presets: [60, 120, 240]        # Minuten, 1–1440
 
 ## Layout
 
-Ab Karte 0.5.0 passt die ruhige Karte auf einen Bildschirm: iPhone (ca. 386 px Kartenbreite, ca. 460 px
-hoch), iPad und das alte 7″-Display des Raspberry Pi (800×480). Ist die **Karte selbst** mindestens ca.
-600 px breit, zeigt sie zwei Spalten (links Kopf, Alarm, Überwachung, Durchfluss; rechts Erkennung,
-Bypass, externe Sensoren, Lernmodell), sonst eine. Hell/dunkel und „Bewegung reduzieren“ werden beachtet.
+Ab Karte 0.5.0 ist die ruhige Karte einspaltig nur noch ca. 335 px hoch (gemessen, je nach Schrift
+ca. ±15 px). Spalten im Masonry-Layout und Abschnitte sind in Home Assistant höchstens ca. 500 px breit;
+dort – auch auf iPad und dem alten 7″-Display des Raspberry Pi (800×480) – ist die Karte einspaltig und
+passt unter die HA-Leiste. Zwei Spalten (links Kopf, Alarm, Überwachung, Durchfluss; rechts Erkennung,
+Bypass, externe Sensoren, Lernmodell) zeigt sie nur, wenn sie selbst mindestens ca. 600 px breit ist: in
+der Panel-Ansicht oder in einem Abschnitt über mehrere Spalten (`column_span` ≥ 2) mit
+`grid_options: columns: full`. Beispiel für ein Wanddisplay:
+
+```yaml
+views:
+  - title: Wasser
+    type: panel
+    cards:
+      - type: custom:water-leak-guard-card
+```
+
+Ist die Überwachung bestätigt aktiv, zeigt ein grüner Hinweis „Überwachung aktiv“ in der Durchflusszeile
+das an; in jedem anderen Zustand erscheint die volle Zeile mit Grund. Der Stummschalt-Knopf nennt den
+gekoppelten Empfänger („Für Bea stummschalten“). Hell/dunkel und „Bewegung reduzieren“ werden beachtet.
 
 ## Bedienung mit Rückfrage
 
@@ -73,10 +88,10 @@ Entitäten und Dienste selbst bleiben in Home Assistant unbeschränkt.
 Rechte hängen am **Empfänger**. Gekoppelt wird beim passenden Benachrichtigungsempfänger:
 *Konfigurieren → Benachrichtigungsempfänger → Empfänger bearbeiten → Kopplung für die Dashboard-Karte*.
 
-- **„Benutzer: Name“** (Standard): jede App-/Browser-Anmeldung dieses HA-Benutzers. Bleibt bei
+- **„👤 Name“** (Benutzer, Standard): jede App-/Browser-Anmeldung dieses HA-Benutzers. Bleibt bei
   Ab-/Anmelden und Neuinstallation erhalten. Auch ein Laptop-Browser dieses Benutzers bekommt dann die
   Rechte des Empfängers; „zuhause“ kommt aber immer vom Device Tracker des Empfängers.
-- **„Anmeldung: …“**: genau eine Anmeldung, z. B. wenn ein Benutzer auf iPad und Telefon verschiedene
+- **„🔑 Name – App/Browser“**: genau eine Anmeldung, z. B. wenn ein Benutzer auf iPad und Telefon verschiedene
   Rechte haben soll. Eine gekoppelte Anmeldung hat Vorrang vor der Benutzer-Kopplung.
 
 Ein Benutzer und eine Anmeldung gehören jeweils zu höchstens einem Empfänger; die übrigen Einstellungen
@@ -85,7 +100,7 @@ des Empfängers ändern sich dadurch nicht. Bestehende Kopplungen an eine Anmeld
 | Gerät | Angebotene Aktionen |
 |---|---|
 | nicht gekoppelt (z. B. Desktop-Browser) | keine, Hinweis „nur Anzeige“ |
-| gekoppelt, unterwegs | Für dieses Gerät stummschalten; „Global quittieren“ gesperrt („Nur zuhause möglich“) |
+| gekoppelt, unterwegs | Für *Empfänger* stummschalten (z. B. „Für Bea stummschalten“); „Global quittieren“ gesperrt („Nur zuhause möglich“) |
 | gekoppelt, unterwegs, Alarm Slow/Low/High | zusätzlich „Erkennung abschalten“ bzw. „Bypass starten“ gesperrt („Nur zuhause möglich“) |
 | gekoppelt, zuhause, mit Berechtigung | Stummschalten, Global quittieren, bei externem Leck „Zurücksetzen“, bei Slow/Low „Erkennung abschalten“, bei High „Bypass starten“ – jeweils mit Rückfrage, wo ein Alarm endet |
 
