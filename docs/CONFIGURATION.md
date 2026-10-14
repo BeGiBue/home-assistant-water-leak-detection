@@ -149,6 +149,26 @@ Each recipient is configured independently with:
 - optional trusted stationary Home-device flag,
 - optional **pairing for the dashboard card**: a Home Assistant user or a single login (login since 2.0.0-beta.1, user since card 0.5.0).
 
+### Wall display recipient (no push, always home)
+
+**Configure → Notification recipients → Add wall display** creates a recipient of kind `display` for a
+fixed display such as TouchKio on a Raspberry Pi or another kiosk browser. It has no notify service, no
+device tracker and no notification settings:
+
+- it never receives notifications and is never part of notification dispatch; there is nothing to mute
+  (the card hides the button, the `mute` command answers `mute_not_applicable`),
+- it counts as **home** for every home check (global acknowledgement, external reset, the card's
+  alarm-ending actions),
+- it **requires a pairing** (user or login, same rules and precedence as above),
+- its rights are the usual flags "Allow global acknowledgement" and "Allow external reset" (both off by
+  default),
+- the kind cannot be changed after creation (remove and add again); editing keeps id, token and pairing.
+
+Trade-off: whoever stands in front of the display has these rights. Recommended: a dedicated non-admin
+HA user for the kiosk, paired as that user. Stored entries carry `kind: display`; entries without `kind`
+are mobile recipients, so existing configurations stay unchanged. The admin "acknowledge active
+alerts" form offers only mobile recipients.
+
 ### Pairing for the dashboard card
 
 The field **Pairing for the dashboard card** offers:

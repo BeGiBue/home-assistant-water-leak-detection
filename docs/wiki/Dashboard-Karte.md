@@ -76,6 +76,71 @@ Zustand erscheint die volle Zeile mit Grund. Sind Speicher oder Messquelle gest�
 „Überwachung eingeschränkt“ statt „Alles ruhig“. Der Stummschalt-Knopf nennt den
 gekoppelten Empfänger („Für Bea stummschalten“). Hell/dunkel und „Bewegung reduzieren“ werden beachtet.
 
+## Abschnitte auf- oder zugeklappt
+
+Ab Karte 0.6.0 starten „High-Flow-Bypass“ und „Lernmodell“ **aufgeklappt** (ruhige Karte einspaltig ca.
+550 px hoch, bei 320 px ca. 615 px). Mit `collapsed: true` (Editor: „Abschnitte eingeklappt starten“)
+starten sie zu; dann ist die ruhige Karte einspaltig ca. 335 px hoch. Das empfiehlt sich für kleine
+Wanddisplays wie das alte Raspberry-Pi-Display mit 800×480:
+
+```yaml
+type: custom:water-leak-guard-card
+collapsed: true
+```
+
+Auf- und Zuklappen in der Karte bleibt bis zum Neuladen der Seite erhalten; eine Änderung der Option
+im Editor setzt auf den neuen Standard zurück.
+
+## Wanddisplay / TouchKio
+
+Ein fest montiertes Display – etwa [TouchKio](https://github.com/leukipp/touchkio) auf einem Raspberry Pi
+oder ein anderer HA-Kiosk-Browser – hat weder Companion-Benachrichtigungen noch einen Device Tracker.
+Seit Karte 0.6.0 gibt es dafür den Empfängertyp **Wanddisplay**:
+*Konfigurieren → Benachrichtigungsempfänger → Wanddisplay hinzufügen*.
+
+- Ein Wanddisplay bekommt **keine Benachrichtigungen** und ist nie Teil der Zustellung; Stummschalten
+  entfällt (die Karte zeigt den Knopf dort nicht).
+- Es gilt bei jeder Zuhause-Prüfung **immer als zuhause**.
+- Es braucht eine **Kopplung** (Pflichtfeld), sonst erkennt die Karte es nicht. Empfohlen: ein eigener
+  HA-Benutzer **ohne Adminrechte** für das Kiosk-Gerät und die Kopplung „👤 Kiosk-Benutzer“.
+- Die Rechte sind die üblichen Häkchen des Empfängers: „Globales Quittieren erlauben“ und „Externen Reset
+  erlauben“ (beide standardmäßig aus). Im Alarm bietet die Karte dort außerdem „Erkennung abschalten“
+  (Slow Leak/Low Flow) und „Bypass starten“ (High Flow) an, weil das Display als gekoppelt und zuhause gilt.
+- **Abwägung:** Wer vor dem Display steht, hat diese Rechte – ohne Anmeldung, ohne Tracker. Nur
+  freigeben, was für jeden im Haushalt (und Besuch) in Ordnung ist.
+- Die Art lässt sich nach dem Anlegen nicht ändern (Eintrag entfernen und neu anlegen).
+
+Für das 800×480-Display empfiehlt sich `collapsed: true` (siehe oben).
+
+**Beispiel-Automation:** Bei einem Leckalarm das Display einschalten, volle Helligkeit und das Dashboard
+öffnen. Die Entity-IDs sind **Platzhalter** – die echten Namen stehen unter *Einstellungen → Geräte &
+Dienste → Geräte → TouchKio (Gerät des Displays)*; TouchKio meldet sie per MQTT.
+
+```yaml
+alias: Wasserwächter – Display bei Leck einschalten
+triggers:
+  - trigger: event
+    event_type: water_leak_detection_event_started
+  - trigger: state
+    entity_id: binary_sensor.wasserwachter_leckalarm   # Platzhalter: Leckalarm der Integration
+    to: "on"
+actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.touchkio_flur_display          # Platzhalter: Display-Licht von TouchKio
+    data:
+      brightness_pct: 100
+  - action: text.set_value
+    target:
+      entity_id: text.touchkio_flur_page_url          # Platzhalter: Seiten-URL von TouchKio
+    data:
+      value: "http://homeassistant.local:8123/wasser" # Platzhalter: URL deines Dashboards
+mode: single
+```
+
+Optional kann [Browser Mod](https://github.com/thomasloven/hass-browser_mod) zusätzlich ein Popup oder
+einen Ton auf dem Display auslösen. Das ist **nicht getestet** und nicht Teil der Integration.
+
 ## Bedienung mit Rückfrage
 
 Die Karte hat **keine Ein/Aus-Schalter** mehr. Slow Leak und Low Flow lassen sich in der Karte nur im
@@ -106,6 +171,7 @@ des Empfängers ändern sich dadurch nicht. Bestehende Kopplungen an eine Anmeld
 | nicht gekoppelt (z. B. Desktop-Browser) | keine, Hinweis „nur Anzeige“ |
 | gekoppelt, unterwegs | Für *Empfänger* stummschalten (z. B. „Für Bea stummschalten“); „Global quittieren“ gesperrt („Nur zuhause möglich“) |
 | gekoppelt, unterwegs, Alarm Slow/Low/High | zusätzlich „Erkennung abschalten“ bzw. „Bypass starten“ gesperrt („Nur zuhause möglich“) |
+| Wanddisplay (gekoppelt, gilt immer als zuhause) | kein Stummschalten; Global quittieren und externes „Zurücksetzen“ je nach Berechtigung, „Erkennung abschalten“/„Bypass starten“ im Alarm – nie „Nur zuhause möglich“ |
 | gekoppelt, zuhause, mit Berechtigung | Stummschalten, Global quittieren, bei externem Leck „Zurücksetzen“, bei Slow/Low „Erkennung abschalten“, bei High „Bypass starten“ – jeweils mit Rückfrage, wo ein Alarm endet |
 
 - Stummschalten wirkt nur auf das eigene Gerät; Quittieren stoppt Benachrichtigungen für alle. Beides

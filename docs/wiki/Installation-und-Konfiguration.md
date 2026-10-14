@@ -212,5 +212,11 @@ Neuanmeldung; auch ein Laptop-Browser dieses Benutzers erhält die Rechte, „zu
 des Empfängers). **„🔑 Name – App/Browser“** koppelt genau eine Anmeldung und hat Vorrang, z. B. für ein iPad mit
 anderen Rechten als das Telefon desselben Benutzers. Das Feld ändert keine andere Einstellung des
 Empfängers; bestehende Kopplungen an eine Anmeldung gelten weiter.
+
+Ein fest montiertes **Wanddisplay** (z. B. TouchKio) ohne Companion-App wird unter *Konfigurieren →
+Benachrichtigungsempfänger → Wanddisplay hinzufügen* angelegt: Name, Kopplung (Pflicht; empfohlen ein
+eigener Kiosk-Benutzer ohne Adminrechte) und die Häkchen „Globales Quittieren“ und „Externer Reset“. Es
+bekommt keine Benachrichtigungen und gilt immer als zuhause. Details:
+[Dashboard-Karte – Wanddisplay](Dashboard-Karte#wanddisplay--touchkio).
 Der Beta-Umfang bleibt ohne externe Lecksensoren.
 [Dashboard-Karte](Dashboard-Karte) · [Beta 2.0.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_2.0.0.md).

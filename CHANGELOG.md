@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Dashboard card 0.6.0: "High Flow bypass" and "Learning" start **expanded**. New option
+  `collapsed: true` (editor: "Start with sections collapsed") starts them collapsed, e.g. for an 800×480
+  wall display. In-card toggles stay in memory; changing the option resets to its default. Idle height
+  (Chromium, ±15 px): expanded about 615/550/550 px at 320/386/500 px and about 465 px in two columns
+  (744 px); collapsed unchanged at about 335 px (188 px in two columns).
+- New recipient kind **wall display** (`kind: display`, options: "Add wall display") for a fixed display
+  such as TouchKio: no notify service, no device tracker, never notified or part of dispatch, always
+  counts as home, requires a pairing (user or login), permissions are the usual flags (both off by
+  default). The session reports `kind` and `can_mute`; mute answers `mute_not_applicable` and the card
+  hides it. The kind cannot be changed after creation. Entries without `kind` stay mobile; no migration.
+  The admin acknowledgement form offers only mobile recipients. Wiki: TouchKio example automation.
+
 ## 2.0.0-beta.2 — 2026-10-14
 
 - Dashboard card 0.5.0 – compact, collapsible, responsive layout. The idle single-column card

@@ -99,9 +99,16 @@ async def test_display_session_is_home_and_has_no_mute(
     assert session["kind"] == "display" and session["home"] is True
     assert session["tracker_entity"] is None and session["can_mute"] is False
     # Mute is not applicable, with a stable code; nothing is muted.
+    controller_mute = manager.notifications.async_session_mute
+
+    async def must_not_be_called(*_):
+        raise AssertionError("the websocket command must reject a display before the writer")
+
+    manager.notifications.async_session_mute = must_not_be_called
     assert (await call(handle_mute, runtime_hass, conn, event_id=event_id))[1] == (
         "mute_not_applicable"
     )
+    manager.notifications.async_session_mute = controller_mute
     assert await manager.notifications.async_session_mute(event_id, "wall") == "not_applicable"
     assert not manager.notifications.state_for(event_id).muted_recipients
     assert_safety(manager)
@@ -187,6 +194,12 @@ async def test_display_is_never_part_of_notification_dispatch(
     assert not await notifications._async_send_event_notification(
         wall, event_id, "low_flow", {}, returning_home=False
     )
+    # Each guard on its own: even if eligibility said yes, the dispatch loop skips it.
+    notifications._eligible = lambda *_: True
+    await notifications.async_retry_pending()
+    assert not any(route[1].startswith('["wall"') for route in notifications._dispatch_tasks)
+    # And the external-reset notification path never prepares one for a display.
+    assert await manager._prepare_external_reset_action("a", "wall", None, None) is None
     assert_safety(manager)
 
 

@@ -1,3 +1,4 @@
+# ruff: noqa
 """TEMPORARY: mutation check for the display guards (removed before the end)."""
 import subprocess
 from pathlib import Path
@@ -40,6 +41,8 @@ def run(names):
 
 
 lines = []
+rc, failed = run([])
+lines.append(f"BASELINE: {'FAILING' if rc else 'green'} {failed[:3]}")
 for name in M:
     rc, failed = run([name])
     lines.append(f"{name}: {'KILLED' if rc else 'SURVIVED'} ({len(failed)}) {failed[:1]}")
