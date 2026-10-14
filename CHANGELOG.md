@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Dashboard card 0.4.0 (stage C): the card asks the backend (`session`) what this device may do and
+  offers only those alarm actions – device mute, global acknowledgement (Home only) and external reset
+  (Home, permission, with confirmation) – with the exact event/source binding and `config_entry_id`.
+  Rejections are explained per error code (DE/EN). Unpaired devices and older backends stay view only.
+  "Home" comes only from the backend; the browser person-entity hint is removed. No backend change.
 - Dashboard card 0.3.2: the confirmation before ending a hydraulic alarm reads the detector phase from
   the resolved status sensor, also when the editor points at another sensor of the integration; the
   editor offers only status sensors (`include_entities`). During an ACTIVE High Flow alarm the bypass
@@ -23,7 +28,7 @@
   alarm stays in the headline even while the status reports `source_unavailable`.
 - Card no longer offers acknowledge/clear buttons that the backend cannot serve; it explains
   personal mute, Home-only global acknowledgement, external reset and how hydraulic alarms end.
-- Backend contract for dashboard card actions (not yet used by the card): pair a recipient with one
+- Backend contract for dashboard card actions (used by the card from 0.4.0): pair a recipient with one
   HA login as an optional field of the recipient entry (add/edit; alarm settings unchanged);
   WebSocket commands `session`, `mute` (device-scoped, anywhere), `acknowledge` (global, Home checked at commit) and
   `external_reset` (Home, permission). Identity is the paired login, never a client token; there is

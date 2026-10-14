@@ -6,44 +6,51 @@
  * never holds recipient tokens or reset nonces, and every safety decision
  * (authorization, Home presence, allowed alarm actions) stays in the backend.
  *
- * Alarm handling today (the card does not call the backend alarm commands yet):
- *   - Personal mute: from the notification on the recipient's own device, anywhere.
- *   - Global acknowledgement: only while that recipient is Home – from the
- *     notification or from Configure → Acknowledgements (admin).
- *   - External reset: from the notification of an authorized device at Home.
- *   - Hydraulic alarms end when the flow meets their quiet/reset condition.
- *     Switching the Slow Leak or Low Flow detector off, or starting the High Flow
- *     bypass, also ends that detector's ACTIVE alarm at once (incl. its share of
- *     the shutoff request) without fixing the cause; the card asks for
- *     confirmation first. Burst Leak can be neither disabled nor bypassed.
- * Acknowledging never ends detection, the alarm or the shutoff request.
- *
- * INTERFACE below names the WebSocket commands the backend registers
- * (websocket.py: session, mute, acknowledge, external_reset). The card does not
- * use them yet (`enabled: false`), so it never offers an action it cannot run.
+ * Alarm actions (stage C): the card asks `water_leak_detection/session` what this
+ * device may do and shows only those actions. The device is identified by the
+ * backend through the HA login of the connection, paired with one notification
+ * recipient; "home" comes only from that recipient's device tracker in the
+ * backend. Every action is re-checked by the backend when it is executed.
+ *   - Mute: this device only, also away.
+ *   - Global acknowledgement: only while that recipient is Home.
+ *   - External reset: external leaks only, Home and permission required; asks first.
+ *   - Hydraulic alarms have no card command. They end when the flow meets their
+ *     quiet/reset condition. Switching the Slow Leak or Low Flow detector off, or
+ *     starting the High Flow bypass, also ends that detector's ACTIVE alarm at
+ *     once (incl. its share of the shutoff request) without fixing the cause; the
+ *     card asks for confirmation first. Burst Leak can be neither disabled nor bypassed.
+ * Acknowledging and muting never end detection, the alarm or the shutoff request.
  *
  * License: AGPL-3.0-only (same as the integration).
  */
 
-const CARD_VERSION = "0.3.2";
+const CARD_VERSION = "0.4.0";
 const DOMAIN = "water_leak_detection";
 const CARD_TAG = "water-leak-guard-card";
 const EDITOR_TAG = "water-leak-guard-card-editor";
 
-/**
- * Backend card commands as registered in websocket.py. Kept in one place so the
- * card can be wired to them (stage C) by changing only this object and its call
- * sites. `config_entry_id` is optional in every command (needed with several
- * instances). The card does not use these commands yet.
- */
+/** Backend card commands as registered in websocket.py (`config_entry_id` optional in all). */
 const INTERFACE = {
-  enabled: false, // switch on only together with the stage C frontend wiring and its tests
-  session: `${DOMAIN}/session`, // { config_entry_id? }
+  session: `${DOMAIN}/session`, // { config_entry_id? } -> { paired, recipient_id, home, can_global_ack, can_external_reset, ... }
   mute: `${DOMAIN}/mute`, // { config_entry_id?, event_id }
   acknowledge: `${DOMAIN}/acknowledge`, // { config_entry_id?, event_id }
   externalReset: `${DOMAIN}/external_reset`, // { config_entry_id?, event_id, source_id, source_generation }
   integrationPath: `/config/integrations/integration/${DOMAIN}`,
 };
+
+/** Stable error codes of the backend commands, plus HA's own unknown_command. */
+const ERROR_CODES = [
+  "not_paired",
+  "not_home",
+  "not_allowed",
+  "event_not_active",
+  "not_committed",
+  "rejected",
+  "instance_not_found",
+  "unknown_command",
+];
+const SESSION_MIN_INTERVAL_MS = 5000;
+const SESSION_ALARM_INTERVAL_MS = 30000;
 
 const MONITORING_STATES = ["active", "waiting_for_measurement", "blocked"];
 
@@ -146,16 +153,37 @@ const I18N = {
     acknowledged: "Quittiert",
     acknowledged_by: "Quittiert von {who}",
     not_acknowledged: "Nicht quittiert",
-    acknowledge: "Quittieren",
+    acknowledge: "Global quittieren",
     acknowledge_hint: "Quittieren stoppt nur Benachrichtigungen. Erkennung, Alarm und Absperranforderung bleiben bestehen.",
+    mute: "Für dieses Gerät stummschalten",
+    mute_hint: "Stoppt Benachrichtigungen nur für dieses Gerät. Erkennung, Alarm und Absperranforderung bleiben bestehen.",
+    muted_here: "Auf diesem Gerät stummgeschaltet",
     muted_count: "Auf {n} Gerät(en) stummgeschaltet",
-    how_mute: "Stummschalten: über die Benachrichtigung auf dem eigenen Gerät – auch unterwegs, gilt nur für dieses Gerät.",
-    how_global_ack: "Global quittieren: nur zuhause – über die Benachrichtigung oder unter Konfigurieren → Quittierung.",
-    how_external_reset: "Zurücksetzen: über die Benachrichtigung eines dafür berechtigten Geräts, das zuhause ist. Der Sensor wird erst wieder scharf, wenn er trocken meldet.",
+    requires_home: "Nur zuhause möglich",
+    external_reset: "Externes Leck zurücksetzen",
+    external_reset_confirm: "Externes Leck „{name}“ zurücksetzen?\n\nDer Alarm dieses Sensors und sein Beitrag zur Absperranforderung enden sofort. Das Wasser am Sensor wird dadurch nicht beseitigt. Der Sensor wird erst wieder scharf, wenn er trocken meldet.",
+    how_external_reset: "Endet durch „Externes Leck zurücksetzen“ – nur zuhause und mit Berechtigung, hier oder in der Benachrichtigung. Der Sensor wird erst wieder scharf, wenn er trocken meldet.",
+    session_unpaired: "Dieses Gerät ist nicht gekoppelt – nur Anzeige.",
+    session_pair_hint: "Koppeln: Konfigurieren → Benachrichtigungsempfänger → Empfänger bearbeiten → Gekoppelte Anmeldung.",
+    session_no_backend: "Dieses Backend bietet keine Kartenaktionen an.",
+    session_failed: "Kartenaktionen sind gerade nicht verfügbar.",
+    success: {
+      mute: "Auf diesem Gerät stummgeschaltet. Der Alarm bleibt bestehen.",
+      acknowledge: "Global quittiert. Alarm und Absperranforderung bleiben bestehen.",
+      external_reset: "Externes Leck zurückgesetzt. Der Sensor wird wieder scharf, sobald er trocken meldet.",
+    },
+    error: {
+      not_paired: "Dieses Gerät ist nicht (mehr) gekoppelt.",
+      not_home: "Nur zuhause möglich: Dieses Gerät ist laut Device Tracker nicht zuhause.",
+      not_allowed: "Diese Aktion ist für dieses Gerät nicht freigegeben.",
+      event_not_active: "Das Ereignis ist nicht mehr aktiv.",
+      not_committed: "Konnte nicht dauerhaft gespeichert werden. Es wurde nichts geändert.",
+      rejected: "Vom Backend abgelehnt.",
+      instance_not_found: "Instanz nicht gefunden oder mehrdeutig. Bitte die Status-Entität der Karte prüfen.",
+      unknown_command: "Dieses Backend bietet keine Kartenaktionen an.",
+      unknown: "Aktion fehlgeschlagen: {msg}",
+    },
     open_integration: "Zur Integration",
-    clear_alarm: "Alarm löschen",
-    clear_requires_home: "Nur von zuhause möglich",
-    clear_presence_unknown: "Deinem Benutzer ist keine Person zugeordnet – Anwesenheit unbekannt",
     hydraulic_clears_itself: "Endet, sobald der Durchfluss die Ruhe-/Rücksetzbedingung erfüllt. Slow Leak und Low Flow enden auch beim Ausschalten ihres Detektors, High Flow beim Start des Bypass – die Ursache wird dadurch nicht behoben. Burst Leak endet nur physisch.",
     ends_slow_low: "Endet, sobald der Durchfluss die Ruhe-/Rücksetzbedingung erfüllt. Ausschalten dieses Detektors beendet den Alarm ebenfalls sofort – die Ursache (z. B. ein offener Hahn oder ein Leck) wird dadurch nicht behoben.",
     ends_high: "Endet, sobald der Durchfluss die Ruhe-/Rücksetzbedingung erfüllt. Der Start des High-Flow-Bypass beendet den Alarm ebenfalls sofort – die Ursache (z. B. ein offener Hahn oder ein Leck) wird dadurch nicht behoben.",
@@ -164,7 +192,6 @@ const I18N = {
     confirm_bypass: "Ein High-Flow-Alarm läuft. Der Start des Bypass beendet diesen Alarm und seinen Beitrag zur Absperranforderung sofort. Die Ursache (z. B. ein offener Hahn oder ein Leck) wird dadurch nicht behoben. Der Burst-Leak-Schutz bleibt aktiv.\n\nBypass trotzdem starten?",
     storage_paused_hint: "Laufzeitspeicher beschädigt – der Zustand der Erkennung ist nicht gesichert.",
     external_offline_banner: "Ein externer Lecksensor ist nicht erreichbar. Ein Leck an dieser Stelle würde nicht erkannt.",
-    action_unavailable: "Diese Aktion wird vom Backend noch nicht angeboten.",
     action_failed: "Aktion abgelehnt: {msg}",
     integration_unavailable: "Die Integration liefert keinen Status. Die Anzeige ist nicht aktuell.",
     sensor_unavailable: "Nicht verfügbar",
@@ -296,16 +323,37 @@ const I18N = {
     acknowledged: "Acknowledged",
     acknowledged_by: "Acknowledged by {who}",
     not_acknowledged: "Not acknowledged",
-    acknowledge: "Acknowledge",
+    acknowledge: "Acknowledge globally",
     acknowledge_hint: "Acknowledging only stops notifications. Detection, alarm and shutoff request stay active.",
+    mute: "Mute on this device",
+    mute_hint: "Stops notifications for this device only. Detection, alarm and shutoff request stay active.",
+    muted_here: "Muted on this device",
     muted_count: "Muted on {n} device(s)",
-    how_mute: "Mute: from the notification on your own device – also away, only for that device.",
-    how_global_ack: "Acknowledge globally: only at home – from the notification or via Configure → Acknowledgements.",
-    how_external_reset: "Reset: from the notification of an authorized device at home. The sensor re-arms only after it reports dry.",
+    requires_home: "Only possible at home",
+    external_reset: "Reset external leak",
+    external_reset_confirm: "Reset external leak “{name}”?\n\nThis sensor's alarm and its contribution to the shutoff request end immediately. The water at the sensor is not removed. The sensor re-arms only after it reports dry.",
+    how_external_reset: "Ends with “Reset external leak” – only at home and with permission, here or from the notification. The sensor re-arms only after it reports dry.",
+    session_unpaired: "This device is not paired – view only.",
+    session_pair_hint: "To pair: Configure → Notification recipients → Edit recipient → Paired login.",
+    session_no_backend: "This backend does not offer card actions.",
+    session_failed: "Card actions are currently unavailable.",
+    success: {
+      mute: "Muted on this device. The alarm stays active.",
+      acknowledge: "Acknowledged globally. Alarm and shutoff request stay active.",
+      external_reset: "External leak reset. The sensor re-arms once it reports dry.",
+    },
+    error: {
+      not_paired: "This device is not (or no longer) paired.",
+      not_home: "Only possible at home: this device's tracker is not home.",
+      not_allowed: "This action is not permitted for this device.",
+      event_not_active: "The event is no longer active.",
+      not_committed: "Could not be saved durably. Nothing was changed.",
+      rejected: "Rejected by the backend.",
+      instance_not_found: "Instance not found or ambiguous. Please check the card's status entity.",
+      unknown_command: "This backend does not offer card actions.",
+      unknown: "Action failed: {msg}",
+    },
     open_integration: "Open integration",
-    clear_alarm: "Clear alarm",
-    clear_requires_home: "Only possible from home",
-    clear_presence_unknown: "No person is linked to your user – presence unknown",
     hydraulic_clears_itself: "Ends once the flow meets its quiet/reset condition. Slow Leak and Low Flow also end when their detector is switched off, High Flow when the bypass is started – without fixing the cause. Burst Leak ends only physically.",
     ends_slow_low: "Ends once the flow meets its quiet/reset condition. Switching this detector off also ends the alarm at once – without fixing the cause (e.g. an open tap or a leak).",
     ends_high: "Ends once the flow meets its quiet/reset condition. Starting the High Flow bypass also ends the alarm at once – without fixing the cause (e.g. an open tap or a leak).",
@@ -314,7 +362,6 @@ const I18N = {
     confirm_bypass: "A High Flow alarm is running. Starting the bypass ends this alarm and its contribution to the shutoff request immediately. The cause (e.g. an open tap or a leak) is not fixed. Burst Leak protection stays active.\n\nStart the bypass anyway?",
     storage_paused_hint: "Runtime store damaged – the detection state is not reliable.",
     external_offline_banner: "An external leak sensor is unreachable. A leak at that spot would not be detected.",
-    action_unavailable: "The backend does not offer this action yet.",
     action_failed: "Action rejected: {msg}",
     integration_unavailable: "The integration reports no status. The display is not current.",
     sensor_unavailable: "Unavailable",
@@ -468,22 +515,6 @@ function deviceName(hass, statusEntityId) {
   return device?.name_by_user || device?.name || undefined;
 }
 
-/**
- * Presence of the logged-in viewer, derived from the person linked to the HA user.
- * Display hint only; it affects the rendering only when INTERFACE.enabled. Under the backend contract
- * the backend decides Home from the device tracker of the paired recipient; the
- * card's person-based guess never authorizes anything.
- */
-function viewerPresence(hass) {
-  const userId = hass?.user?.id;
-  if (!userId) return { known: false, home: false };
-  const person = Object.values(hass.states || {}).find(
-    (s) => s.entity_id.startsWith("person.") && s.attributes?.user_id === userId
-  );
-  if (!person) return { known: false, home: false };
-  return { known: true, home: person.state === "home", entity_id: person.entity_id };
-}
-
 function fire(node, type, detail = {}) {
   node.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true }));
 }
@@ -503,7 +534,29 @@ class WaterLeakGuardCard extends HTMLElement {
     this._signature = "";
     this._configEntryId = undefined;
     this._configEntryLookup = undefined;
+    // Session: what this device may do. Never a permission, only what to offer.
+    this._session = { state: "pending" };
+    this._sessionSeq = 0;
+    this._sessionLastAt = -Infinity;
+    this._sessionTimer = undefined;
+    this._sessionInterval = undefined;
     this.shadowRoot.addEventListener("click", (ev) => this._onClick(ev));
+  }
+
+  connectedCallback() {
+    if (!this._sessionInterval) {
+      this._sessionInterval = setInterval(() => {
+        if (this._alarmActive()) this._requestSession({ defer: false });
+      }, SESSION_ALARM_INTERVAL_MS);
+    }
+    this._requestSession({ defer: false });
+  }
+
+  disconnectedCallback() {
+    clearInterval(this._sessionInterval);
+    clearTimeout(this._sessionTimer);
+    this._sessionInterval = undefined;
+    this._sessionTimer = undefined;
   }
 
   static get cardVersion() {
@@ -523,6 +576,13 @@ class WaterLeakGuardCard extends HTMLElement {
     if (config.bypass_presets !== undefined && !Array.isArray(config.bypass_presets)) {
       throw new Error("bypass_presets must be a list of minutes");
     }
+    if (this._config && this._config.entity !== config.entity) {
+      // Another instance may be meant: forget its entry id and session.
+      this._configEntryId = undefined;
+      this._configEntryLookup = undefined;
+      this._session = { state: "pending" };
+      this._sessionSeq += 1;
+    }
     this._config = { ...DEFAULT_CONFIG, ...config };
     this._signature = "";
     this._render();
@@ -534,6 +594,7 @@ class WaterLeakGuardCard extends HTMLElement {
     if (signature !== this._signature) {
       this._signature = signature;
       this._render();
+      this._requestSession();
     }
   }
 
@@ -568,9 +629,7 @@ class WaterLeakGuardCard extends HTMLElement {
       const s = this._hass.states[id];
       return s ? `${id}:${s.state}:${s.last_updated}` : `${id}:-`;
     });
-    const presence = viewerPresence(this._hass);
     parts.push(
-      `p:${presence.known}:${presence.home}`,
       `l:${lang(this._hass)}`,
       `a:${this._hass.user?.is_admin}`,
       `d:${deviceName(this._hass, this._statusEntity) || ""}`
@@ -595,7 +654,7 @@ class WaterLeakGuardCard extends HTMLElement {
   }
 
   async _serviceData(extra = {}) {
-    const entryId = await this._entryId(this._statusEntity);
+    const entryId = await this._entryId(this._resolvedStatusId);
     return entryId ? { config_entry_id: entryId, ...extra } : { ...extra };
   }
 
@@ -648,17 +707,85 @@ class WaterLeakGuardCard extends HTMLElement {
     }
   }
 
-  /** Call a backend alarm command. Only reachable when INTERFACE.enabled is true. */
-  async _proposed(command, payload) {
-    try {
-      await this._hass.callWS({ type: command, ...payload });
-    } catch (err) {
-      if (err && (err.code === "unknown_command" || err.code === "not_found")) {
-        // Never pretend: an unknown command is reported, nothing else is opened.
-        fire(this, "hass-notification", { message: translator(this._hass)("action_unavailable") });
-        return;
+  _alarmActive() {
+    const status = this._hass?.states?.[this._resolvedStatusId];
+    return Boolean(status?.attributes?.aggregate_alarm_active);
+  }
+
+  /**
+   * Ask the backend what this device may do. At most one request per
+   * SESSION_MIN_INTERVAL_MS. Inside that window a request is deferred to its end
+   * (state changes) or dropped (`defer: false`: connect, periodic poll), because a
+   * fresh answer is already on its way. Only the answer to the newest request is
+   * used (out-of-order answers are dropped).
+   */
+  _requestSession({ defer = true } = {}) {
+    if (!this._hass || !this._config || typeof this._hass.callWS !== "function") return;
+    if (!this._resolvedStatusId) return;
+    const wait = this._sessionLastAt + SESSION_MIN_INTERVAL_MS - Date.now();
+    if (wait > 0) {
+      if (defer && !this._sessionTimer) {
+        this._sessionTimer = setTimeout(() => {
+          this._sessionTimer = undefined;
+          this._requestSession();
+        }, wait);
       }
-      throw err;
+      return;
+    }
+    this._sessionLastAt = Date.now();
+    const seq = ++this._sessionSeq;
+    (async () => {
+      let next;
+      try {
+        const data = await this._hass.callWS({ type: INTERFACE.session, ...(await this._serviceData()) });
+        next = { state: "ok", data: data && typeof data === "object" ? data : {} };
+      } catch (err) {
+        // Older backend (unknown_command) or any error: view only.
+        next = { state: "error", code: err?.code || "unknown", data: {} };
+      }
+      if (seq !== this._sessionSeq) return;
+      this._session = next;
+      this._render();
+    })();
+  }
+
+  /** Session view; anything but an explicit `paired: true` means view only. */
+  get _perm() {
+    const s = this._session;
+    const d = s.state === "ok" ? s.data : {};
+    const paired = d.paired === true;
+    return {
+      resolved: s.state !== "pending",
+      paired,
+      recipientId: paired ? d.recipient_id : undefined,
+      home: paired && d.home === true,
+      canAck: paired && d.can_global_ack === true,
+      canReset: paired && d.can_external_reset === true,
+      error: s.state === "error" ? s.code : undefined,
+    };
+  }
+
+  _errorText(t, err) {
+    const code = err?.code;
+    if (ERROR_CODES.includes(code)) return t(`error.${code}`);
+    return t("error.unknown", { msg: err?.message || code || String(err) });
+  }
+
+  /** Run one backend alarm command; the backend decides, the card reports. */
+  async _command(key, command, payload, successKey) {
+    if (this._busy.has(key)) return;
+    this._busy.add(key);
+    this._render();
+    const t = translator(this._hass);
+    try {
+      await this._hass.callWS({ type: command, ...(await this._serviceData(payload)) });
+      fire(this, "hass-notification", { message: t(`success.${successKey}`) });
+    } catch (err) {
+      fire(this, "hass-notification", { message: this._errorText(t, err) });
+    } finally {
+      this._busy.delete(key);
+      this._render();
+      this._requestSession();
     }
   }
 
@@ -722,14 +849,19 @@ class WaterLeakGuardCard extends HTMLElement {
           this._hass.callService(DOMAIN, "reset_learning", await this._serviceData())
         );
         break;
-      case "acknowledge":
-        if (!INTERFACE.enabled) return;
-        this._run(`ack:${target.dataset.event}`, async () =>
-          this._proposed(INTERFACE.acknowledge, await this._serviceData({ event_id: target.dataset.event }))
-        );
+      case "mute": {
+        const eventId = target.dataset.event;
+        if (!eventId) return;
+        this._command(`mute:${eventId}`, INTERFACE.mute, { event_id: eventId }, "mute");
         break;
+      }
+      case "acknowledge": {
+        const eventId = target.dataset.event;
+        if (!eventId) return;
+        this._command(`ack:${eventId}`, INTERFACE.acknowledge, { event_id: eventId }, "acknowledge");
+        break;
+      }
       case "external-reset": {
-        if (!INTERFACE.enabled) return;
         // Schema of water_leak_detection/external_reset: all three fields required, strings.
         const payload = {
           event_id: target.dataset.event,
@@ -737,9 +869,9 @@ class WaterLeakGuardCard extends HTMLElement {
           source_generation: target.dataset.generation,
         };
         if (!payload.event_id || !payload.source_id || !payload.source_generation) return;
-        this._run(`clear:${target.dataset.event}`, async () =>
-          this._proposed(INTERFACE.externalReset, await this._serviceData(payload))
-        );
+        // Ends the external alarm and its shutoff contribution: ask first.
+        if (!window.confirm(t("external_reset_confirm", { name: target.dataset.name || payload.source_id }))) return;
+        this._command(`reset:${payload.event_id}`, INTERFACE.externalReset, payload, "external_reset");
         break;
       }
       default:
@@ -984,7 +1116,7 @@ class WaterLeakGuardCard extends HTMLElement {
   _renderAlarm(t, map, status) {
     const a = status.attributes || {};
     const ackStates = a.notification_events || {};
-    const presence = viewerPresence(this._hass);
+    const perm = this._perm;
     const volume = num(this._state(map, "active_event_volume")?.state);
     const durationAttrs = this._state(map, "active_event_duration")?.attributes || {};
     const events = this._activeEvents(status);
@@ -996,6 +1128,8 @@ class WaterLeakGuardCard extends HTMLElement {
       .map((ev) => {
         const ack = ackStates[ev.event_id] || {};
         const acked = Boolean(ack.globally_acknowledged);
+        const mutedList = Array.isArray(ack.muted_recipients) ? ack.muted_recipients : [];
+        const mutedHere = perm.paired && perm.recipientId != null && mutedList.includes(perm.recipientId);
         const isDisplay = ev.event_id === a.active_event_id;
         const duration = isDisplay
           ? durationAttrs[`duration_human_${lang(this._hass)}`] || durationAttrs.duration_human
@@ -1004,31 +1138,45 @@ class WaterLeakGuardCard extends HTMLElement {
             : "";
         const label = ev.external ? `${t("detector.external_leak")} · ${ev.name || ev.source_id}` : t(`detector.${ev.kind}`);
         const ackKey = `ack:${ev.event_id}`;
-        const clearKey = `clear:${ev.event_id}`;
+        const muteKey = `mute:${ev.event_id}`;
+        const resetKey = `reset:${ev.event_id}`;
 
-        const muted = Array.isArray(ack.muted_recipients) ? ack.muted_recipients.length : 0;
-        const how = [];
-        if (!acked) how.push(t("how_mute"), t("how_global_ack"));
-        how.push(this._endHint(t, ev));
-
-        let clearHtml = "";
-        if (!INTERFACE.enabled) {
-          clearHtml = "";
-        } else if (ev.external) {
-          const blocked = !presence.home;
-          const reason = !presence.known ? t("clear_presence_unknown") : t("clear_requires_home");
-          clearHtml = `
+        // Only what this device may do now (session); the backend re-checks every action.
+        const buttons = [];
+        const reasons = [];
+        if (perm.paired && !acked) {
+          if (mutedHere) {
+            buttons.push(`<span class="pill pill-off"><ha-icon class="mini" icon="mdi:bell-off"></ha-icon>${esc(t("muted_here"))}</span>`);
+          } else {
+            buttons.push(`
+              <button class="btn btn-ghost" data-action="mute" data-event="${esc(ev.event_id)}"
+                ${this._busy.has(muteKey) ? "disabled" : ""} title="${esc(t("mute_hint"))}">
+                <ha-icon icon="mdi:bell-off-outline"></ha-icon>${esc(t("mute"))}
+              </button>`);
+          }
+        }
+        if (perm.canAck && !acked) {
+          const away = !perm.home;
+          buttons.push(`
+            <button class="btn btn-primary" data-action="acknowledge" data-event="${esc(ev.event_id)}"
+              ${away || this._busy.has(ackKey) ? "disabled" : ""} title="${esc(away ? t("requires_home") : t("acknowledge_hint"))}">
+              <ha-icon icon="${away ? "mdi:home-lock" : "mdi:bell-check"}"></ha-icon>${esc(t("acknowledge"))}
+            </button>`);
+          if (away) reasons.push(t("requires_home"));
+        }
+        if (ev.external && ev.source_id && ev.source_generation != null && perm.canReset) {
+          const away = !perm.home;
+          buttons.push(`
             <button class="btn btn-danger" data-action="external-reset" data-event="${esc(ev.event_id)}"
-              data-source="${esc(ev.source_id)}" data-generation="${esc(ev.source_generation)}"
-              ${blocked || this._busy.has(clearKey) ? "disabled" : ""}
-              title="${esc(blocked ? reason : t("clear_alarm"))}">
-              <ha-icon icon="${blocked ? "mdi:home-lock" : "mdi:broom"}"></ha-icon>${esc(t("clear_alarm"))}
-            </button>
-            ${blocked ? `<div class="note">${esc(reason)}</div>` : ""}`;
+              data-source="${esc(ev.source_id)}" data-generation="${esc(ev.source_generation)}" data-name="${esc(ev.name || ev.source_id)}"
+              ${away || this._busy.has(resetKey) ? "disabled" : ""} title="${esc(away ? t("requires_home") : t("external_reset"))}">
+              <ha-icon icon="${away ? "mdi:home-lock" : "mdi:broom"}"></ha-icon>${esc(t("external_reset"))}
+            </button>`);
+          if (away && !reasons.includes(t("requires_home"))) reasons.push(t("requires_home"));
         }
 
         return `
-          <div class="event">
+          <div class="event" data-event-id="${esc(ev.event_id)}">
             <div class="event-top">
               <div>
                 <div class="event-kind">${esc(label)}</div>
@@ -1043,26 +1191,30 @@ class WaterLeakGuardCard extends HTMLElement {
                 ${esc(acked ? t("acknowledged") : t("not_acknowledged"))}
               </span>
             </div>
-            ${muted && !acked ? `<div class="note">${esc(t("muted_count", { n: muted }))}</div>` : ""}
-            <ul class="how">${how.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>
-            ${INTERFACE.enabled ? `<div class="event-actions">
-              ${acked ? "" : `
-                <button class="btn btn-primary" data-action="acknowledge" data-event="${esc(ev.event_id)}"
-                  ${this._busy.has(ackKey) ? "disabled" : ""} title="${esc(t("acknowledge_hint"))}">
-                  <ha-icon icon="mdi:bell-check"></ha-icon>${esc(t("acknowledge"))}
-                </button>`}
-              ${clearHtml}
-            </div>` : ""}
+            ${mutedList.length && !acked ? `<div class="note">${esc(t("muted_count", { n: mutedList.length }))}</div>` : ""}
+            <ul class="how"><li>${esc(this._endHint(t, ev))}</li></ul>
+            ${buttons.length ? `<div class="event-actions">${buttons.join("")}</div>` : ""}
+            ${reasons.map((r) => `<div class="note reason">${esc(r)}</div>`).join("")}
           </div>`;
       })
       .join("");
 
+    const notes = [];
+    if (perm.resolved && !perm.paired) {
+      notes.push(t("session_unpaired"));
+      if (perm.error === "unknown_command") notes.push(t("session_no_backend"));
+      else if (perm.error === "instance_not_found") notes.push(t("error.instance_not_found"));
+      else if (perm.error) notes.push(t("session_failed"));
+      else if (this._hass.user?.is_admin) notes.push(t("session_pair_hint"));
+    }
     const anyOpen = events.some((ev) => !ackStates[ev.event_id]?.globally_acknowledged);
-    const adminLink = this._hass.user?.is_admin && anyOpen && !INTERFACE.enabled
+    const adminLink = this._hass.user?.is_admin && anyOpen
       ? `<div class="event-actions"><button class="btn btn-ghost" data-action="open-integration">
            <ha-icon icon="mdi:cog-outline"></ha-icon>${esc(t("open_integration"))}</button></div>`
       : "";
-    return `<section class="alarm">${rows}${adminLink}<div class="note subtle">${esc(t("acknowledge_hint"))}</div></section>`;
+    return `<section class="alarm">${rows}
+      ${notes.length ? `<div class="session-note">${notes.map((n) => `<div class="note">${esc(n)}</div>`).join("")}</div>` : ""}
+      ${adminLink}<div class="note subtle">${esc(t("acknowledge_hint"))}</div></section>`;
   }
 
   _renderFlow(t, map) {

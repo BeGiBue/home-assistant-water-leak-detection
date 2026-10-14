@@ -146,9 +146,10 @@ file copy and no dashboard resource are needed (remove an older manual
 `/local/water-leak-guard-card.js` resource). It shows the
 alarm state and the hydraulic monitoring state separately (active / waiting for measurement /
 blocked, with reason), flow, detectors, High Flow bypass, external leak sensors and learning,
-and controls only the existing switches and actions. It offers no acknowledge or clear buttons
-yet; it explains the current, backend-authorized ways instead. Details, migration and the
-next stages: [docs/CARD.md](docs/CARD.md). Not yet tested on a live Home Assistant instance.
+and controls only the existing switches and actions. For a device paired with a notification
+recipient it offers exactly the alarm actions the backend allows right now (device mute, global
+acknowledgement at home, external reset at home with permission); other devices are view only.
+Details and migration: [docs/CARD.md](docs/CARD.md). Not yet tested on a live Home Assistant instance.
 
 ## Language and later configuration
 

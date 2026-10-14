@@ -174,7 +174,7 @@
         },
         "submit": "Add and go back",
         "data_description": {
-          "session_token_id": "The Home Assistant login of exactly this device (user · app/browser · last used). The backend commands for the dashboard card identify the device by it: muting applies to this device only; global acknowledgement (Home only) and external reset need the permissions above and the device tracker at home. The card itself does not use the pairing yet (planned). “—” = not paired. Select again after the device logs in anew."
+          "session_token_id": "The Home Assistant login of exactly this device (user · app/browser · last used). The dashboard card identifies the device by it (the backend checks every action): muting applies to this device only; global acknowledgement (Home only) and external reset need the permissions above and the device tracker at home. “—” = not paired. Select again after the device logs in anew."
         }
       },
       "remove_recipient": {
@@ -211,7 +211,7 @@
         },
         "submit": "Save and go back",
         "data_description": {
-          "session_token_id": "The Home Assistant login of exactly this device (user · app/browser · last used). The backend commands for the dashboard card identify the device by it: muting applies to this device only; global acknowledgement (Home only) and external reset need the permissions above and the device tracker at home. The card itself does not use the pairing yet (planned). “—” = not paired. Select again after the device logs in anew."
+          "session_token_id": "The Home Assistant login of exactly this device (user · app/browser · last used). The dashboard card identifies the device by it (the backend checks every action): muting applies to this device only; global acknowledgement (Home only) and external reset need the permissions above and the device tracker at home. “—” = not paired. Select again after the device logs in anew."
         }
       },
       "notifications": {

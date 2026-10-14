@@ -1,7 +1,7 @@
 # Dashboard-Karte (Lovelace)
 
-**Status:** Version 0.3.2 (Etappen A, B und D; Etappe C offen). Die Karte ist eine reine Ansicht auf die vorhandenen
-Entitäten und Dienste und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
+**Status:** Version 0.4.0 (Etappen A, B, C und D umgesetzt). Die Karte ist eine Ansicht auf die vorhandenen
+Entitäten, Dienste und Kartenbefehle und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
 Reset-Nonce, und Berechtigung, Anwesenheit und erlaubte Alarmaktionen prüft ausschließlich das
 Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).
 
@@ -19,15 +19,16 @@ Integration installiert und automatisch geladen (siehe Installation).
 | Kopf: Alarmstatus, Leckalarm, Absperranforderung | `sensor.*_status` (Attribute `aggregate_alarm_active`, `aggregate_shutoff_request`, `active_detector`) | Tippen öffnet Details |
 | **Hydraulische Überwachung** | `sensor.*_hydraulic_monitoring_status` (ab 1.2.0-beta.3) mit `reason`, `source_entity_id`, `mqtt_provenance_status`, `last_valid_measurement`, `observation_age_seconds` | Grund und Messherkunft aufklappbar |
 | Hinweis Laufzeitspeicher | Attribut `storage_recovery_required` | – |
-| Aktive Ereignisse (hydraulisch und extern) | Attribute `hydraulic_detectors`, `external_sources`, `notification_events`; Dauer-/Volumensensor | nur Anzeige und Erklärung (siehe unten) |
+| Aktive Ereignisse (hydraulisch und extern) | Attribute `hydraulic_detectors`, `external_sources`, `notification_events`; Dauer-/Volumensensor; Befehl `session` | Stummschalten, global quittieren, externes Leck zurücksetzen – nur was dieses Gerät gerade darf (siehe unten) |
 | Durchfluss mit High-/Burst-Marke | `current_flow`, `effective_high_threshold`, `effective_burst_threshold` | – |
 | Erkennung Slow/Low/High/Burst | Attribut `detectors`, Schalter Slow/Low, Bypass-Schalter | Slow/Low ein/aus |
 | High-Flow-Bypass | Bypass-Schalter, Restzeit, Standarddauer | Start mit Voreinstellung oder Standarddauer, Beenden |
 | Externe Lecksensoren | Attribut `external_sources` (ohne Tombstones), Live-Zustand des Sensors | Tippen öffnet den Sensor |
 | Lernmodell | Lernzuverlässigkeit, Abdeckung, Normalspitze, Langzeitmaximum | Zurücksetzen (nur Admins, mit Rückfrage) |
 
-Alle Bedienelemente rufen nur vorhandene, im Backend geprüfte Schalter und Dienste auf
-(`switch.turn_on/off`, `start_high_flow_bypass`, `cancel_high_flow_bypass`, `reset_learning`).
+Alle Bedienelemente rufen nur vorhandene, im Backend geprüfte Schalter, Dienste und Kartenbefehle auf
+(`switch.turn_on/off`, `start_high_flow_bypass`, `cancel_high_flow_bypass`, `reset_learning`,
+`water_leak_detection/mute`, `/acknowledge`, `/external_reset`).
 
 Die Karte findet alle Entitäten automatisch über das Gerät der gewählten Status-Entität
 (`translation_key` im Entity-Registry). Umbenannte Entity-IDs funktionieren weiterhin. Bei mehreren
@@ -65,17 +66,46 @@ steht immer in der eigenen Zeile **Hydraulische Überwachung**.
 - Externe Sensoren, deren Entität fehlt oder nicht verfügbar ist, zeigen „Nicht verfügbar“ statt
   „Trocken“. Ein aktives externes Leck bleibt sichtbar.
 
-## Alarmbedienung heute
+## Alarmbedienung in der Karte (Etappe C)
 
-Die Karte bietet **keine** Buttons zum Quittieren oder Löschen an, weil das Backend dafür noch
-keinen sicheren Vertrag hat. Zu jedem Ereignis erklärt sie stattdessen, was heute möglich ist:
+Die Karte fragt beim Verbinden, bei jeder Änderung der angezeigten Zustände und während eines Alarms
+etwa alle 30 s den Befehl `water_leak_detection/session` ab – höchstens einmal je 5 s, nur die Antwort
+der neuesten Anfrage zählt. Sie zeigt pro aktivem Ereignis nur die Aktionen, die **dieses Gerät** gerade
+darf. „Zuhause“ kommt ausschließlich aus der Session-Antwort (Device Tracker des gekoppelten
+Empfängers), nicht aus einer Person-Entität im Browser. Das Backend prüft jede Aktion beim Ausführen
+erneut; die Karte entscheidet nichts.
 
-| Aktion | Wirkung | Wo | Weg heute |
+| Aktion | Wirkung | Angezeigt, wenn | Gesperrt (mit Grund) |
 |---|---|---|---|
-| Stummschalten | stoppt Benachrichtigungen nur für das eigene Gerät | überall | Benachrichtigung auf dem eigenen Gerät |
-| Global quittieren | stoppt Benachrichtigungen für alle | nur zuhause (Backend-Prüfung) | Benachrichtigung oder **Konfigurieren → Quittierung** (Admin) |
-| Externes Leck zurücksetzen | beendet den externen Alarm; der Sensor wird erst wieder scharf, wenn er „trocken“ meldet | nur zuhause, berechtigtes Gerät | Benachrichtigung |
-| Hydraulischen Alarm beenden | beendet den Alarm und seinen Beitrag zur Absperranforderung sofort; die Ursache (z. B. offener Hahn, Leck) bleibt | Karte oder Entitäten | Slow Leak/Low Flow: Detektor ausschalten; High Flow: Bypass starten. Die Karte fragt bei laufendem Alarm dieser Art nach. Burst Leak: nicht möglich |
+| Für dieses Gerät stummschalten | stoppt Benachrichtigungen nur für dieses Gerät | gekoppelt, Ereignis nicht global quittiert, dieses Gerät noch nicht stumm (sonst: „Auf diesem Gerät stummgeschaltet“) | nie (auch unterwegs erlaubt) |
+| Global quittieren | stoppt Benachrichtigungen für alle | gekoppelt, Berechtigung „globale Quittierung“, nicht global quittiert | nicht zuhause: „Nur zuhause möglich“ |
+| Externes Leck zurücksetzen | beendet den Alarm des externen Sensors und seinen Beitrag zur Absperranforderung; der Sensor wird erst wieder scharf, wenn er „trocken“ meldet. Rückfrage vor dem Senden | nur bei aktivem externem Ereignis ohne Identitätskonflikt, gekoppelt, Berechtigung „externer Reset“ | nicht zuhause: „Nur zuhause möglich“ |
+| Hydraulischen Alarm beenden | kein Kartenbefehl. Der Alarm endet, sobald der Durchfluss die Ruhe-/Rücksetzbedingung erfüllt. Slow Leak/Low Flow enden auch beim Ausschalten des Detektors, High Flow beim Start des Bypass – jeweils mit Rückfrage; die Ursache bleibt. Burst Leak endet nur physisch | – | – |
+
+Jeder Button trägt die genaue `event_id`, der Reset zusätzlich `source_id` und `source_generation` aus
+`external_sources`. Die Karte schickt die `config_entry_id` mit, sobald sie bekannt ist. Ein Button ist
+während seiner Anfrage gesperrt (kein Doppelversand). Nach Erfolg kommt eine kurze Bestätigung, und die
+Session wird neu abgefragt.
+
+**Nicht gekoppelt:** Keine Aktionsbuttons, sondern der Hinweis „Dieses Gerät ist nicht gekoppelt – nur
+Anzeige.“ Admins sehen zusätzlich, wo gekoppelt wird (**Konfigurieren → Benachrichtigungsempfänger →
+Empfänger bearbeiten → Gekoppelte Anmeldung**) und den Link zur Integration. Ein älteres Backend ohne
+Kartenbefehle (`unknown_command`) oder ein Fehler der Session-Abfrage gilt ebenfalls als „nicht
+gekoppelt“, mit kurzem Hinweis.
+
+**Meldungen bei Ablehnung** (Benachrichtigung in HA):
+
+| Code | Meldung der Karte |
+|---|---|
+| `not_paired` | Dieses Gerät ist nicht (mehr) gekoppelt. |
+| `not_home` | Nur zuhause möglich: Dieses Gerät ist laut Device Tracker nicht zuhause. |
+| `not_allowed` | Diese Aktion ist für dieses Gerät nicht freigegeben. |
+| `event_not_active` | Das Ereignis ist nicht mehr aktiv. |
+| `not_committed` | Konnte nicht dauerhaft gespeichert werden. Es wurde nichts geändert. |
+| `rejected` | Vom Backend abgelehnt. |
+| `instance_not_found` | Instanz nicht gefunden oder mehrdeutig. Bitte die Status-Entität der Karte prüfen. |
+| `unknown_command` | Dieses Backend bietet keine Kartenaktionen an. |
+| anderer Fehler | Aktion fehlgeschlagen: (Diagnosetext) |
 
 Die Rückfrage liest die Phase immer aus dem Status-Sensor, den die Karte anzeigt (über das Gerät der
 gewählten Entität aufgelöst), auch wenn im Editor eine andere Entität der Integration gewählt wurde.
@@ -85,9 +115,10 @@ des Bypass-Schalters, damit der Bypass dort nicht ohne Rückfrage gestartet werd
 Ohne Eingriff endet ein hydraulischer Alarm, sobald der Durchfluss die Ruhe-/Rücksetzbedingung
 erfüllt. Burst Leak endet nur physisch. Der Hinweis im Alarmkasten nennt den Weg passend zur Alarmart.
 
-Quittieren beendet **weder** Erkennung noch Alarm noch Absperranforderung. Die Karte zeigt pro
-Ereignis, ob global quittiert ist und auf wie vielen Geräten stummgeschaltet wurde. Admins erhalten
-bei offenen Ereignissen einen Link zur Integrationsseite.
+Quittieren und Stummschalten beenden **weder** Erkennung noch Alarm noch Absperranforderung. Die Karte
+zeigt pro Ereignis, ob global quittiert ist und auf wie vielen Geräten stummgeschaltet wurde. Admins
+erhalten bei offenen Ereignissen einen Link zur Integrationsseite. Quittieren ist außerdem weiterhin
+über die Benachrichtigung und **Konfigurieren → Aktive Meldungen quittieren** möglich.
 
 ## Installation
 
@@ -141,8 +172,8 @@ an die rechte Wand. Bei `prefers-reduced-motion` steht es still.
 
 ## Backend-Vertrag für Kartenaktionen (Etappe B)
 
-Im Backend umgesetzt und getestet. Die Karte nutzt ihn erst ab Etappe C (`INTERFACE.enabled` bleibt
-bis dahin `false`).
+Im Backend umgesetzt und getestet. Die Karte nutzt ihn seit Version 0.4.0 (Etappe C, siehe
+„Alarmbedienung in der Karte“).
 
 ### Identität: das Gerät, nicht der Benutzer
 
@@ -210,8 +241,7 @@ beenden weder Erkennung noch Alarm noch Absperranforderung.
 
 ## Nächste Etappen
 
-**Etappe C – Frontend-Anbindung:** Die Karte fragt `session` ab und zeigt nur die Aktionen, die dieses
-Gerät gerade darf. Abgelehnte Aktionen erscheinen mit verständlichem Text zum Fehlercode. Tests für
-mehrere Ereignisse und zuhause/unterwegs.
+**Etappe C – Frontend-Anbindung:** umgesetzt in 0.4.0 (siehe „Alarmbedienung in der Karte“). Getestet
+mit simuliertem Home Assistant; ein Test in einer echten Installation steht aus.
 
 **Etappe D – Automatische Registrierung:** umgesetzt (siehe Installation).
