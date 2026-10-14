@@ -1,6 +1,7 @@
-# Water Leak Guard 1.2.0-beta.1 – Entwurf
+# Water Leak Guard 1.2.0-beta.1 – Release-Kandidat
 
-Noch nicht veröffentlicht; Versionsänderung und Veröffentlichung benötigen Freigabe.
+Version vorbereitet und geprüft; noch nicht veröffentlicht. Merge, Tag und
+Veröffentlichung benötigen gesonderte Freigabe.
 
 - F04-V3 mit hydraulischer Slow-/Low-/High-/Burst-Erkennung, getrenntem Rolling-
   und Long-Term-Learning, verständlicher Ereignisdauer und HA-Quittierung.

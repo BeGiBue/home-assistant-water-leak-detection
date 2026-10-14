@@ -2,7 +2,13 @@
 
 Diese Vorabversion ist für einen begrenzten privaten Test der hydraulischen
 Erkennung gedacht: Slow, Low, High und Burst sowie Benachrichtigung, Mute und ACK.
-Sie ist noch nicht veröffentlicht. Die aktuelle Produktversion bleibt 1.1.0.
+Der vorbereitete Release-Kandidat trägt 1.2.0-beta.1 und ist noch nicht
+veröffentlicht. Der zuletzt veröffentlichte stabile Stand bleibt 1.1.0.
+
+Für die konkrete private Installation wurde bestätigt: ausschließlich Hydrus
+eingerichtet; externe Lecksensoren wurden nie konfiguriert. H01 ist damit für
+diese Installation nicht relevant. Für andere Installationen gelten weiterhin
+die unten genannten Voraussetzungen; H01 ist nicht allgemein geschlossen.
 
 ## Voraussetzung: hydraulischer Einsatz ohne externe Sensoren
 
@@ -57,14 +63,14 @@ aus nur zwei Telegrammen ableiten. Der reale Hydrus-Status
 
 ## Nach ausdrücklicher Freigabe
 
-1. Beta-Abnahmebericht und den konkreten geprüften Commit bestätigen.
-2. Vorbereiteten Versionspatch separat prüfen und anwenden; Manifest, const.py,
-   pyproject.toml und Release-Metadaten konsistent auf 1.2.0-beta.1 setzen.
-3. Erneut Validate/Hassfest/HACS auf dem endgültigen Versionscommit ausführen.
+1. Bericht und endgültigen Versionscommit für Merge/Veröffentlichung freigeben.
+2. Manifest, const.py, pyproject.toml, Changelog und Release Notes sind bereits
+   konsistent auf 1.2.0-beta.1 vorbereitet; keinen alten Versionspatch erneut anwenden.
+3. Validate/Hassfest/HACS des endgültigen Versionscommits vor Freigabe prüfen.
 4. Merge und Veröffentlichung nur mit gesonderter ausdrücklicher Freigabe.
 5. GitHub-Release als **prerelease**, **nicht latest** veröffentlichen. Die vorhandene
-   Release-Automation setzt diese Kennzeichen bisher nicht automatisch; den
-   vorbereiteten Patch zuerst freigeben. Nicht unverändert starten.
+   Release-Automation ist für Beta auf diese Kennzeichen vorbereitet. Vor
+   Veröffentlichungsfreigabe weder Publisher noch Release-Workflow starten.
 6. Im Haushalt Mobilzustellung, Mute/ACK, HA-/Add-on-Restart, echte Ruhe über
    mindestens 180 Sekunden, Empfangslücke und frische Rückkehr protokollieren.
 

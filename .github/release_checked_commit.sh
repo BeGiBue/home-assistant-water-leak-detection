@@ -62,7 +62,11 @@ verify_release() {
 # Recheck immediately before using the tag, including existing-release reruns.
 resolve_tag || exit 1
 if ! $existing_release; then
-  if ! gh release create "$release_version" \
+  prerelease_args=()
+  if [[ "$release_version" == *-beta.* ]]; then
+    prerelease_args=(--prerelease --latest=false)
+  fi
+  if ! gh release create "$release_version" "${prerelease_args[@]}" \
       --repo "$GITHUB_REPOSITORY" --verify-tag --target "$GITHUB_SHA" \
       --title "Water Leak Guard ${release_version}" \
       --notes-file "RELEASE_NOTES_${release_version}.md"; then

@@ -4,7 +4,10 @@
 
 A backend-focused Home Assistant custom integration for detecting abnormal water consumption and possible water leaks from an existing water-meter flow sensor.
 
-**Current release:** 1.1.0
+**Current release:** 1.2.0-beta.1
+**Release status:** prepared beta candidate, not published; latest published stable: 1.1.0.
+**Beta scope:** hydraulic detection with notifications only, without configured external leak
+sensors or persisted external records. See [the beta prerequisites](docs/BETA_1.2.0.md).
 **Minimum Home Assistant:** 2026.9.0
 **Integration domain:** `water_leak_detection`
 
@@ -274,7 +277,8 @@ F02 static High Flow, F08 Low Flow stability, and the repeatedly confirmed seaso
 learning of clean High Flow episodes. High remains static and learning can influence only
 the existing adaptive Burst context in that release. The unreleased F04 V3 feature
 on this branch replaces the shared High-learning channel and Rapid-Rise rule;
-see the current [V3 contract](docs/F04_V3.md). Release metadata remains 1.1.0.
+see the current [V3 contract](docs/F04_V3.md). The prepared release candidate is
+1.2.0-beta.1; 1.1.0 remains the latest published stable version.
 
 Only actual flow reports supply detection/quiet evidence. Re-reading a cached HA
 state on an internal tick never matures a timer. Object identity and report
