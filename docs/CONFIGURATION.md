@@ -147,18 +147,37 @@ Each recipient is configured independently with:
 - critical-alert permission,
 - global acknowledgement permission while Home,
 - optional trusted stationary Home-device flag,
-- optional **paired login for the dashboard card** (since 2.0.0-beta.1).
+- optional **pairing for the dashboard card**: a Home Assistant user or a single login (login since 2.0.0-beta.1, user since card 0.5.0).
 
-### Paired login for the dashboard card
+### Pairing for the dashboard card
 
-The recipient form offers the active Home Assistant logins (user · app/browser · last used · IP).
-Pairing one login lets the dashboard card on exactly that device act for this recipient: mute for
-this device anywhere, global acknowledgement and external reset only with the permissions above and
-while the recipient's tracker reports `home`. The backend checks this on every action; the card is
-not an authorization. One login can belong to one recipient only. Long-lived tokens are never
-offered. Deleting the login or a new login of the device ends the pairing; choose the new login.
-Choosing "—" removes the pairing. Pairing never changes any other recipient setting.
-Details: [dashboard card](CARD.md).
+The field **Pairing for the dashboard card** offers:
+
+- "—": not paired,
+- **"👤 name"** (user; listed first, the default kind of pairing): every normal app/browser login of
+  that active, non-system Home Assistant user. It survives logging out and in, reinstalling the app
+  and a new browser ("one device = always one user"). Stored as `session_user_id`.
+- **"🔑 user – app/browser · last used · IP"** (login): exactly one login, as before. Stored as
+  `session_token_id`. Existing login pairings keep working without migration.
+
+A recipient stores one of the two, never both. For a dashboard connection the backend accepts only a
+normal login (never a long-lived token) of an active, non-system user that belongs to the connection's
+user; then a recipient paired with **exactly this login wins**, otherwise the recipient paired with
+the connection's **user** applies, otherwise the session is view only.
+
+With a user pairing **every** login of that user, e.g. a laptop browser, gets this recipient's rights,
+while "home" still comes from this recipient's device tracker. Use login pairing when one user has
+several devices that need different rights (iPad at home vs. phone away); it takes precedence over the
+user pairing.
+
+The paired device may mute this recipient anywhere; global acknowledgement and external reset need the
+permissions above and the recipient's tracker at `home`. The backend checks this on every action; the
+card is not an authorization. A user and a login can each belong to one recipient only (errors "user
+already paired" / "login already paired"); a deleted or deactivated user, or a deleted login, is
+rejected. Saving the form without changing the field keeps the existing pairing (shown with "⚠"
+when it is no longer valid). The symbols are language-neutral because the options form cannot know the
+viewer's language. Choosing "—" removes
+it. Pairing never changes any other recipient setting. Details: [dashboard card](CARD.md).
 
 ### Personal mute
 

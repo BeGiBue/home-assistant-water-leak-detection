@@ -170,11 +170,11 @@
           "trusted_stationary": "Trusted stationary home device",
           "go_back": "Back without saving",
           "allow_external_reset": "Allow external reset (only currently at Home)",
-          "session_token_id": "Paired login for the dashboard card (optional)"
+          "session_pairing": "Pairing for the dashboard card (optional)"
         },
         "submit": "Add and go back",
         "data_description": {
-          "session_token_id": "The Home Assistant login of exactly this device (user · app/browser · last used). The dashboard card identifies the device by it (the backend checks every action): muting applies to this device only; global acknowledgement (Home only) and external reset need the permissions above and the device tracker at home. “—” = not paired. Select again after the device logs in anew."
+          "session_pairing": "Whom the dashboard card treats as this device (the backend checks every action). “👤 …” (user, recommended) covers every app/browser login of this Home Assistant user and survives logging out and in or reinstalling the app – a laptop browser of the same user then gets this recipient's rights too, but “home” always comes from the device tracker above. “🔑 …” pairs exactly one login (user – app/browser · last used), e.g. when one user has several devices with different rights; select again after that device logs in anew. A paired login takes precedence over a user pairing. Muting applies to this recipient only; global acknowledgement and external reset need the permissions above and the device tracker at home. “—” = not paired. “⚠” = stored pairing that is no longer valid."
         }
       },
       "remove_recipient": {
@@ -207,11 +207,11 @@
           "trusted_stationary": "Trusted stationary home device",
           "go_back": "Back without saving",
           "allow_external_reset": "Allow external reset (only currently at Home)",
-          "session_token_id": "Paired login for the dashboard card (optional)"
+          "session_pairing": "Pairing for the dashboard card (optional)"
         },
         "submit": "Save and go back",
         "data_description": {
-          "session_token_id": "The Home Assistant login of exactly this device (user · app/browser · last used). The dashboard card identifies the device by it (the backend checks every action): muting applies to this device only; global acknowledgement (Home only) and external reset need the permissions above and the device tracker at home. “—” = not paired. Select again after the device logs in anew."
+          "session_pairing": "Whom the dashboard card treats as this device (the backend checks every action). “👤 …” (user, recommended) covers every app/browser login of this Home Assistant user and survives logging out and in or reinstalling the app – a laptop browser of the same user then gets this recipient's rights too, but “home” always comes from the device tracker above. “🔑 …” pairs exactly one login (user – app/browser · last used), e.g. when one user has several devices with different rights; select again after that device logs in anew. A paired login takes precedence over a user pairing. Muting applies to this recipient only; global acknowledgement and external reset need the permissions above and the device tracker at home. “—” = not paired. “⚠” = stored pairing that is no longer valid."
         }
       },
       "notifications": {
@@ -311,7 +311,9 @@
       "acknowledgement_rejected": "Acknowledgement rejected: current event, permitted recipient and Home required.",
       "acknowledgement_persistence_failed": "Acknowledgement could not be saved.",
       "session_not_found": "This login no longer exists. Please reload the list.",
-      "session_already_paired": "This login is already paired with another recipient. Remove that pairing first."
+      "session_already_paired": "This login is already paired with another recipient. Remove that pairing first.",
+      "session_user_not_found": "This user no longer exists or is deactivated. Please reload the list.",
+      "session_user_already_paired": "This user is already paired with another recipient. Remove that pairing first or pick a single login here."
     },
     "abort": {
       "no_mobile_app_notify_services": "No mobile_app notification services were found. Set up the Home Assistant Companion App first.",

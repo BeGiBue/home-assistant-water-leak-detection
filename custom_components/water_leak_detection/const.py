@@ -35,6 +35,7 @@ RECIPIENT_ALLOW_GLOBAL_ACK = "allow_global_ack"
 RECIPIENT_TRUSTED_STATIONARY = "trusted_stationary"
 RECIPIENT_TOKEN = "token"
 RECIPIENT_SESSION_TOKEN_ID = "session_token_id"  # paired HA login (refresh token id), not a secret
+RECIPIENT_SESSION_USER_ID = "session_user_id"  # paired HA user (every normal login), not a secret
 
 CONF_SLOW_ENABLED = "slow_enabled"
 CONF_SLOW_THRESHOLD_LPH = "slow_threshold_lph"

@@ -112,7 +112,8 @@ Home Assistant. Then:
    (*Settings → Dashboards → ⋮ → Resources*) and the file in `<config>/www/`. Existing card
    configurations (`type: custom:water-leak-guard-card`) keep working.
 3. Optional: pair devices for alarm actions in the card under **Configure → Notification recipients →
-   Edit recipient → Paired login for the dashboard card**.
+   Edit recipient → Pairing for the dashboard card** (a Home Assistant user, the default, or a single
+   login).
 
 The beta scope is unchanged: hydraulic detection with notifications, without configured external
 leak sensors or persisted external records. See [2.0 beta notes](BETA_2.0.0.md) and

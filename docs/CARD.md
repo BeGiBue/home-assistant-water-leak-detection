@@ -1,6 +1,6 @@
 # Dashboard-Karte (Lovelace)
 
-**Status:** Karte 0.4.1, ausgeliefert mit Water Leak Guard **2.0.0-beta.1** (Etappen A, B, C und D umgesetzt). Die Karte ist eine Ansicht auf die vorhandenen
+**Status:** Karte 0.5.0 (kompaktes Layout, noch unveröffentlicht; zuletzt veröffentlicht: 0.4.1 mit Water Leak Guard **2.0.0-beta.1**, Etappen A, B, C und D umgesetzt). Die Karte ist eine Ansicht auf die vorhandenen
 Entitäten, Dienste und Kartenbefehle und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
 Reset-Nonce, und Berechtigung, Anwesenheit und erlaubte Alarmaktionen prüft ausschließlich das
 Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).
@@ -19,16 +19,115 @@ Integration installiert und automatisch geladen (siehe Installation).
 | Kopf: Alarmstatus, Leckalarm, Absperranforderung | `sensor.*_status` (Attribute `aggregate_alarm_active`, `aggregate_shutoff_request`, `active_detector`) | Tippen öffnet Details |
 | **Hydraulische Überwachung** | `sensor.*_hydraulic_monitoring_status` (ab 1.2.0-beta.3) mit `reason`, `source_entity_id`, `mqtt_provenance_status`, `last_valid_measurement`, `observation_age_seconds` | Grund und Messherkunft aufklappbar |
 | Hinweis Laufzeitspeicher | Attribut `storage_recovery_required` | – |
-| Aktive Ereignisse (hydraulisch und extern) | Attribute `hydraulic_detectors`, `external_sources`, `notification_events`; Dauer-/Volumensensor; Befehl `session` | Stummschalten, global quittieren, externes Leck zurücksetzen – nur was dieses Gerät gerade darf (siehe unten) |
+| Alarmkasten (aktive Ereignisse, hydraulisch und extern) – steht bei Alarm direkt unter dem Kopf | Attribute `hydraulic_detectors`, `external_sources`, `notification_events`; Dauer-/Volumensensor; Befehl `session` | Stummschalten, global quittieren, externes Leck zurücksetzen, bei Slow Leak/Low Flow „Erkennung abschalten“, bei High Flow „Bypass starten“ – nur was dieses Gerät gerade darf (siehe unten) |
 | Durchfluss mit High-/Burst-Marke | `current_flow`, `effective_high_threshold`, `effective_burst_threshold` | – |
-| Erkennung Slow/Low/High/Burst | Attribut `detectors`, Schalter Slow/Low, Bypass-Schalter | Slow/Low ein/aus |
-| High-Flow-Bypass | Bypass-Schalter, Restzeit, Standarddauer | Start mit Voreinstellung oder Standarddauer, Beenden |
-| Externe Lecksensoren | Attribut `external_sources` (ohne Tombstones), Live-Zustand des Sensors | Tippen öffnet den Sensor |
-| Lernmodell | Lernzuverlässigkeit, Abdeckung, Normalspitze, Langzeitmaximum | Zurücksetzen (nur Admins, mit Rückfrage) |
+| Erkennung: 2×2-Statusraster Slow/Low/High/Burst | Attribut `detectors`, Schalter Slow/Low (nur gelesen), Bypass-Schalter | keine – reine Anzeige; Erklärung im Tooltip |
+| High-Flow-Bypass (einklappbar) | Bypass-Schalter, Restzeit, Standarddauer | Zusammenfassung „Aus – High Flow wird überwacht“ bzw. „Aktiv – noch 1 h 30 min (bis 21:00)“; aufgeklappt Start mit Voreinstellung oder Standarddauer; „Beenden“ steht bei aktivem Bypass direkt in der Zusammenfassung |
+| Externe Lecksensoren (wenn konfiguriert) | Attribut `external_sources` (ohne Tombstones), Live-Zustand des Sensors | Tippen öffnet den Sensor |
+| Lernmodell (einklappbar) | Lernzuverlässigkeit, Abdeckung, Normalspitze, Langzeitmaximum, Lernwerte | Zusammenfassung „Zuverlässig · 30/30 Tage“; aufgeklappt vier Werte in einer Zeile und Zurücksetzen (nur Admins, mit Rückfrage) |
 
 Alle Bedienelemente rufen nur vorhandene, im Backend geprüfte Schalter, Dienste und Kartenbefehle auf
-(`switch.turn_on/off`, `start_high_flow_bypass`, `cancel_high_flow_bypass`, `reset_learning`,
+(`switch.turn_off`, `start_high_flow_bypass`, `cancel_high_flow_bypass`, `reset_learning`,
 `water_leak_detection/mute`, `/acknowledge`, `/external_reset`).
+
+## Layout und unterstützte Bildschirme (ab Karte 0.5.0)
+
+**Wie breit die Karte wird, bestimmt Home Assistant.** Spalten im Masonry-Layout und Abschnitte
+(Sections) sind höchstens ca. 500 px breit. Dort ist die Karte deshalb **immer einspaltig**, auch auf
+einem Tablet oder dem Raspberry-Pi-Display. Zwei Spalten gibt es nur, wenn die Karte selbst mindestens
+ca. 600 px breit ist: in der **Panel-Ansicht** oder in einer Sections-Ansicht mit einem Abschnitt über
+mehrere Spalten (`column_span` ≥ 2) und `grid_options: columns: full` an der Karte.
+
+Höhe der ruhigen Karte (Überwachung aktiv, kein Alarm, Standardkonfiguration), gemessen in Chromium mit
+simuliertem Home Assistant. Je nach Schrift weichen echte Geräte um **ca. ±15 px** ab.
+
+| Gerät / Ansicht | Kartenbreite | Spalten | 0.4.1 | 0.5.0 |
+|---|---|---|---|---|
+| schmales Telefon | 320 px | 1 | ca. 930 px | ca. 335 px |
+| iPhone 17 Pro (402×874) | ca. 386 px | 1 | ca. 884 px | ca. 335 px |
+| iPad / Raspberry Pi 7″ (800×480) in Masonry oder Sections | ca. 490–500 px | 1 | ca. 827 px | ca. 335 px |
+| Panel-Ansicht oder Abschnitt über ganze Breite (Tablet, Pi im Panel) | ≥ ca. 600 px (z. B. 744/768 px) | 2 | ca. 810 px | ca. 190 px |
+
+Mit einem externen Sensor kommen ca. 80 px hinzu (ca. 415 px), mit aktivem Bypass bei schmaler Karte
+ca. 12 px (zweizeilige Zusammenfassung). Auf dem alten 7″-Display (800×480, ca. 420 px unter der
+HA-Leiste von 56 px) passt die ruhige einspaltige Karte damit ohne Scrollen; aufgeklappte Abschnitte oder
+ein Alarm brauchen mehr Platz.
+
+Für ein Wanddisplay oder den Pi eignet sich eine eigene Ansicht im Panel-Modus (zwei Spalten):
+
+```yaml
+views:
+  - title: Wasser
+    path: wasser
+    type: panel
+    cards:
+      - type: custom:water-leak-guard-card
+        entity: sensor.wasserwachter_status
+```
+
+- **Einklappbar:** „High-Flow-Bypass“ und „Lernmodell“ zeigen eine Zusammenfassungszeile. Sie ist ein
+  echter Button mit `aria-expanded` und Pfeil (mindestens 44 px hoch), bedienbar per Klick, Enter und
+  Leertaste. Beide Abschnitte sind anfangs zu. Der Auf/Zu-Zustand gilt pro Karte und bleibt bei jeder
+  Aktualisierung von Home Assistant erhalten (nicht über ein Neuladen der Seite hinweg).
+- **Überwachung kompakt:** Ist die hydraulische Überwachung bestätigt aktiv, sind Status- und
+  Überwachungs-Entität verfügbar, ist weder die Messquelle gestört (`source_unavailable`,
+  `source_available: false`) noch der Laufzeitspeicher beschädigt und ist kein externer Sensor
+  unerreichbar, ersetzt ein grüner Hinweis „Hydraulik aktiv“ in der Durchflusszeile die eigene Zeile (ohne
+  Durchflussabschnitt steht er im Kopf). In jedem anderen Zustand erscheint die volle Zeile
+  „Hydraulische Überwachung“ mit Grund und Details wie bisher. Grün bleibt bestätigt aktiver
+  Überwachung vorbehalten.
+- **Immer sichtbar:** flacher Kopf (ca. 76 px, kleines Schild rechts; Titel, Überschrift und Kennzeichen
+  laufen nie unter das Schild, Kennzeichen dürfen umbrechen), Alarmkasten bei Alarm, Durchfluss, das
+  2×2-Raster der Detektoren, die beiden Zusammenfassungszeilen und – wenn konfiguriert – die externen
+  Sensoren.
+- **Zwei Spalten** ab ca. 600 px Kartenbreite (CSS Container Query auf der Karte, nicht auf dem Fenster):
+  links Kopf, Alarmkasten, Überwachung, Durchfluss; rechts Erkennung, Bypass, externe Sensoren, Lernmodell.
+- **Mindestbreite 280 px:** Die Container Query macht die Breite der Karte unabhängig von ihrem Inhalt; in
+  einem Container, der sich nach dem Inhalt richtet, würde sie sonst auf 0 px zusammenfallen.
+- **Bedienflächen:** Jedes Bedienelement hat mindestens 44 px Trefferfläche. Buttons (auch im
+  Alarmkasten und „Beenden“), Zusammenfassungszeilen, „Grund und Messherkunft“ und das Status-Symbol sind
+  tatsächlich mindestens 44 px hoch; kleine Textlinks (Durchflusswert, Sensornamen) haben eine
+  unsichtbare Trefferfläche von 44 px.
+- `getGridOptions()` bleibt `{ columns: 12, min_columns: 6, rows: "auto" }`: Bestehende Dashboards im
+  Abschnitte-Layout behalten Breite und Platz, die Höhe folgt dem Inhalt. `getCardSize()` (nur für das
+  Masonry-Layout zum Verteilen der Spalten, Einheit 50 px) liefert 7 ohne und 14 mit Alarm.
+- Hell/dunkel über die Theme-Variablen von Home Assistant; bei `prefers-reduced-motion` keine Animationen.
+
+## Keine Schalter in der Karte (ab 0.5.0)
+
+Die Karte hat **keine Ein/Aus-Schalter** mehr (Entscheidung des Maintainers). Das Raster „Erkennung“ zeigt
+nur den Zustand: „Bereit“, „Prüft“, „Alarm“, „Aus“ (Detektor abgeschaltet), „Bypass“, „Pausiert“ oder
+neutral „unbekannt“. Die Kacheln sind nicht anklickbar und öffnen keinen Detaildialog.
+
+- Slow Leak oder Low Flow lassen sich in der Karte nur noch **im Alarmkasten** abschalten, und nur solange
+  der Alarm **dieses** Detektors aktiv ist: „Erkennung abschalten“, mit derselben Rückfrage wie bisher und
+  demselben Dienstaufruf (`switch.turn_off` auf den Detektorschalter). Wieder einschalten und das
+  Abschalten außerhalb eines Alarms gehen über die Geräteseite der Integration bzw. die Entitäten.
+- Die Karte verlinkt die Detektorschalter nirgends; ein Detaildialog dieser Schalter wird auch bei einem
+  manipulierten Link nicht geöffnet. Bypass-Schalter und Bypass-Dauer öffnet sie während eines
+  High-Flow-Alarms ebenfalls nicht.
+
+### Alarm beenden nur zuhause
+
+Es gilt dieselbe Regel wie für alle anderen Aktionen: **quittieren von überall, Alarm beenden nur von
+zuhause.** Zwei Kartenaktionen beenden einen laufenden Alarm:
+
+- „Erkennung abschalten“ bei einem aktiven Slow-Leak- oder Low-Flow-Alarm,
+- „Bypass starten“ während eines aktiven High-Flow-Alarms (im Alarmkasten oder aufgeklappt im
+  Bypass-Abschnitt).
+
+Beide bietet die Karte nur einem **gekoppelten Gerät, das zuhause ist** an – dieselbe Bedingung wie für
+„Externes Leck zurücksetzen“ (`paired` und `home` aus der Session-Antwort, zusätzlich sofort gesperrt,
+wenn der sichtbare Tracker nicht `home` ist). Unterwegs erscheinen sie gesperrt mit „Nur zuhause
+möglich“, ein nicht gekoppeltes Gerät sieht sie nicht. Der Klick prüft die Bedingung erneut. Ohne Alarm
+sind die Bypass-Voreinstellungen wie bisher für alle verfügbar; „Beenden“ des Bypass beendet keinen Alarm
+und ist immer erlaubt.
+
+**Wichtig:** Das ist eine Regel der Karte, keine Sicherheitsgrenze. Die Entitäten (`switch.*_detection`,
+`switch.*_high_flow_bypass`) und Dienste (`start_high_flow_bypass`) der Integration bleiben in Home
+Assistant **unbeschränkt**: Jeder HA-Benutzer kann sie über die Geräteseite, Automationen oder Skripte
+bedienen. Eine Backend-Prüfung nur für den Kartenweg würde daran nichts ändern und wurde deshalb nicht
+eingebaut.
 
 Die Karte findet alle Entitäten automatisch über das Gerät der gewählten Status-Entität
 (`translation_key` im Entity-Registry). Umbenannte Entity-IDs funktionieren weiterhin. Bei mehreren
@@ -56,7 +155,12 @@ steht immer in der eigenen Zeile **Hydraulische Überwachung**.
 - Ist ein konfigurierter externer Lecksensor nicht erreichbar (Entität fehlt, `unavailable`/`unknown`)
   und meldet kein Leck, ist die Karte gelb mit „Kein Alarm“ statt grün „Alles ruhig“.
 - Ist der Laufzeitspeicher beschädigt (`storage_recovery_required`), zeigen die Detektoren „Pausiert“
-  statt „Bereit“; ein ACTIVE-Detektor bleibt „Alarm“. Ist der Alarm aktiv, ohne dass eine Alarmart
+  statt „Bereit“; ein ACTIVE-Detektor bleibt „Alarm“. Meldet die Überwachung „aktiv“, ist aber der
+  Speicher beschädigt oder die Messquelle gestört (`source_unavailable`, `source_available: false`), ist
+  die Karte ohne Alarm gelb mit „Überwachung eingeschränkt“ statt grün „Alles ruhig“. Die Zeile
+  „Hydraulische Überwachung“ zeigt dann gelb „Eingeschränkt“ statt grün „Aktiv“, und die Detektoren zeigen
+  „Pausiert“ statt „Bereit“ – dasselbe wie ohne gültige Messung, denn es wird nicht verlässlich
+  ausgewertet; der Tooltip nennt den Grund. Ein ACTIVE-Detektor bleibt „Alarm“. Ist der Alarm aktiv, ohne dass eine Alarmart
   bekannt ist, lautet die Überschrift „Leckalarm“.
 - Ein **ACTIVE**-Alarm bleibt in jedem Betriebszustand sichtbar: Kopf rot, Detektor „Alarm“,
   Ereignis im Alarmkasten. Das Backend meldet als Status bei Quellenausfall `source_unavailable`,
@@ -94,10 +198,12 @@ Ausführen erneut; die Karte entscheidet nichts.
 
 | Aktion | Wirkung | Angezeigt, wenn | Gesperrt (mit Grund) |
 |---|---|---|---|
-| Für dieses Gerät stummschalten | stoppt Benachrichtigungen nur für dieses Gerät | gekoppelt, Ereignis nicht global quittiert, dieses Gerät noch nicht stumm (sonst: „Auf diesem Gerät stummgeschaltet“) | nie (auch unterwegs erlaubt) |
+| Für *Name* stummschalten | stoppt Benachrichtigungen nur für den gekoppelten Empfänger (*Name* aus der Session-Antwort `recipient_name`; ohne Namen „Für dieses Gerät stummschalten“). Wichtig bei Benutzer-Kopplung: Ein Laptop desselben Benutzers schaltet damit den Empfänger (z. B. das Telefon) stumm | gekoppelt, Ereignis nicht global quittiert, Empfänger noch nicht stumm (sonst: „Bei *Name* stummgeschaltet“) | nie (auch unterwegs erlaubt) |
 | Global quittieren | stoppt Benachrichtigungen für alle | gekoppelt, Berechtigung „globale Quittierung“, nicht global quittiert | nicht zuhause: „Nur zuhause möglich“ |
 | Externes Leck zurücksetzen | beendet den Alarm des externen Sensors und seinen Beitrag zur Absperranforderung; der Sensor wird erst wieder scharf, wenn er „trocken“ meldet. Rückfrage vor dem Senden | nur bei aktivem externem Ereignis ohne Identitätskonflikt, gekoppelt, Berechtigung „externer Reset“ | nicht zuhause: „Nur zuhause möglich“ |
-| Hydraulischen Alarm beenden | kein Kartenbefehl. Der Alarm endet, sobald der Durchfluss die Ruhe-/Rücksetzbedingung erfüllt. Slow Leak/Low Flow enden auch beim Ausschalten des Detektors, High Flow beim Start des Bypass – jeweils mit Rückfrage; die Ursache bleibt. Burst Leak endet nur physisch | – | – |
+| Erkennung abschalten (Slow Leak/Low Flow) | schaltet den Detektor aus (`switch.turn_off`) und beendet damit seinen aktiven Alarm samt Beitrag zur Absperranforderung; die Ursache bleibt. Rückfrage vor dem Senden | aktiver Alarm dieses Detektors, gekoppelt, Detektor eingeschaltet | nicht zuhause: „Nur zuhause möglich“ |
+| Bypass starten (High Flow) | startet den High-Flow-Bypass mit Standarddauer und beendet damit den aktiven High-Flow-Alarm; die Ursache bleibt. Rückfrage vor dem Senden | aktiver High-Flow-Alarm, gekoppelt | nicht zuhause: „Nur zuhause möglich“ |
+| Hydraulischen Alarm sonst beenden | kein Kartenbefehl. Der Alarm endet, sobald der Durchfluss die Ruhe-/Rücksetzbedingung erfüllt. Burst Leak endet nur physisch | – | – |
 
 Jeder Button trägt die genaue `event_id`, der Reset zusätzlich `source_id` und `source_generation` aus
 `external_sources`. Die Karte schickt die `config_entry_id` mit, sobald sie bekannt ist. Ein Button ist
@@ -106,7 +212,7 @@ Session wird neu abgefragt.
 
 **Nicht gekoppelt:** Keine Aktionsbuttons, sondern der Hinweis „Dieses Gerät ist nicht gekoppelt – nur
 Anzeige.“ Admins sehen zusätzlich, wo gekoppelt wird (**Konfigurieren → Benachrichtigungsempfänger →
-Empfänger bearbeiten → Gekoppelte Anmeldung**) und den Link zur Integration. Ein älteres Backend ohne
+Empfänger bearbeiten → Kopplung für die Dashboard-Karte**) und den Link zur Integration. Ein älteres Backend ohne
 Kartenbefehle (`unknown_command`) oder ein Fehler der Session-Abfrage gilt ebenfalls als „nicht
 gekoppelt“, mit kurzem Hinweis.
 
@@ -126,8 +232,8 @@ gekoppelt“, mit kurzem Hinweis.
 
 Die Rückfrage liest die Phase immer aus dem Status-Sensor, den die Karte anzeigt (über das Gerät der
 gewählten Entität aufgelöst), auch wenn im Editor eine andere Entität der Integration gewählt wurde.
-Während eines laufenden High-Flow-Alarms öffnet der Kopf des Bypass-Abschnitts keinen Detaildialog
-des Bypass-Schalters, damit der Bypass dort nicht ohne Rückfrage gestartet werden kann.
+Die Karte öffnet keinen Detaildialog der Detektorschalter und – während eines High-Flow-Alarms – keinen
+des Bypass-Schalters, damit dort nichts ohne Rückfrage einen Alarm beendet.
 
 Ohne Eingriff endet ein hydraulischer Alarm, sobald der Durchfluss die Ruhe-/Rücksetzbedingung
 erfüllt. Burst Leak endet nur physisch. Der Hinweis im Alarmkasten nennt den Weg passend zur Alarmart.
@@ -192,39 +298,58 @@ an die rechte Wand. Bei `prefers-reduced-motion` steht es still.
 Im Backend umgesetzt und getestet. Die Karte nutzt ihn seit Version 0.4.0 (Etappe C, siehe
 „Alarmbedienung in der Karte“).
 
-### Identität: das Gerät, nicht der Benutzer
+### Identität: Benutzer oder einzelne Anmeldung
 
-Ein Gerät ist fest mit seinem HA-Benutzer angemeldet. Jede Anmeldung (Companion App oder Browser) hat
-in Home Assistant eine eigene Login-ID (Refresh-Token-ID), die die WebSocket-Verbindung serverseitig
-mitführt und die das Gerät nicht fälschen kann.
+Jede Anmeldung (Companion App oder Browser) hat in Home Assistant eine eigene Login-ID (Refresh-Token-ID)
+und gehört zu einem Benutzer. Beides führt die WebSocket-Verbindung serverseitig mit; das Gerät kann es
+nicht fälschen.
 
 Die Kopplung ist **Teil des Empfänger-Eintrags**: Unter **Konfigurieren → Benachrichtigungsempfänger →
-Empfänger hinzufügen / bearbeiten** gibt es das optionale Feld **Gekoppelte Anmeldung für die
-Dashboard-Karte** (Auswahl aus der Liste: Benutzer · App/Browser · zuletzt genutzt · IP). Ein Empfänger
-ist damit zugleich Alarmempfänger und, über seine Berechtigungen, Quittierberechtigter. Es gibt keinen
-zweiten Eintrag.
+Empfänger hinzufügen / bearbeiten** gibt es das optionale Feld **Kopplung für die Dashboard-Karte**. Zur
+Wahl stehen:
+
+- „—“: nicht gekoppelt,
+- **„👤 Name“** (Benutzer; Standard, steht oben): jede normale App-/Browser-Anmeldung dieses HA-Benutzers.
+  Passt zum Modell „ein Gerät = immer ein Benutzer“ und übersteht Ab-/Anmelden, Neuinstallation der App
+  und einen neuen Browser,
+- **„🔑 Benutzer – App/Browser · zuletzt genutzt · IP“** (einzelne Anmeldung): genau eine Anmeldung, wie bisher.
+  Die Symbole sind sprachneutral, weil das Optionsformular die Sprache des Betrachters nicht kennt.
+
+Gespeichert wird entweder `session_user_id` oder `session_token_id` am Empfänger, nie beides. Beide sind
+keine Geheimnisse und erlauben allein keine Anmeldung. Bestehende Kopplungen an eine Anmeldung
+(`session_token_id`) gelten unverändert weiter; eine Migration ist nicht nötig.
+
+**Auflösung je Verbindung** (`session_recipient`):
+
+1. Nur eine normale App-/Browser-Anmeldung (keine Long-Lived-Tokens/Skripte) eines aktiven, nicht
+   systemeigenen Benutzers, die zum Benutzer der Verbindung gehört, wird überhaupt betrachtet.
+2. Ist genau diese Anmeldung mit einem Empfänger gekoppelt, gilt dieser Empfänger (Anmeldung schlägt
+   Benutzer).
+3. Sonst gilt der Empfänger, der mit dem Benutzer der Verbindung gekoppelt ist.
+4. Sonst ist die Sitzung nicht gekoppelt (nur Anzeige). Mehrdeutige Kopplungen berechtigen nie.
+
+**Folge der Benutzer-Kopplung:** *Jede* Anmeldung dieses Benutzers – auch ein Laptop-Browser – erhält die
+Rechte des gekoppelten Empfängers. „Zuhause“ kommt aber immer vom Device Tracker **dieses Empfängers**
+(z. B. dem Telefon), nicht vom Laptop. Wer einem Benutzer auf mehreren Geräten verschiedene Rechte geben
+will (iPad zuhause darf global quittieren, Telefon unterwegs nur stummschalten), koppelt diese Geräte
+einzeln über „🔑 …“; eine solche Kopplung hat Vorrang vor der Benutzer-Kopplung.
 
 - Das Feld ändert **keine** Alarmeinstellung: Benachrichtigungsdienst, Device Tracker, kritische
-  Burst-Alarme, Berechtigungen und Action-Token bleiben genau wie konfiguriert. Bestehende Empfänger
-  ohne Kopplung bleiben unverändert, bis jemand eine Anmeldung auswählt.
-
-- Gespeichert wird nur die Login-ID (`session_token_id` am Empfänger). Sie ist kein Geheimnis und
-  erlaubt allein keine Anmeldung.
-- Eine Anmeldung kann nur mit **einem** Empfänger gekoppelt sein.
-- Akzeptiert werden nur normale App-/Browser-Anmeldungen aktiver, nicht systemeigener Benutzer, die zum
-  Benutzer der Verbindung gehören. Long-Lived-Tokens (Skripte) zählen nie als gekoppeltes Gerät.
-- Wird die Anmeldung in HA gelöscht oder meldet sich das Gerät neu an, verliert die Kopplung sofort
-  ihre Wirkung. Das Gerät muss dann neu gekoppelt werden. Im Empfängerformular steht das Feld in dem
-  Fall auf „—“; wer den Empfänger speichert, entfernt damit die ungültige Kopplung. Alle anderen
-  Einstellungen bleiben unverändert.
-- Die Kopplung wird bei jeder Aktion **innerhalb** der Schreibsperre des Managers erneut geprüft. Wird
+  Burst-Alarme, Berechtigungen und Action-Token bleiben genau wie konfiguriert. Speichern ohne Änderung des
+  Felds behält die bisherige Kopplung, auch wenn die Anmeldung inzwischen gelöscht ist (sie steht dann mit
+  „⚠“ in der Liste und wirkt nicht).
+- Ein Benutzer kann nur mit **einem** Empfänger gekoppelt sein, eine Anmeldung ebenso
+  (`session_user_already_paired`, `session_already_paired`). Ein inzwischen gelöschter oder deaktivierter
+  Benutzer wird abgelehnt (`session_user_not_found`), eine gelöschte Anmeldung ebenso (`session_not_found`).
+- Wird die Anmeldung gelöscht oder der Benutzer deaktiviert, verliert die Kopplung sofort ihre Wirkung.
+- Die Kopplung wird bei jeder Aktion **innerhalb** der Schreibsperre des Managers erneut aufgelöst. Wird
   sie geändert, während ein Befehl wartet, wird der Befehl abgelehnt (`not_paired`).
+- Stummschalten, Quittieren, Zuhause-Prüfung und externes Zurücksetzen arbeiten wie bisher pro
+  **Empfänger**; nur die Zuordnung Verbindung → Empfänger ist neu. Stummschalten gilt also nur für den
+  aufgelösten Empfänger.
 - `trusted_stationary` ersetzt die Anwesenheitsprüfung **nicht**: Auch ein stationäres iPad braucht
   einen Device Tracker mit Zustand `home`.
-- Nicht gekoppelte Sitzungen, etwa ein Desktop-Browser, können nur anzeigen.
-
-Damit hat zum Beispiel ein iPad zuhause (stationär, globale Quittierung erlaubt) mehr Rechte als das
-Telefon desselben Benutzers unterwegs.
+- Nicht gekoppelte Sitzungen können nur anzeigen.
 
 ### Befehle
 
@@ -240,7 +365,7 @@ vorhandenen Prüffunktionen.
 | `water_leak_detection/external_reset` | `event_id`, `source_id`, `source_generation` | externes Leck zurücksetzen | über `async_external_reset`: Berechtigung, `home`, exakte Ereignisbindung, dauerhaft gespeichert |
 
 Für hydraulische Alarme gibt es keinen WebSocket-Befehl. Sie enden, sobald der Durchfluss die
-Ruhe-/Rücksetzbedingung erfüllt, oder über die vorhandenen Bedienelemente (siehe „Alarmbedienung heute“);
+Ruhe-/Rücksetzbedingung erfüllt, oder über die vorhandenen Schalter und Dienste (siehe „Keine Schalter in der Karte“);
 Burst Leak endet nur physisch. Quittieren und Stummschalten
 beenden weder Erkennung noch Alarm noch Absperranforderung.
 
@@ -259,7 +384,8 @@ beenden weder Erkennung noch Alarm noch Absperranforderung.
 ## Entwicklungsstand
 
 Alle Etappen der Kartenübergabe sind umgesetzt: A (Überwachungszustand, ehrliche Anzeige), B (Backend-Vertrag
-mit Gerätekopplung), C (Alarmaktionen in der Karte) und D (Auslieferung mit der Integration). Jede Etappe
+mit Gerätekopplung), C (Alarmaktionen in der Karte) und D (Auslieferung mit der Integration). Danach: kompaktes,
+einklappbares Layout mit zwei Spalten und Kopplung an einen Benutzer (Karte 0.5.0, unveröffentlicht). Jede Etappe
 wurde von einer unabhängigen Review-Instanz anhand des Codes geprüft. Getestet ist die Karte mit simuliertem
 Home Assistant und der vollständigen Python-Testsuite in der CI; ein Test in einer echten Installation steht
 aus.

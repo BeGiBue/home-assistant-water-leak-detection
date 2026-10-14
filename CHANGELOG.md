@@ -1,5 +1,49 @@
 # Changelog
 
+## Unreleased
+
+- Dashboard card 0.5.0 – compact, collapsible, responsive layout. The idle single-column card
+  (320–500 px wide, i.e. every masonry or sections column, which Home Assistant caps at about 500 px,
+  including an iPad or a Raspberry Pi 7″ 800×480 display) shrinks from about 830–930 px to about 335 px
+  (measured in Chromium, ±15 px depending on fonts); it fits under the HA toolbar on the 800×480 display.
+  Two columns (about 190 px high) only when the card itself is at least about 600 px wide: panel view, or
+  a sections view with `column_span` ≥ 2 and `grid_options: columns: full`. While monitoring is
+  confirmed active and nothing is impaired (status and monitoring entities available, no source or
+  store problem, no unreachable external sensor), a compact "Hydraulics active" pill replaces the
+  monitoring row; every other state keeps the full row. All controls have a hit area of at least 44 px. Flatter header (about 76 px) with a smaller shield that text never overlaps;
+  detectors as a 2×2 status grid; "High Flow bypass" and "Learning" are collapsible
+  (summary row is a button with `aria-expanded`, collapsed by default, state kept per card across
+  updates); the four learning values sit in one row. Two columns once the card itself is about 600 px
+  wide (CSS container query). The alarm box comes right after the header. An insufficient learning
+  state is no longer green; only "reliable" is.
+- Card: no on/off switches anymore (maintainer decision). Slow Leak/Low Flow can be disabled from the
+  card only inside the alarm box while that detector's alarm is ACTIVE ("Disable detection", same
+  confirmation and `switch.turn_off` call). This and "Start bypass" during a High Flow alarm end the
+  alarm and are therefore offered only to a paired device at home, like the external reset;
+  away they are shown disabled ("Only possible at home"). HA entities and services stay unrestricted.
+  The detector switches are never linked or opened from the card. `getCardSize()` 9 → 7 (14 during an
+  alarm); `getGridOptions()` unchanged. Minimum card width 280 px (the container query would otherwise
+  let the card collapse in a content-sized container).
+- Card (also on main before): with monitoring reported active but the runtime store damaged or the source
+  impaired (`source_unavailable`, `source_available: false`) the card was green "All quiet"; it is now
+  yellow "Monitoring impaired", the monitoring row shows a yellow "Impaired" instead of a green "Active"
+  and the detector tiles show "Paused" instead of "Ready". An alarm (headline and tile) keeps priority.
+- Card: the mute button names the paired recipient ("Mute for Bea" / "Für Bea stummschalten", from the
+  session's `recipient_name`, escaped; old text without a name), because with a user pairing a laptop
+  mutes the paired phone's recipient.
+- Card logic tests in plain Node without npm packages (`tests/card/card_logic.test.mjs`), run by the
+  Validate workflow.
+- Recipients can be paired with a Home Assistant **user** (new default, `session_user_id`, every normal
+  login of that user, survives a new login) or, as before, with a single **login**
+  (`session_token_id`). A login pairing wins over a user pairing. Existing login pairings keep working
+  without migration; editing a recipient keeps its pairing unless changed. A user and a login can each
+  be paired with one recipient only (new errors `session_user_already_paired`,
+  `session_user_not_found`). Mute, acknowledgement, the Home check (paired recipient's tracker) and the
+  external reset are unchanged. The options form field is now `session_pairing` with values
+  `user:<id>` / `token:<id>`; the choices are labelled language-neutrally "👤 name" (user) and
+  "🔑 name – client · last used" (login).
+- New preview image `docs/assets/card-preview.png` (iPhone idle and Burst Leak alarm).
+
 ## 2.0.0-beta.1 — 2026-10-14
 
 Major release for the dashboard: the card ships with the integration, shows alarm and hydraulic

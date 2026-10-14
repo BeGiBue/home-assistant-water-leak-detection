@@ -170,11 +170,11 @@
           "trusted_stationary": "Stationäres vertrauenswürdiges Home-Gerät",
           "go_back": "Zurück ohne Speichern",
           "allow_external_reset": "Externen Reset erlauben (nur aktuell zuhause)",
-          "session_token_id": "Gekoppelte Anmeldung für die Dashboard-Karte (optional)"
+          "session_pairing": "Kopplung für die Dashboard-Karte (optional)"
         },
         "submit": "Hinzufügen und zurück",
         "data_description": {
-          "session_token_id": "Anmeldung, mit der genau dieses Gerät in Home Assistant angemeldet ist (Benutzer · App/Browser · zuletzt genutzt). Die Dashboard-Karte erkennt das Gerät daran (das Backend prüft jede Aktion): Stummschalten gilt nur für dieses Gerät; globales Quittieren (nur zuhause) und externes Zurücksetzen nur mit den Berechtigungen oben und wenn der Device Tracker zuhause ist. „—“ = nicht gekoppelt. Nach einer Neuanmeldung des Geräts neu auswählen."
+          "session_pairing": "Mit wem die Dashboard-Karte dieses Gerät gleichsetzt (das Backend prüft jede Aktion). „👤 …“ (Benutzer, empfohlen) gilt für jede App-/Browser-Anmeldung dieses Home-Assistant-Benutzers und übersteht Ab-/Anmelden und Neuinstallation – auch ein Laptop-Browser desselben Benutzers bekommt dann die Rechte dieses Empfängers, „zuhause“ kommt aber immer vom Device Tracker oben. „🔑 …“ koppelt genau eine Anmeldung (Benutzer – App/Browser · zuletzt genutzt), z. B. wenn ein Benutzer mehrere Geräte mit verschiedenen Rechten hat; nach einer Neuanmeldung neu auswählen. Eine gekoppelte Anmeldung hat Vorrang vor einer Benutzer-Kopplung. Stummschalten gilt nur für diesen Empfänger; globales Quittieren und externes Zurücksetzen nur mit den Berechtigungen oben und wenn der Device Tracker zuhause ist. „—“ = nicht gekoppelt. „⚠“ = gespeicherte Kopplung, die nicht mehr gültig ist."
         }
       },
       "remove_recipient": {
@@ -207,11 +207,11 @@
           "trusted_stationary": "Stationäres vertrauenswürdiges Home-Gerät",
           "go_back": "Zurück ohne Speichern",
           "allow_external_reset": "Externen Reset erlauben (nur aktuell zuhause)",
-          "session_token_id": "Gekoppelte Anmeldung für die Dashboard-Karte (optional)"
+          "session_pairing": "Kopplung für die Dashboard-Karte (optional)"
         },
         "submit": "Speichern und zurück",
         "data_description": {
-          "session_token_id": "Anmeldung, mit der genau dieses Gerät in Home Assistant angemeldet ist (Benutzer · App/Browser · zuletzt genutzt). Die Dashboard-Karte erkennt das Gerät daran (das Backend prüft jede Aktion): Stummschalten gilt nur für dieses Gerät; globales Quittieren (nur zuhause) und externes Zurücksetzen nur mit den Berechtigungen oben und wenn der Device Tracker zuhause ist. „—“ = nicht gekoppelt. Nach einer Neuanmeldung des Geräts neu auswählen."
+          "session_pairing": "Mit wem die Dashboard-Karte dieses Gerät gleichsetzt (das Backend prüft jede Aktion). „👤 …“ (Benutzer, empfohlen) gilt für jede App-/Browser-Anmeldung dieses Home-Assistant-Benutzers und übersteht Ab-/Anmelden und Neuinstallation – auch ein Laptop-Browser desselben Benutzers bekommt dann die Rechte dieses Empfängers, „zuhause“ kommt aber immer vom Device Tracker oben. „🔑 …“ koppelt genau eine Anmeldung (Benutzer – App/Browser · zuletzt genutzt), z. B. wenn ein Benutzer mehrere Geräte mit verschiedenen Rechten hat; nach einer Neuanmeldung neu auswählen. Eine gekoppelte Anmeldung hat Vorrang vor einer Benutzer-Kopplung. Stummschalten gilt nur für diesen Empfänger; globales Quittieren und externes Zurücksetzen nur mit den Berechtigungen oben und wenn der Device Tracker zuhause ist. „—“ = nicht gekoppelt. „⚠“ = gespeicherte Kopplung, die nicht mehr gültig ist."
         }
       },
       "notifications": {
@@ -311,7 +311,9 @@
       "acknowledgement_rejected": "Quittierung abgelehnt: aktuelles Ereignis, berechtigter Empfänger und Home erforderlich.",
       "acknowledgement_persistence_failed": "Quittierung konnte nicht gespeichert werden.",
       "session_not_found": "Diese Anmeldung existiert nicht mehr. Bitte die Liste neu laden.",
-      "session_already_paired": "Diese Anmeldung ist bereits mit einem anderen Empfänger gekoppelt. Dort zuerst die Kopplung aufheben."
+      "session_already_paired": "Diese Anmeldung ist bereits mit einem anderen Empfänger gekoppelt. Dort zuerst die Kopplung aufheben.",
+      "session_user_not_found": "Dieser Benutzer existiert nicht mehr oder ist deaktiviert. Bitte die Liste neu laden.",
+      "session_user_already_paired": "Dieser Benutzer ist bereits mit einem anderen Empfänger gekoppelt. Dort zuerst die Kopplung aufheben oder hier eine einzelne Anmeldung wählen."
     },
     "abort": {
       "no_mobile_app_notify_services": "Es wurden keine mobile_app-Benachrichtigungsdienste gefunden. Richte zuerst die Home Assistant Companion App ein.",

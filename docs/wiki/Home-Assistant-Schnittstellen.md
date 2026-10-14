@@ -357,8 +357,9 @@ Seit 2.0.0-beta.1 stellt die Integration die Karte selbst bereit
 [Dashboard-Karte](Dashboard-Karte).
 
 Für die Karte registriert die Integration WebSocket-Befehle. Alle nehmen optional `config_entry_id`
-(nötig bei mehreren Instanzen). Die Identität ist ausschließlich die Anmeldung der Verbindung, die beim
-Empfänger als **Gekoppelte Anmeldung** hinterlegt ist; Long-Lived-Tokens zählen nie. Empfänger-Token und
+(nötig bei mehreren Instanzen). Die Identität ist ausschließlich die Anmeldung der Verbindung und ihr
+Benutzer: Ist genau diese Anmeldung bei einem Empfänger hinterlegt, gilt er; sonst der Empfänger, der mit
+dem Benutzer gekoppelt ist (**Kopplung für die Dashboard-Karte**). Long-Lived-Tokens zählen nie. Empfänger-Token und
 Reset-Nonce verlassen nie den Server.
 
 | Befehl | Felder | Wirkung | Prüfung beim Ausführen |

@@ -101,8 +101,8 @@ check the log for `Dashboard card could not be registered`; leak detection keeps
 Resources* and delete the file from `<config>/www/`.
 
 **Card says "This device is not paired – view only".** Edit the recipient of this device and select
-its login under *Paired login for the dashboard card*. After the device logs in anew, select the new
-login.
+its user (or a single login) under *Pairing for the dashboard card*. A user pairing survives a new
+login; with a single-login pairing, select the new login after the device logs in anew.
 
 **"Global acknowledge" is disabled or rejected with "not at home".** The backend uses the paired
 recipient's `device_tracker.*`. Check that tracker; a trusted stationary flag does not replace it.
