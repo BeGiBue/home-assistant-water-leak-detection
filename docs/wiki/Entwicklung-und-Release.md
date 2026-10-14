@@ -199,6 +199,17 @@ Release ist nicht nötig. Der manuelle Workflow **Publish Wiki** synchronisiert
 werden; allein ein Merge aktualisiert das öffentliche Wiki nicht.
 Die früheren Release-/Korrekturrunden auf dieser Seite sind historischer Kontext.
 
+## 2.0.0-beta.2 – 14. Oktober 2026
+
+Karte 0.5.0: kompaktes, einklappbares Layout (ruhig einspaltig ca. 335 px, passt auf iPhone, iPad-Spalte
+und Raspberry Pi 7″ 800×480; zweispaltig ab ca. 600 px Kartenbreite), keine Ein/Aus-Schalter mehr,
+alarmbeendende Aktionen nur für ein gekoppeltes Gerät zuhause, nichts Grünes bei eingeschränkter
+Überwachung. Empfänger lassen sich mit einem HA-Benutzer oder einer einzelnen Anmeldung koppeln.
+Zusammengeführt aus `feature/card-compact` und `docs/readme-hacs-card-preview` (README mit HACS-tauglichem
+Logo und Kartenvorschau). Mehrere Runden unabhängiger Review anhand des Codes; Validate, Hassfest und
+HACS bestanden. Kein Test in einer echten Installation.
+[Release Notes](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0-beta.2.md).
+
 ## 2.0.0-beta.1 – 14. Oktober 2026
 
 Erste Version mit Dashboard-Karte als Bestandteil der Integration (Karte 0.4.1): getrennte Anzeige von

@@ -1,8 +1,10 @@
 # Dashboard-Karte
 
-Seit **2.0.0-beta.1** gehört die Dashboard-Karte **Water Leak Guard** (Karte 0.4.1) zur Integration. Sie ist
+Seit **2.0.0-beta.1** gehört die Dashboard-Karte **Water Leak Guard** zur Integration (seit 2.0.0-beta.2: Karte 0.5.0 mit kompaktem Layout und Benutzerkopplung). Sie ist
 eine Ansicht und Bedienoberfläche, aber **keine Vertrauensgrenze**: Ob eine Aktion erlaubt ist,
 entscheidet ausschließlich das Backend. Die Integration funktioniert unverändert auch ohne Karte.
+
+![Karte im Normalzustand und bei Burst-Leak-Alarm mit Geräteaktionen](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/card-preview.png)
 
 ## Installation
 
@@ -42,37 +44,77 @@ bypass_presets: [60, 120, 240]        # Minuten, 1–1440
 - **Hydraulische Überwachung:** eigene Zeile mit Aktiv / Warte auf Messung / Gesperrt, bei „Gesperrt“
   mit Grund und Messherkunft. Grün und „Alles ruhig“ erscheinen nur bei bestätigt aktiver Überwachung
   und ohne ausgefallenen externen Sensor; sonst grau oder gelb mit „Kein Alarm“.
-- Durchfluss mit High- und Burst-Grenze, Detektoren Slow/Low/High/Burst, High-Flow-Bypass, externe
-  Lecksensoren und Lernmodell.
+- Bei Alarm steht der **Alarmkasten** direkt unter dem Kopf.
+- Durchfluss mit High- und Burst-Grenze und ein kompaktes 2×2-Raster der Detektoren Slow/Low/High/Burst
+  (nur Anzeige, keine Schalter).
+- **High-Flow-Bypass** und **Lernmodell** sind einklappbar (anfangs zu): Die Zusammenfassung zeigt
+  „Aus – High Flow wird überwacht“ bzw. „Aktiv – noch 1 h 30 min (bis 21:00)“ mit „Beenden“, und
+  „Zuverlässig · 30/30 Tage“. Nur ein zuverlässiges Lernmodell ist grün.
+- Externe Lecksensoren, wenn konfiguriert.
+
+## Layout
+
+Ab Karte 0.5.0 ist die ruhige Karte einspaltig nur noch ca. 335 px hoch (gemessen, je nach Schrift
+ca. ±15 px). Spalten im Masonry-Layout und Abschnitte sind in Home Assistant höchstens ca. 500 px breit;
+dort – auch auf iPad und dem alten 7″-Display des Raspberry Pi (800×480) – ist die Karte einspaltig und
+passt unter die HA-Leiste. Zwei Spalten (links Kopf, Alarm, Überwachung, Durchfluss; rechts Erkennung,
+Bypass, externe Sensoren, Lernmodell) zeigt sie nur, wenn sie selbst mindestens ca. 600 px breit ist: in
+der Panel-Ansicht oder in einem Abschnitt über mehrere Spalten (`column_span` ≥ 2) mit
+`grid_options: columns: full`. Beispiel für ein Wanddisplay:
+
+```yaml
+views:
+  - title: Wasser
+    type: panel
+    cards:
+      - type: custom:water-leak-guard-card
+```
+
+Ist die hydraulische Überwachung bestätigt aktiv und nichts gestört (auch kein externer Sensor
+unerreichbar), zeigt ein grüner Hinweis „Hydraulik aktiv“ in der Durchflusszeile das an; in jedem anderen
+Zustand erscheint die volle Zeile mit Grund. Sind Speicher oder Messquelle gestört, heißt es gelb
+„Überwachung eingeschränkt“ statt „Alles ruhig“. Der Stummschalt-Knopf nennt den
+gekoppelten Empfänger („Für Bea stummschalten“). Hell/dunkel und „Bewegung reduzieren“ werden beachtet.
 
 ## Bedienung mit Rückfrage
 
-Slow und Low lassen sich abschalten, der High-Flow-Bypass lässt sich starten. **Beides beendet einen
-laufenden Alarm dieser Art sofort** samt seinem Beitrag zur Absperranforderung, ohne die Ursache zu
-beheben. Die Karte fragt in diesem Fall mit Warnung nach. Burst ist nicht abschaltbar und nicht per
-Bypass zu unterdrücken.
+Die Karte hat **keine Ein/Aus-Schalter** mehr. Slow Leak und Low Flow lassen sich in der Karte nur im
+Alarmkasten abschalten, solange ihr Alarm läuft („Erkennung abschalten“); bei High Flow bietet der
+Alarmkasten „Bypass starten“. **Beides beendet den laufenden Alarm sofort** samt seinem Beitrag zur
+Absperranforderung, ohne die Ursache zu beheben. Die Karte fragt mit Warnung nach und bietet beides –
+wie das Zurücksetzen eines externen Lecks – **nur einem gekoppelten Gerät zuhause** an („quittieren von
+überall, Alarm beenden nur von zuhause“). Burst ist nicht abschaltbar und nicht per Bypass zu
+unterdrücken. Ein-/Ausschalten außerhalb eines Alarms geht über die Geräteseite der Integration; die
+Entitäten und Dienste selbst bleiben in Home Assistant unbeschränkt.
 
 ## Alarmaktionen pro Gerät
 
-Rechte hängen am **Gerät**, nicht am Benutzer. Ein Gerät wird gekoppelt, indem beim passenden
-Benachrichtigungsempfänger seine Anmeldung ausgewählt wird:
-*Konfigurieren → Benachrichtigungsempfänger → Empfänger bearbeiten → Gekoppelte Anmeldung für die
-Dashboard-Karte*. Eine Anmeldung gehört zu höchstens einem Empfänger; die übrigen Einstellungen des
-Empfängers ändern sich dadurch nicht.
+Rechte hängen am **Empfänger**. Gekoppelt wird beim passenden Benachrichtigungsempfänger:
+*Konfigurieren → Benachrichtigungsempfänger → Empfänger bearbeiten → Kopplung für die Dashboard-Karte*.
+
+- **„👤 Name“** (Benutzer, Standard): jede App-/Browser-Anmeldung dieses HA-Benutzers. Bleibt bei
+  Ab-/Anmelden und Neuinstallation erhalten. Auch ein Laptop-Browser dieses Benutzers bekommt dann die
+  Rechte des Empfängers; „zuhause“ kommt aber immer vom Device Tracker des Empfängers.
+- **„🔑 Name – App/Browser“**: genau eine Anmeldung, z. B. wenn ein Benutzer auf iPad und Telefon verschiedene
+  Rechte haben soll. Eine gekoppelte Anmeldung hat Vorrang vor der Benutzer-Kopplung.
+
+Ein Benutzer und eine Anmeldung gehören jeweils zu höchstens einem Empfänger; die übrigen Einstellungen
+des Empfängers ändern sich dadurch nicht. Bestehende Kopplungen an eine Anmeldung gelten weiter.
 
 | Gerät | Angebotene Aktionen |
 |---|---|
 | nicht gekoppelt (z. B. Desktop-Browser) | keine, Hinweis „nur Anzeige“ |
-| gekoppelt, unterwegs | Für dieses Gerät stummschalten; „Global quittieren“ gesperrt („Nur zuhause möglich“) |
-| gekoppelt, zuhause, mit Berechtigung | Stummschalten, Global quittieren, bei externem Leck „Zurücksetzen“ mit Rückfrage |
+| gekoppelt, unterwegs | Für *Empfänger* stummschalten (z. B. „Für Bea stummschalten“); „Global quittieren“ gesperrt („Nur zuhause möglich“) |
+| gekoppelt, unterwegs, Alarm Slow/Low/High | zusätzlich „Erkennung abschalten“ bzw. „Bypass starten“ gesperrt („Nur zuhause möglich“) |
+| gekoppelt, zuhause, mit Berechtigung | Stummschalten, Global quittieren, bei externem Leck „Zurücksetzen“, bei Slow/Low „Erkennung abschalten“, bei High „Bypass starten“ – jeweils mit Rückfrage, wo ein Alarm endet |
 
 - Stummschalten wirkt nur auf das eigene Gerät; Quittieren stoppt Benachrichtigungen für alle. Beides
   beendet weder Erkennung noch Alarm noch Absperranforderung.
 - Für hydraulische Alarme gibt es keinen Lösch- oder Reset-Knopf.
 - „Zuhause“ bestimmt der Device Tracker des gekoppelten Empfängers, geprüft im Backend beim Ausführen.
   Ein stationäres iPad braucht ebenfalls einen Tracker auf `home`.
-- Meldet sich ein Gerät neu an oder wird die Anmeldung gelöscht, endet die Kopplung; dann die neue
-  Anmeldung auswählen.
+- Bei Kopplung an eine einzelne Anmeldung: Meldet sich das Gerät neu an oder wird die Anmeldung
+  gelöscht, endet die Kopplung; dann die neue Anmeldung wählen oder auf „Benutzer“ umstellen.
 
 Abgelehnte Aktionen erscheinen als verständliche Meldung, zum Beispiel „Dieses Gerät ist laut Device
 Tracker nicht zuhause“. Technische Einzelheiten zu Befehlen und Fehlercodes:

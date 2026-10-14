@@ -1,9 +1,4 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-wordmark-dark.png">
-    <img src="docs/assets/logo-wordmark-light.png" alt="Water Leak Guard – Wasserwächter für Home Assistant" width="460">
-  </picture>
-</p>
+![Water Leak Guard](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/logo-160.png)
 
 # Water Leak Guard
 
@@ -11,7 +6,7 @@
 
 A backend-focused Home Assistant custom integration for detecting abnormal water consumption and possible water leaks from an existing water-meter flow sensor.
 
-**Current release:** 2.0.0-beta.1
+**Current release:** 2.0.0-beta.2
 **Release status:** pre-release; latest published stable: 1.1.0.
 **Beta scope:** hydraulic detection with notifications and the bundled dashboard card, without
 configured external leak sensors or persisted external records. See [the 2.0 beta notes](docs/BETA_2.0.0.md).
@@ -140,17 +135,21 @@ The integration creates a Home Assistant device with backend entities including:
 
 ## Dashboard card
 
+![Water Leak Guard card: normal state and Burst Leak alarm with device actions](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/card-preview.png)
+
 A dependency-free Lovelace card ships with the integration and is loaded automatically: after
 installing or updating and restarting Home Assistant, choose **Add card → Water Leak Guard**. No
 file copy and no dashboard resource are needed (remove an older manual
 `/local/water-leak-guard-card.js` resource). It shows the
 alarm state and the hydraulic monitoring state separately (active / waiting for measurement /
 blocked, with reason), flow, detectors, High Flow bypass, external leak sensors and learning,
-and controls only the existing switches and actions. For a device paired with a notification
+and has no on/off switches: disabling Slow Leak/Low Flow or starting the bypass during an alarm is offered
+only inside the alarm box, to a paired device at home. It is compact (about 335 px high when idle in
+one column) and fits an iPhone, an iPad column or a Raspberry Pi 7″ 800×480 display. For a device paired with a notification
 recipient it offers exactly the alarm actions the backend allows right now (device mute, global
 acknowledgement at home, external reset at home with permission); other devices are view only.
-Pair a device under **Configure → Notification recipients → Edit recipient → Paired login for
-the dashboard card**. Details, permissions and migration: [docs/CARD.md](docs/CARD.md). Tested with
+Pair a device under **Configure → Notification recipients → Edit recipient → Pairing for the
+dashboard card** (a Home Assistant user or a single login). Details, permissions and migration: [docs/CARD.md](docs/CARD.md). Tested with
 a simulated Home Assistant and the full CI suite; not yet tested on a live installation.
 
 ## Language and later configuration
@@ -458,7 +457,7 @@ See [configuration](docs/CONFIGURATION.md#hydraulische-überwachung).
 
 ### Dashboard card and beta verification status
 
-Since 2.0.0-beta.1 the card (0.4.1) is installed and loaded with the integration, shows the
+Since 2.0.0-beta.1 the card (now 0.5.0 in 2.0.0-beta.2) is installed and loaded with the integration, shows the
 hydraulic monitoring state separately from the alarm state and offers per-device alarm actions
 that the backend authorizes (see [Dashboard card](#dashboard-card) and [docs/CARD.md](docs/CARD.md)).
 Remove an older manual `/local/water-leak-guard-card.js` resource after upgrading.

@@ -40,6 +40,7 @@ from .const import (
     RECIPIENT_NAME,
     RECIPIENT_NOTIFY_SERVICE,
     RECIPIENT_SESSION_TOKEN_ID,
+    RECIPIENT_SESSION_USER_ID,
     RECIPIENT_TOKEN,
     RECIPIENT_TRACKER_ENTITY,
     RECIPIENT_TRUSTED_STATIONARY,
@@ -80,6 +81,7 @@ class NotificationRecipient:
     token: str
     allow_external_reset: bool = False
     session_token_id: str | None = None
+    session_user_id: str | None = None
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> NotificationRecipient | None:
@@ -103,6 +105,19 @@ class NotificationRecipient:
         ):
             return None
 
+        session_token_id = raw.get(RECIPIENT_SESSION_TOKEN_ID)
+        session_token_id = (
+            session_token_id if isinstance(session_token_id, str) and session_token_id else None
+        )
+        session_user_id = raw.get(RECIPIENT_SESSION_USER_ID)
+        # A pairing is either one login or one user, never both; the narrower
+        # login pairing wins if a hand-edited entry carries both keys.
+        session_user_id = (
+            session_user_id
+            if session_token_id is None and isinstance(session_user_id, str) and session_user_id
+            else None
+        )
+
         return cls(
             id=recipient_id,
             name=name,
@@ -113,11 +128,8 @@ class NotificationRecipient:
             trusted_stationary=bool(raw.get(RECIPIENT_TRUSTED_STATIONARY, False)),
             token=token,
             allow_external_reset=raw.get(RECIPIENT_ALLOW_EXTERNAL_RESET) is True,
-            session_token_id=(
-                session
-                if isinstance(session := raw.get(RECIPIENT_SESSION_TOKEN_ID), str) and session
-                else None
-            ),
+            session_token_id=session_token_id,
+            session_user_id=session_user_id,
         )
 
 
@@ -324,26 +336,41 @@ class NotificationController:
         """Serialize acknowledgement state."""
         return {event_id: state.to_dict() for event_id, state in self.acknowledgements.items()}
 
-    def recipient_for_session(self, session_token_id: str | None) -> NotificationRecipient | None:
-        """Recipient paired with exactly this HA login; current options are authoritative.
+    def recipient_for_session(
+        self, session_token_id: str | None, session_user_id: str | None = None
+    ) -> NotificationRecipient | None:
+        """Recipient paired with this HA login or, failing that, with its user.
 
-        Parses the saved options directly instead of reload_recipients(), so a
-        read-only query never re-subscribes the tracker listeners.
+        The caller (websocket.session_recipient) has already verified that the
+        login is a normal app/browser login of an active, non-system user and
+        that ``session_user_id`` is the owner of exactly that login.
+
+        Resolution order:
+        1. A recipient paired with exactly this login (``session_token_id``) wins.
+        2. Otherwise a recipient paired with the login's user (``session_user_id``).
+        3. Otherwise the session is not paired.
+
+        Current options are authoritative: they are parsed directly instead of
+        reload_recipients(), so a read-only query never re-subscribes the tracker
+        listeners. An ambiguous pairing never authorizes anything.
         """
         if not session_token_id:
             return None
         raw_recipients = self.entry.options.get(CONF_NOTIFICATION_RECIPIENTS, [])
         if not isinstance(raw_recipients, list):
             return None
-        matches = [
+        recipients = [
             recipient
             for raw in raw_recipients
-            if isinstance(raw, dict)
-            and (recipient := NotificationRecipient.from_dict(raw)) is not None
-            and recipient.session_token_id == session_token_id
+            if isinstance(raw, dict) and (recipient := NotificationRecipient.from_dict(raw))
         ]
-        # An ambiguous pairing never authorizes anything.
-        return matches[0] if len(matches) == 1 else None
+        by_token = [r for r in recipients if r.session_token_id == session_token_id]
+        if by_token:
+            return by_token[0] if len(by_token) == 1 else None
+        if not session_user_id:
+            return None
+        by_user = [r for r in recipients if r.session_user_id == session_user_id]
+        return by_user[0] if len(by_user) == 1 else None
 
     async def async_session_mute(self, event_id: str, recipient_id: str) -> str | None:
         """Device-scoped mute from a paired dashboard session; None means accepted.

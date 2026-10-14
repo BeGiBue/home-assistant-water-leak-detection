@@ -92,17 +92,24 @@ The integration exposes source unavailability and suspends incomplete learning e
 
 ## Dashboard card
 
-**Card is missing in "Add card".** Since 2.0.0-beta.1 the integration loads the card itself. Restart Home
-Assistant after installing/updating and reload the browser or Companion app. If it is still missing,
-check the log for `Dashboard card could not be registered`; leak detection keeps running in that case.
+**Card is missing in "Add card".** Since 2.0.0-beta.1 the integration loads the card itself.
+
+1. Restart Home Assistant after installing/updating (a HACS download alone loads nothing).
+2. Open `http://<your-ha>:8123/water_leak_detection/water-leak-guard-card.js` in a browser. JavaScript
+   text means the integration serves the card; 404 means it was not registered — check the log for
+   `water_leak_detection` / `Dashboard card could not be registered` (leak detection keeps running).
+3. Browsers and the Companion app cache the Home Assistant start page. Do a hard reload in the browser
+   (Ctrl/Cmd+Shift+R); in the Companion app use *Settings → Companion App → Debugging → Reset frontend
+   cache*, then reopen the app.
+4. In *Add card* search for "Water Leak Guard"; custom cards are listed below the built-in cards.
 
 **Console warning "version … is already loaded".** An older, manually added resource
 `/local/water-leak-guard-card.js` is still present. Remove it under *Settings → Dashboards → ⋮ →
 Resources* and delete the file from `<config>/www/`.
 
 **Card says "This device is not paired – view only".** Edit the recipient of this device and select
-its login under *Paired login for the dashboard card*. After the device logs in anew, select the new
-login.
+its user (or a single login) under *Pairing for the dashboard card*. A user pairing survives a new
+login; with a single-login pairing, select the new login after the device logs in anew.
 
 **"Global acknowledge" is disabled or rejected with "not at home".** The backend uses the paired
 recipient's `device_tracker.*`. Check that tracker; a trusted stationary flag does not replace it.
