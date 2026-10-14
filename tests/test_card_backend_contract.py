@@ -80,7 +80,11 @@ def pair(hass, entry, pairs):
 
 
 async def call(handler, hass, connection, **msg):
+    """Exactly one reply per command: either a result or an error code."""
+    connection.results.clear()
+    connection.errors.clear()
     await handler(hass, connection, {"id": 1, **msg})
+    assert len(connection.results) + len(connection.errors) == 1
     return (connection.results or [None])[-1], (connection.errors or [None])[-1]
 
 
@@ -102,7 +106,6 @@ async def test_unpaired_login_is_view_only(runtime_hass, runtime_entry, measurem
     conn = Connection(user, tokens["browser"].id)
     assert (await call(handle_session, runtime_hass, conn))[0] == {"paired": False}
     for handler in (handle_mute, handle_acknowledge):
-        conn.errors.clear()
         assert (await call(handler, runtime_hass, conn, event_id=event_id))[1] == "not_paired"
     state = manager.notifications.state_for(event_id)
     assert not state.muted_recipients and not state.globally_acknowledged
