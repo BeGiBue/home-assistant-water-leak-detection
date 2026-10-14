@@ -11,6 +11,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import translation
 
+from .card import async_register_card
 from .const import (
     ATTR_CONFIG_ENTRY_ID,
     ATTR_DURATION_MINUTES,
@@ -23,6 +24,7 @@ from .const import (
     SERVICE_START_HIGH_FLOW_BYPASS,
 )
 from .manager import WaterLeakManager
+from .websocket import async_register as async_register_websocket
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -167,6 +169,8 @@ async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
         _reset_learning,
         schema=probatio.Schema({probatio.Optional(ATTR_CONFIG_ENTRY_ID): str}),
     )
+    async_register_websocket(hass)
+    await async_register_card(hass)
     return True
 
 

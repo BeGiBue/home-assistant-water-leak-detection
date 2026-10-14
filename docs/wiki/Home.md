@@ -2,7 +2,7 @@
 
 **Wasserwächter** (englisch: **Water Leak Guard**) ist eine Home-Assistant-Custom-Integration zur Erkennung auffälliger Wasserverbräuche und möglicher Leckagen.
 
-Dieses Wiki basiert auf dem veröffentlichten Stand **1.0.3**. Änderungen zu **F02 (statische High-Flow-Schwelle)** sind auf dem Branch `feature/f02-static-high-flow` fachlich umgesetzt, aber noch **nicht Bestandteil von 1.0.3**. Das Wiki dokumentiert sowohl die Bedienung als auch die technischen und fachlichen Entscheidungen hinter der Erkennung.
+Diese Repository-Wiki-Quellen dokumentieren den veröffentlichten Stand **1.2.0-beta.3** vom 14. Oktober 2026. Die Aktualisierung der Quellen veröffentlicht das GitHub-Wiki nicht automatisch. F02, F08 und F04 V3 sind implementiert; der eingeschränkte Beta-Einsatz und vom Benutzer bestätigte Neustarttest sind unter [Entwicklung und Release](Entwicklung-und-Release) beschrieben.
 
 > **Wichtig:** Die technische Domain bleibt `water_leak_detection`. Der sichtbare Name ist auf Deutsch **Wasserwächter**.
 
@@ -44,9 +44,10 @@ Diese Trennung ist eine der wichtigsten Sicherheitsentscheidungen des Projekts.
 
 ### Home Assistant
 
-- [Entitäten, Aktionen und Events](Home-Assistant-Schnittstellen)
+- [Entitäten, Aktionen und Events – einschließlich hydraulischer Überwachung](Home-Assistant-Schnittstellen)
+- [Dashboard-Karte: Anzeige, Gerätekopplung und Alarmaktionen](Dashboard-Karte)
 - [Persistenz und Neustartverhalten](Persistenz-und-Betrieb)
-- [Fehlerbilder und Troubleshooting](Troubleshooting)
+- [Fehlerbilder und Troubleshooting – Warten/Gesperrt](Troubleshooting)
 
 ### Entwicklung
 
@@ -83,3 +84,16 @@ Der Wasserwächter ist ein Erkennungs- und Entscheidungsbackend. Er kann das Ris
 Automatische physische Ventilsteuerung erfolgt derzeit nicht direkt durch die Integration. Stattdessen stellt sie eine unabhängige **Absperranforderung** bereit, die in Home Assistant gezielt mit einer bestehenden Ventil- oder Schaltentität automatisiert werden kann.
 
 - [F04 V3: Burst, Langzeitlernen, Migration und externe Sensoren](F04-V3.md)
+
+## Alarm und Überwachung getrennt beurteilen
+
+**Hydraulische Überwachung** zeigt Aktiv, Warte auf Messung oder Gesperrt. „Kein
+Alarm“ beweist keine funktionierende Messfreigabe; Gesperrt beendet keinen bereits
+ACTIVE bestätigten Alarm. [Sensor und Attribute](Home-Assistant-Schnittstellen).
+Seit 2.0.0-beta.1 wird die [Dashboard-Karte](Dashboard-Karte) mit der Integration geladen. Sie zeigt
+Alarm und Überwachung getrennt und bietet gekoppelten Geräten die Alarmaktionen an, die das Backend
+gerade erlaubt.
+Am 14. Oktober 2026 bestätigte der Benutzer einen erfolgreichen Hydrus-Neustart
+mit installierter Beta.3: kein Fehlalarm/Repair, 11 Sekunden Gesperrt, anschließend
+automatisch Aktiv und `verified_original_measurement`. Kein Codex-Hardwaretest
+und keine garantierte Startdauer. [Befund und Grenzen](Persistenz-und-Betrieb#vom-benutzer-bestätigter-hydrus-neustarttest).

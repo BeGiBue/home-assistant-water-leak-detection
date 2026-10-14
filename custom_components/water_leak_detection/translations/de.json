@@ -169,9 +169,13 @@
           "allow_global_ack": "Globales Quittieren erlauben, wenn Gerät zuhause",
           "trusted_stationary": "Stationäres vertrauenswürdiges Home-Gerät",
           "go_back": "Zurück ohne Speichern",
-          "allow_external_reset": "Externen Reset erlauben (nur aktuell zuhause)"
+          "allow_external_reset": "Externen Reset erlauben (nur aktuell zuhause)",
+          "session_token_id": "Gekoppelte Anmeldung für die Dashboard-Karte (optional)"
         },
-        "submit": "Hinzufügen und zurück"
+        "submit": "Hinzufügen und zurück",
+        "data_description": {
+          "session_token_id": "Anmeldung, mit der genau dieses Gerät in Home Assistant angemeldet ist (Benutzer · App/Browser · zuletzt genutzt). Die Dashboard-Karte erkennt das Gerät daran (das Backend prüft jede Aktion): Stummschalten gilt nur für dieses Gerät; globales Quittieren (nur zuhause) und externes Zurücksetzen nur mit den Berechtigungen oben und wenn der Device Tracker zuhause ist. „—“ = nicht gekoppelt. Nach einer Neuanmeldung des Geräts neu auswählen."
+        }
       },
       "remove_recipient": {
         "title": "Benachrichtigungsgerät entfernen",
@@ -202,9 +206,13 @@
           "allow_global_ack": "Globales Quittieren erlauben, wenn Gerät zuhause",
           "trusted_stationary": "Stationäres vertrauenswürdiges Home-Gerät",
           "go_back": "Zurück ohne Speichern",
-          "allow_external_reset": "Externen Reset erlauben (nur aktuell zuhause)"
+          "allow_external_reset": "Externen Reset erlauben (nur aktuell zuhause)",
+          "session_token_id": "Gekoppelte Anmeldung für die Dashboard-Karte (optional)"
         },
-        "submit": "Speichern und zurück"
+        "submit": "Speichern und zurück",
+        "data_description": {
+          "session_token_id": "Anmeldung, mit der genau dieses Gerät in Home Assistant angemeldet ist (Benutzer · App/Browser · zuletzt genutzt). Die Dashboard-Karte erkennt das Gerät daran (das Backend prüft jede Aktion): Stummschalten gilt nur für dieses Gerät; globales Quittieren (nur zuhause) und externes Zurücksetzen nur mit den Berechtigungen oben und wenn der Device Tracker zuhause ist. „—“ = nicht gekoppelt. Nach einer Neuanmeldung des Geräts neu auswählen."
+        }
       },
       "notifications": {
         "title": "Benachrichtigungsempfänger",
@@ -301,7 +309,9 @@
       "external_manager_unavailable": "Integration zuerst laden, damit der sichere Quellzustand geprüft werden kann.",
       "external_persistence_failed": "Speichern fehlgeschlagen. Der bisherige Alarmzustand bleibt erhalten.",
       "acknowledgement_rejected": "Quittierung abgelehnt: aktuelles Ereignis, berechtigter Empfänger und Home erforderlich.",
-      "acknowledgement_persistence_failed": "Quittierung konnte nicht gespeichert werden."
+      "acknowledgement_persistence_failed": "Quittierung konnte nicht gespeichert werden.",
+      "session_not_found": "Diese Anmeldung existiert nicht mehr. Bitte die Liste neu laden.",
+      "session_already_paired": "Diese Anmeldung ist bereits mit einem anderen Empfänger gekoppelt. Dort zuerst die Kopplung aufheben."
     },
     "abort": {
       "no_mobile_app_notify_services": "Es wurden keine mobile_app-Benachrichtigungsdienste gefunden. Richte zuerst die Home Assistant Companion App ein.",

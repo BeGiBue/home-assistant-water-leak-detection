@@ -169,9 +169,13 @@
           "allow_global_ack": "Allow global acknowledgement when device is home",
           "trusted_stationary": "Trusted stationary home device",
           "go_back": "Back without saving",
-          "allow_external_reset": "Allow external reset (only currently at Home)"
+          "allow_external_reset": "Allow external reset (only currently at Home)",
+          "session_token_id": "Paired login for the dashboard card (optional)"
         },
-        "submit": "Add and go back"
+        "submit": "Add and go back",
+        "data_description": {
+          "session_token_id": "The Home Assistant login of exactly this device (user · app/browser · last used). The dashboard card identifies the device by it (the backend checks every action): muting applies to this device only; global acknowledgement (Home only) and external reset need the permissions above and the device tracker at home. “—” = not paired. Select again after the device logs in anew."
+        }
       },
       "remove_recipient": {
         "title": "Remove notification device",
@@ -202,9 +206,13 @@
           "allow_global_ack": "Allow global acknowledgement when device is home",
           "trusted_stationary": "Trusted stationary home device",
           "go_back": "Back without saving",
-          "allow_external_reset": "Allow external reset (only currently at Home)"
+          "allow_external_reset": "Allow external reset (only currently at Home)",
+          "session_token_id": "Paired login for the dashboard card (optional)"
         },
-        "submit": "Save and go back"
+        "submit": "Save and go back",
+        "data_description": {
+          "session_token_id": "The Home Assistant login of exactly this device (user · app/browser · last used). The dashboard card identifies the device by it (the backend checks every action): muting applies to this device only; global acknowledgement (Home only) and external reset need the permissions above and the device tracker at home. “—” = not paired. Select again after the device logs in anew."
+        }
       },
       "notifications": {
         "title": "Notification recipients",
@@ -301,7 +309,9 @@
       "external_manager_unavailable": "Load the integration first so the safe source state can be verified.",
       "external_persistence_failed": "Saving failed. The previous alarm state is retained.",
       "acknowledgement_rejected": "Acknowledgement rejected: current event, permitted recipient and Home required.",
-      "acknowledgement_persistence_failed": "Acknowledgement could not be saved."
+      "acknowledgement_persistence_failed": "Acknowledgement could not be saved.",
+      "session_not_found": "This login no longer exists. Please reload the list.",
+      "session_already_paired": "This login is already paired with another recipient. Remove that pairing first."
     },
     "abort": {
       "no_mobile_app_notify_services": "No mobile_app notification services were found. Set up the Home Assistant Companion App first.",

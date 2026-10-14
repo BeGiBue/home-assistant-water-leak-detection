@@ -8,7 +8,7 @@ from homeassistant.const import Platform
 
 DOMAIN = "water_leak_detection"
 NAME = "Water Leak Guard"
-VERSION = "1.2.0-beta.3"
+VERSION = "2.0.0-beta.1"
 
 PLATFORMS: tuple[Platform, ...] = (
     Platform.SENSOR,
@@ -34,6 +34,7 @@ RECIPIENT_CRITICAL_ENABLED = "critical_enabled"
 RECIPIENT_ALLOW_GLOBAL_ACK = "allow_global_ack"
 RECIPIENT_TRUSTED_STATIONARY = "trusted_stationary"
 RECIPIENT_TOKEN = "token"
+RECIPIENT_SESSION_TOKEN_ID = "session_token_id"  # paired HA login (refresh token id), not a secret
 
 CONF_SLOW_ENABLED = "slow_enabled"
 CONF_SLOW_THRESHOLD_LPH = "slow_threshold_lph"

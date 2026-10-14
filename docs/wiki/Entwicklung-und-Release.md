@@ -173,3 +173,40 @@ verwenden. Vorhandene Tags müssen ebenfalls auf diesen Commit zeigen.
 Eine Freigabe/Veröffentlichung gehört nicht zu dieser Korrekturrunde. Das öffentliche Wiki
 bleibt bis zu einer gesondert autorisierten Synchronisation auf seinem bisherigen Stand.
 Aktuelle Testanzahl und lokale Validierungsergebnisse stehen im Abschlussbericht.
+
+## Veröffentlichte Beta.2 und Beta.3 – 14. Oktober 2026
+
+Beta.2 ist als `v1.2.0-beta.2` veröffentlicht: PR #15 (Bildmaterial/Karte 0.1.0)
+und PR #16 (MQTT-Setupgrenze). Beta.3 ist als `1.2.0-beta.3` veröffentlicht:
+PR #17 (separate hydraulische Überwachungsentität und konsistente Paketversion).
+Die damaligen Beta.2-Paketfelder standen noch auf Beta.1; Tags/Release-Namen und
+tatsächlich installierter Code sind zu unterscheiden.
+
+Beta.3-Feature-SHA: `2564843c2724970b3692714ed18dca5e92ce1f16`;
+Merge-/Release-SHA: `7e1e4e786710f060bc982ba461940da2dbc42697`, identischer Dateibaum.
+Je 1476 Softwaretests unter HA 2026.9.0/2026.9.4, 16 Statusfälle separat und
+Validate/Hassfest/HACS bestanden. Diese Ergebnisse sind keine physischen Tests.
+Am 14. Oktober 2026 bestätigte der Benutzer den erfolgreichen Neustart mit
+installierter Beta.3 und realem Hydrus: kein Fehlalarm oder Repair, 11 Sekunden
+Gesperrt, anschließend automatisch Aktiv, `verified_original_measurement`. Das
+ist kein von Codex selbst ausgeführter Hardwaretest und kein Nachweis aller
+Neustart-/MQTT-Ausfallfälle. Die Dauer ist kein garantierter Startwert.
+[Chronologie und Haushaltsprüfung](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
+
+Diese Runde aktualisiert nur Repository-Dokumentation/Wiki-Quellen; ein neuer
+Release ist nicht nötig. Der manuelle Workflow **Publish Wiki** synchronisiert
+`docs/wiki/` aus main. Die tatsächliche Veröffentlichung muss separat bestätigt
+werden; allein ein Merge aktualisiert das öffentliche Wiki nicht.
+Die früheren Release-/Korrekturrunden auf dieser Seite sind historischer Kontext.
+
+## 2.0.0-beta.1 – 14. Oktober 2026
+
+Erste Version mit Dashboard-Karte als Bestandteil der Integration (Karte 0.4.1): getrennte Anzeige von
+Alarm und hydraulischer Überwachung, Rückfragen vor dem Beenden von Alarmen durch Bedienung,
+Gerätekopplung im Empfängereintrag und Kartenaktionen über WebSocket-Befehle mit Prüfung im Backend.
+Zusammengeführt aus PR #18 (Überwachungsanzeige), #19 (Backend-Vertrag und Kopplung), #22 (Auslieferung
+mit der Integration) und #23 (Kartenaktionen). Jede Etappe wurde von einer unabhängigen Review-Instanz
+anhand des Codes geprüft; Validate, Hassfest und HACS bestanden. Kein Test in einer echten Installation.
+Beta-Umfang weiterhin ohne externe Lecksensoren (H01 offen).
+[Release Notes](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0-beta.1.md) ·
+[Beta 2.0.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_2.0.0.md).
