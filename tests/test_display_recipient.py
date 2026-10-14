@@ -149,6 +149,9 @@ async def test_display_external_reset_follows_permission(
         runtime_entry,
         display(session_user_id=user.id, allow_external_reset=allowed),
     )
+    # The notification path never prepares an external-reset action for a display
+    # (the event is active here, so only the display guard decides).
+    assert await manager._prepare_external_reset_action("a", "wall", None, None) is None
     result, error = await call(
         handle_external_reset,
         runtime_hass,
@@ -198,8 +201,6 @@ async def test_display_is_never_part_of_notification_dispatch(
     notifications._eligible = lambda *_: True
     await notifications.async_retry_pending()
     assert not any(route[1].startswith('["wall"') for route in notifications._dispatch_tasks)
-    # And the external-reset notification path never prepares one for a display.
-    assert await manager._prepare_external_reset_action("a", "wall", None, None) is None
     assert_safety(manager)
 
 
