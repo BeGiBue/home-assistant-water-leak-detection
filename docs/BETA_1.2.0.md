@@ -1,9 +1,10 @@
-# Vorbereitung von 1.2.0-beta.1
+# Beta 1.2.0: veröffentlichter Stand und Praxistest
 
 Diese Vorabversion ist für einen begrenzten privaten Test der hydraulischen
 Erkennung gedacht: Slow, Low, High und Burst sowie Benachrichtigung, Mute und ACK.
-Der vorbereitete Release-Kandidat trägt 1.2.0-beta.1 und ist noch nicht
-veröffentlicht. Der zuletzt veröffentlichte stabile Stand bleibt 1.1.0.
+Am 14. Oktober 2026 ist **1.2.0-beta.3 als GitHub-Pre-release veröffentlicht**.
+Der zuletzt veröffentlichte stabile Stand bleibt 1.1.0. Eine Veröffentlichung
+aktualisiert kein laufendes HA; Download/Installation und Neustart sind erforderlich.
 
 Für die konkrete private Installation wurde bestätigt: ausschließlich Hydrus
 eingerichtet; externe Lecksensoren wurden nie konfiguriert. H01 ist damit für
@@ -61,18 +62,75 @@ konfigurieren; nicht unter die normale Cadence setzen. Keine Werte auf Verdacht
 aus nur zwei Telegrammen ableiten. Der reale Hydrus-Status
 `TEMPORARY_ERROR UNKNOWN_E0` wird hier nicht als unbedenklich oder ungültig erklärt.
 
-## Nach ausdrücklicher Freigabe
+## Chronologie und Nachweise
 
-1. Bericht und endgültigen Versionscommit für Merge/Veröffentlichung freigeben.
-2. Manifest, const.py, pyproject.toml, Changelog und Release Notes sind bereits
-   konsistent auf 1.2.0-beta.1 vorbereitet; keinen alten Versionspatch erneut anwenden.
-3. Validate/Hassfest/HACS des endgültigen Versionscommits vor Freigabe prüfen.
-4. Merge und Veröffentlichung nur mit gesonderter ausdrücklicher Freigabe.
-5. GitHub-Release als **prerelease**, **nicht latest** veröffentlichen. Die vorhandene
-   Release-Automation ist für Beta auf diese Kennzeichen vorbereitet. Vor
-   Veröffentlichungsfreigabe weder Publisher noch Release-Workflow starten.
-6. Im Haushalt Mobilzustellung, Mute/ACK, HA-/Add-on-Restart, echte Ruhe über
-   mindestens 180 Sekunden, Empfangslücke und frische Rückkehr protokollieren.
+| Version | Veröffentlichter Stand |
+|---|---|
+| Beta.1 (`1.2.0-beta.1`) | F04-Hydraulik, Benachrichtigung/ACK, lesbare Dauer und Trennung von physischer MQTT-Zeit und Empfangszeit. |
+| Beta.2 (`v1.2.0-beta.2`) | Stand nach PR #15 und #16: vorbereitete Karte 0.1.0 sowie Korrektur der ersten MQTT-Zulassungsgrenze. Die damaligen Paket-Versionsfelder standen noch auf Beta.1; Release-/Tagname allein belegt deshalb nicht die installierte Version. |
+| Beta.3 (`1.2.0-beta.3`) | PR #17: regulärer Sensor `hydraulic_monitoring_status`, DE/EN und konsistente Paketversion Beta.3. |
 
-Die Beobachtung der Nullmeldungen 08:31:02/08:32:45 und Alarmende 08:34:57 ist ein
-Nutzerbefund. Sie wird nicht als hier selbst ausgeführter Hardwaretest ausgegeben.
+Die tatsächliche Setupzeit wird vor Store-I/O erfasst. Nach Restore wird die
+Zulassungsgrenze einmal an `max(gespeicherte Grenze, Setupbeginn)` gebunden.
+Ein neues Hydrus-Telegramm darf nicht allein wegen normaler Zustelllatenz als
+`pre_startup_measurement` abgewiesen werden. Strengere persistierte Grenzen,
+Unterbrechungen, Retained/Replay/Out-of-Order, Zukunft, Alter und sichere Persistenz
+bleiben wirksam. Erste gültige Messung: **0 Sekunden Evidenz**.
+
+**Hydraulische Überwachung** ist unabhängig vom Alarm: `active` / Aktiv bedeutet
+Freigabe, `waiting_for_measurement` / Warte auf Messung fehlende erste Messung ohne
+festgestellte Sperre, `blocked` / Gesperrt eine Ausschlussentscheidung. Gesperrt
+bleibt sichtbar und beendet keinen ACTIVE-Alarm oder Shutoff-Beitrag.
+[Attribute und genaue Zeitbasis](CONFIGURATION.md#hydraulische-überwachung).
+
+Softwareabnahme des Beta.3-Feature-Commits
+`2564843c2724970b3692714ed18dca5e92ce1f16`: je **1476 Tests** unter HA 2026.9.0
+und 2026.9.4, darunter 16 neue Statusfälle; Validate, Hassfest und HACS erfolgreich.
+Release-/Merge-Commit `7e1e4e786710f060bc982ba461940da2dbc42697` hat denselben
+getesteten Dateibaum. Die frühere Startup-Reproduktion mit echtem TCP-Broker bestand
+bei 0/100 ms Latenz. Das sind Software-/Brokerbelege, keine physischen Funkbelege.
+
+## Vom Benutzer bestätigter Hydrus-Neustarttest – 14. Oktober 2026
+
+Der Benutzer hat Home Assistant mit **installierter 1.2.0-beta.3** und einem
+**realen Hydrus-Wasserzähler** neu gestartet und folgende Beobachtungen bestätigt:
+
+| Prüfung | Beobachtung |
+|---|---|
+| Fehlalarm beim Neustart | Keiner |
+| Home-Assistant-Reparaturmeldung | Keine |
+| Hydraulische Überwachung unmittelbar nach Neustart | Zunächst 11 Sekunden „Gesperrt“ |
+| Anschließender Zustand | Automatisch „Aktiv“ |
+| MQTT-Messherkunft | `verified_original_measurement` |
+
+**Ergebnis: Dieser konkrete Neustarttest wurde erfolgreich bestanden.**
+Dies ist ein vom Benutzer bestätigter Praxistest, kein von Codex selbst
+durchgeführter Hardwaretest. Die vorübergehende Sperre ist mit der
+sicherheitsgerichteten Freigabe der Messquelle vereinbar; anschließend wurde die
+hydraulische Überwachung automatisch aktiviert. Aus dem Befund wird kein
+bestimmter interner Ablehnungsgrund oder zusätzlicher Logeintrag abgeleitet.
+
+Die **11 Sekunden sind nur die beobachtete Dauer dieses Neustarts**, keine
+zugesicherte Startzeit, Wartefrist oder Timeout-Einstellung. Der Test bestätigt
+nicht sämtliche Neustart-, Replay-, MQTT-Ausfall-, Funk- oder Recovery-Szenarien.
+Software-/Brokerabnahme und dieser Benutzerbefund bleiben getrennte Nachweise.
+Weitergehende Ausfallszenarien sind dadurch nicht pauschal abgenommen.
+
+Die früheren Nullmeldungen 08:31:02/08:32:45 und Alarmende 08:34:57 bleiben
+separate historische Nutzerbeobachtungen, keine zusätzliche Neustartmessung.
+Für weitere gezielte Prüfungen installierte Version, reale Original-/Empfangszeit,
+Zustandswechsel und Event-IDs protokollieren; keine Schutzprüfung abschalten und
+fehlende Telegramme niemals als Nullverbrauch interpretieren.
+[Diagnosepfad](TROUBLESHOOTING.md#hydraulic-monitoring-waiting-or-blocked).
+
+## Karte und Upgrade
+
+Karte 0.1.0 bleibt optional und manuell über `/local/water-leak-guard-card.js`
+einzubinden. Sie zeigt den neuen Überwachungssensor noch nicht separat an;
+verwende vorerst eine Standard-HA-Karte. Ihre ACK/Clear-WebSocket-Kommandos sind
+nur vorgeschlagen, mit geschütztem Configure-Fallback. [Kartenanleitung](CARD.md).
+[Upgrade und Backup](INSTALLATION.md#upgrading-to-the-published-120-beta3).
+
+[Beta.3-Release](https://github.com/BeGiBue/homeassistant-water-leak-detection/releases/tag/1.2.0-beta.3).
+Beta.1 und Beta.2 bleiben unverändert. Die Dokumentationsänderung darf nach Prüfung gemergt und das Wiki über seinen
+Veröffentlichungsworkflow synchronisiert werden; ein neuer Release ist nicht nötig.
