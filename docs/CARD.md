@@ -1,6 +1,6 @@
 # Dashboard-Karte (Lovelace)
 
-**Status:** Version 0.3.0 (Etappen A, B und D; Etappe C offen). Die Karte ist eine reine Ansicht auf die vorhandenen
+**Status:** Version 0.3.1 (Etappen A, B und D; Etappe C offen). Die Karte ist eine reine Ansicht auf die vorhandenen
 Entitäten und Dienste und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
 Reset-Nonce, und Berechtigung, Anwesenheit und erlaubte Alarmaktionen prüft ausschließlich das
 Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).
@@ -52,6 +52,11 @@ steht immer in der eigenen Zeile **Hydraulische Überwachung**.
 
 - Grün erscheint nur bei bestätigt aktiver Überwachung. Auch das Wasser im Hintergrundschild wird
   ohne aktive Überwachung grau bzw. gelb.
+- Ist ein konfigurierter externer Lecksensor nicht erreichbar (Entität fehlt, `unavailable`/`unknown`)
+  und meldet kein Leck, ist die Karte gelb mit „Kein Alarm“ statt grün „Alles ruhig“.
+- Ist der Laufzeitspeicher beschädigt (`storage_recovery_required`), zeigen die Detektoren „Pausiert“
+  statt „Bereit“; ein ACTIVE-Detektor bleibt „Alarm“. Ist der Alarm aktiv, ohne dass eine Alarmart
+  bekannt ist, lautet die Überschrift „Leckalarm“.
 - Ein **ACTIVE**-Alarm bleibt in jedem Betriebszustand sichtbar: Kopf rot, Detektor „Alarm“,
   Ereignis im Alarmkasten. Das Backend meldet als Status bei Quellenausfall `source_unavailable`,
   auch während eines Alarms. Die Karte liest die Alarmart deshalb aus `active_detector`.
@@ -70,7 +75,10 @@ keinen sicheren Vertrag hat. Zu jedem Ereignis erklärt sie stattdessen, was heu
 | Stummschalten | stoppt Benachrichtigungen nur für das eigene Gerät | überall | Benachrichtigung auf dem eigenen Gerät |
 | Global quittieren | stoppt Benachrichtigungen für alle | nur zuhause (Backend-Prüfung) | Benachrichtigung oder **Konfigurieren → Quittierung** (Admin) |
 | Externes Leck zurücksetzen | beendet den externen Alarm; der Sensor wird erst wieder scharf, wenn er „trocken“ meldet | nur zuhause, berechtigtes Gerät | Benachrichtigung |
-| Hydraulischer Alarm | – | – | endet nur physisch nach den Rücksetzregeln |
+| Hydraulischen Alarm beenden | beendet den Alarm und seinen Beitrag zur Absperranforderung sofort; die Ursache (z. B. offener Hahn, Leck) bleibt | Karte oder Entitäten | Slow Leak/Low Flow: Detektor ausschalten; High Flow: Bypass starten. Die Karte fragt bei laufendem Alarm dieser Art nach. Burst Leak: nicht möglich |
+
+Ohne Eingriff endet ein hydraulischer Alarm, sobald der Durchfluss die Ruhe-/Rücksetzbedingung
+erfüllt. Burst Leak endet nur physisch. Der Hinweis im Alarmkasten nennt den Weg passend zur Alarmart.
 
 Quittieren beendet **weder** Erkennung noch Alarm noch Absperranforderung. Die Karte zeigt pro
 Ereignis, ob global quittiert ist und auf wie vielen Geräten stummgeschaltet wurde. Admins erhalten
@@ -178,7 +186,9 @@ vorhandenen Prüffunktionen.
 | `water_leak_detection/acknowledge` | `event_id` | globale Quittierung | über `async_acknowledge_event`: Berechtigung, Device Tracker `home`, Ereignis aktiv, dauerhaft gespeichert vor Bestätigung |
 | `water_leak_detection/external_reset` | `event_id`, `source_id`, `source_generation` | externes Leck zurücksetzen | über `async_external_reset`: Berechtigung, `home`, exakte Ereignisbindung, dauerhaft gespeichert |
 
-Für hydraulische Alarme gibt es keinen Befehl: Sie enden nur physisch. Quittieren und Stummschalten
+Für hydraulische Alarme gibt es keinen WebSocket-Befehl. Sie enden, sobald der Durchfluss die
+Ruhe-/Rücksetzbedingung erfüllt, oder über die vorhandenen Bedienelemente (siehe „Alarmbedienung heute“);
+Burst Leak endet nur physisch. Quittieren und Stummschalten
 beenden weder Erkennung noch Alarm noch Absperranforderung.
 
 ### Fehlercodes

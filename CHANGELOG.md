@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Dashboard card 0.3.1: alarm hints are now correct per kind (Slow/Low also end when the detector is
+  switched off, High when the bypass starts, Burst only physically); switching off an alarming
+  Slow/Low detector or starting the bypass during a High Flow alarm asks for confirmation. Generic
+  "Leak alarm" headline when the alarm kind is unknown; no "Ready" pills while the runtime store needs
+  recovery; no green "All quiet" while an external leak sensor is unreachable. Command placeholders
+  match the backend (`external_reset`), still unused. Pairing help text no longer claims card support.
 - Dashboard card 0.3.0 ships with the integration and loads automatically: the integration
   serves the bundled file and registers it as an extra frontend module with a content-digest
   cache buster. No file copy or dashboard resource needed. `frontend`/`http` are ordering-only
@@ -12,12 +18,12 @@
   Green only for confirmed active monitoring; detectors show "paused" otherwise. An ACTIVE
   alarm stays in the headline even while the status reports `source_unavailable`.
 - Card no longer offers acknowledge/clear buttons that the backend cannot serve; it explains
-  personal mute, Home-only global acknowledgement, external reset and physical hydraulic reset.
+  personal mute, Home-only global acknowledgement, external reset and how hydraulic alarms end.
 - Backend contract for dashboard card actions (not yet used by the card): pair a recipient with one
   HA login as an optional field of the recipient entry (add/edit; alarm settings unchanged);
   WebSocket commands `session`, `mute` (device-scoped, anywhere), `acknowledge` (global, Home checked at commit) and
-  `external_reset` (Home, permission). Identity is the paired login, never a client token; hydraulic
-  alarms keep ending only physically. Stable error codes for the card.
+  `external_reset` (Home, permission). Identity is the paired login, never a client token; there is
+  no command for hydraulic alarms. Stable error codes for the card.
 - Card uses the Home Assistant device name as title; unavailable external sensors are no
   longer shown as dry.
 
