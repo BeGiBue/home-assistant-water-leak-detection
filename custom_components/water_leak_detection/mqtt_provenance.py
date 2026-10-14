@@ -43,11 +43,19 @@ class MqttProvenance:
             "admission_since": self.started_at.isoformat() if self.started_at else None,
         }
 
+    def bind_startup(self, started_at) -> None:
+        """Bind after restore, preserving stricter persisted/F15 boundaries."""
+        if not self._startup_bound:
+            self.started_at = max(self.started_at, started_at) if self.started_at else started_at
+            self._startup_bound = True
+
     def validate(self, hass, entity_id, state, now):
         """Return a new provenance marker or refuse all consumption/reset credit."""
         if not self._startup_bound:
-            self.started_at = max(self.started_at, now) if self.started_at else now
-            self._startup_bound = True
+            # Reception can follow the physical timestamp by normal transport
+            # latency. Only the manager knows the actual startup/rebind boundary.
+            self.reason = "startup_not_initialized"
+            return None
         component = hass.data.get("sensor")
         entity = component.get_entity(entity_id) if hasattr(component, "get_entity") else None
         config = getattr(entity, "_config", {})
