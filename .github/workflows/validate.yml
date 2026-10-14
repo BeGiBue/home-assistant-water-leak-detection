@@ -41,3 +41,6 @@ jobs:
         run: ruff check .
       - name: Test
         run: pytest -q
+      - name: TEMP mutation check
+        if: always()
+        run: python .github/tmp/mutations.py
