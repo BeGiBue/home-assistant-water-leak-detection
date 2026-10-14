@@ -31,7 +31,7 @@ Wasser gefüllt ist. Es übernimmt die Statusfarbe (grün in Ruhe, blau beim Pr�
 fehlender Messquelle, rot bei Alarm). Im Alarm bewegen sich die Wellen schneller. Bei
 `prefers-reduced-motion` stehen sie still. Mit `show_background: false` lässt sich das Motiv abschalten.
 
-## Installation (bis zur automatischen Registrierung)
+## Manuelle Installation (aktueller Stand)
 
 1. `water-leak-guard-card.js` nach `<config>/www/` kopieren.
 2. **Einstellungen → Dashboards → ⋮ → Ressourcen → Ressource hinzufügen**:
@@ -53,12 +53,16 @@ bypass_presets: [60, 120, 240]        # Minuten, 1–1440
 
 ## Quittieren und Alarm löschen
 
-Konzept: **Quittieren geht von überall, Alarm löschen nur von zuhause.**
+Die Buttons sind eine **vorbereitete Oberfläche**, keine produktive ACK-/Reset-
+Schnittstelle. Der aktuelle Backend-Stand hat die unten genannten WebSocket-
+Kommandos nicht. Bei `unknown_command` öffnet die Karte den geschützten
+Konfigurationsdialog; dort gelten unverändert die serverseitigen Recipient-,
+Event- und Home-Prüfungen. Eine UI-Anwesenheitsprüfung ist keine Autorisierung.
 
 | Aktion | Wirkung | Wer/wo | Karte |
 |---|---|---|---|
-| Quittieren | Stoppt Benachrichtigungen. Alarm und Absperranforderung bleiben. | überall | Button immer aktiv, solange nicht quittiert |
-| Alarm löschen | Beendet den Alarm einer Quelle | nur zuhause | Button nur aktiv, wenn die Person des angemeldeten HA-Benutzers `home` ist |
+| Quittieren (Kartenkonzept) | Vorgeschlagener WebSocket-Aufruf; derzeit Configure-Fallback | Keine globale Away-Freigabe: persönlich mute unterwegs, global nur berechtigt/Home | Button ist kein Autorisierungsnachweis |
+| Alarm löschen (nur externes Kartenkonzept) | Vorgeschlagener WebSocket-Aufruf; derzeit Configure-Fallback | Externer Reset nur mit aktueller Backend-Berechtigung und Home | Sichtbarkeit ersetzt keine serverseitige Prüfung |
 
 Die Anwesenheitsprüfung in der Karte ist **nur ein UI-Hinweis**. Die verbindliche
 Home-Prüfung muss im Backend passieren, so wie heute bei globaler Quittierung und externem Reset.
@@ -79,7 +83,7 @@ Die Namen stehen in der Karte zentral im Objekt `INTERFACE`. Die spätere Schnit
 sie also ändern, ohne die übrige Karte anzufassen.
 
 ```jsonc
-// Quittieren – von überall
+// Vorgeschlagenes Quittieren; Scope/Autorisierung noch nicht implementiert
 { "type": "water_leak_detection/acknowledge",
   "config_entry_id": "…",   // fehlt bei nur einer Instanz, wenn nicht ermittelbar
   "event_id": "…" }
@@ -104,8 +108,30 @@ Offene Punkte für die Schnittstellendoku:
 - **Fehlercodes:** Bei Ablehnung (`not_home`, `not_active`, `not_authorized`) zeigt die Karte die
   Fehlermeldung als Hinweis an.
 
-## Automatische Registrierung (später)
+## Nicht implementierte automatische Registrierung
 
 Die Datei liegt bereits im Integrationsordner, damit HACS sie mitinstalliert. Ein späterer
 Backend-Schritt kann sie über `StaticPathConfig` und `frontend.add_extra_js_url` selbst
 registrieren. Dann entfallen die manuellen Installationsschritte oben.
+
+## Überwachungszustand: aktuelle Grenze und Kartenkonzept
+
+Beta.3 liefert den regulären Sensor `hydraulic_monitoring_status`. Karte **0.1.0**
+referenziert diesen Schlüssel noch nicht und zeigt ihn nicht separat an. Eine
+spätere Kartenergänzung sollte Alarm und Überwachungszustand getrennt darstellen;
+sie ist nicht Bestandteil dieser Dokumentation oder bereits veröffentlichter
+Kartenfunktionen. Bereits jetzt kann der Sensor in einer Standard-HA-Entitätenkarte
+angezeigt werden (tatsächliche Entity-ID im Integrationsgerät auswählen).
+
+- `active` / Aktiv: gültige Messungen sind freigegeben.
+- `waiting_for_measurement` / Warte auf Messung: erste Messung fehlt ohne Sperre.
+- `blocked` / Gesperrt: hydraulische Quelle wurde ausgeschlossen; die Anzeige bleibt
+  verfügbar. Ein vorhandener Alarm und seine Absperranforderung bleiben unabhängig.
+
+[Zustände und Attribute](CONFIGURATION.md#hydraulische-überwachung) ·
+[Diagnose](TROUBLESHOOTING.md#hydraulic-monitoring-waiting-or-blocked).
+Der Default „Alles ruhig“ oder die dekorative Statusfarbe der Karte 0.1.0 ist
+kein Nachweis einer freigegebenen Überwachung. Niemals Recipient-Tokens oder
+Reset-Nonces in Kartenkonfiguration, Browser-Speicher oder Diagnoseexport speichern.
+Für hydraulische Alarme gibt es kein manuelles Löschen: ihre physischen Resetregeln
+bleiben bindend. Persönliche Stummschaltung ist keine globale Quittierung.

@@ -449,3 +449,20 @@ not end an existing alarm or release its shutoff request. The sensor stays avail
 and includes `reason`, `source_entity_id`, `source_available`,
 `mqtt_provenance_status`, `last_valid_measurement` and `observation_age_seconds`.
 See [configuration](docs/CONFIGURATION.md#hydraulische-überwachung).
+
+### Prepared Lovelace card and verification status
+
+The bundled **Water Leak Guard card 0.1.0** is an optional frontend. Copy its JS
+file to `<config>/www/` and register `/local/water-leak-guard-card.js` manually as
+a JavaScript module; the integration does not register the resource automatically.
+Its proposed `water_leak_detection/acknowledge` and
+`water_leak_detection/clear_alarm` WebSocket commands are not implemented.
+The protected Configure dialog is the fallback, not a bypass of Home authorization.
+Card 0.1.0 does not yet display `hydraulic_monitoring_status` separately; use the
+regular sensor in a standard HA card. See [card installation and limitations](docs/CARD.md).
+
+[Beta.3 is published](https://github.com/BeGiBue/homeassistant-water-leak-detection/releases/tag/1.2.0-beta.3).
+Publishing a release does not update a running HA installation: download the chosen
+version and restart HA. Software/broker tests passed; the targeted **physical Hydrus
+restart regression after installing Beta.3 remains open**. See
+[beta chronology and household checks](docs/BETA_1.2.0.md).

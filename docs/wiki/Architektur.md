@@ -44,7 +44,7 @@ Die Auswertung erfolgt:
 - bei Zustandsänderung eines konfigurierten Quellsensors
 - zusätzlich zyklisch alle **10 Sekunden**
 
-Dadurch laufen Zeitbedingungen weiter, auch wenn der Quellsensor bei konstantem Durchfluss nicht fortlaufend neue Zustände erzeugt.
+Die internen Ticks prüfen Steuerungen und Quellenstatus, liefern aber **keine Mess-Evidenz**. Nur echte frische gültige Reports bestätigen Detektions- oder Quiet-Intervalle.
 
 ## 2. Detection Engine
 
@@ -101,7 +101,7 @@ Negative und nicht endliche Durchflusswerte sind ungültige Messungen. Sie werde
 Wenn der Durchflusssensor `unknown`, `unavailable` oder nicht sinnvoll konvertierbar ist:
 
 - wird die Quelle als nicht verfügbar markiert
-- laufende, noch unbestätigte `monitoring`-Phasen werden verworfen
+- bestätigter normaler Slow/Low/High-Monitoring-Fortschritt derselben Quelle bleibt nach Round7 erhalten; unbestätigte Burst-Kandidaten und Low-Stabilität werden unterbrochen
 - laufende Quiet-/Reset-Zeitfenster werden verworfen
 - bereits bestätigte `active`-Ereignisse bleiben aus Sicherheitsgründen aktiv
 - die aktuelle unvollständige Lern-Episode wird verworfen
@@ -160,3 +160,18 @@ Persistiert werden unter anderem:
 - zugelassene Lernwerte
 
 Nicht persistiert wird eine noch unvollständige Lern-Episode. Eine vor einem Neustart nur teilweise beobachtete Episode ist keine vertrauenswürdige Grundlage für „normales Verhalten“.
+
+## Betriebszustand ohne zweiten Detektor
+
+`WaterLeakManager.hydraulic_monitoring_status` spiegelt vorhandene Annahme-,
+Ausschluss- und Rebind-Entscheidungen. Der flüchtige Diagnosegrund beginnt mit
+`waiting_for_measurement`, wird bei akzeptierter Messung `verified_measurement`
+und bei `_suspend_source()` zum konkreten Ausschlussgrund. Aktiv erfordert zugleich
+`source_available`. Die Anzeige steuert weder Evidenz noch Detektor und wird nicht
+als eigener Sicherheitszustand persistiert. Sensorupdates verwenden dieselben
+Manager-Listener, ohne neue Polling-Schleife oder MQTT-Subscription.
+
+Nach Store-Restore wird MQTT einmal an den vor Store-I/O erfassten Setupbeginn
+gebunden; `max(gespeicherte Grenze, Setupbeginn)` erhält strengere Grenzen.
+Die erste gültige Messung liefert null Sekunden. [Betrieb](Persistenz-und-Betrieb)
+und [Sensorattribute](Home-Assistant-Schnittstellen).

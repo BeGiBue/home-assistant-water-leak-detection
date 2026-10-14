@@ -58,6 +58,36 @@ Zusatzattribute enthalten unter anderem:
 - Slow-/Low-Aktivierung
 - interne Detektorzustände
 
+## Hydraulische Überwachung
+
+Regulärer, auch bei Sperre verfügbarer Sensor `hydraulic_monitoring_status` am
+bestehenden Integrationsgerät. Unique-ID:
+`<config-entry-id>_hydraulic_monitoring_status`; Entity-ID kann umbenannt werden.
+
+| Intern | Deutsch | Englisch | Bedeutung |
+|---|---|---|---|
+| `active` | Aktiv | Active | Messquelle ist vom Manager freigegeben. |
+| `waiting_for_measurement` | Warte auf Messung | Waiting for measurement | Erste Messung nach Start/Quellenwechsel fehlt, ohne festgestellte Sperre. |
+| `blocked` | Gesperrt | Blocked | Quelle/Auswertung ist ausgeschlossen; Grund steht in Attributen. |
+
+„Kein Alarm“ und „Aktiv“ sind verschiedene Aussagen. `blocked` ist kein ACK und
+beendet keinen ACTIVE-Alarm oder Shutoff-Beitrag. Die Entität selbst bleibt bei
+Sperre verfügbar, sofern die Integration funktionsfähig ist.
+
+| Attribut | Zeitbasis / Bedeutung |
+|---|---|
+| `reason` | Konkrete letzte Manager-Entscheidung. |
+| `source_entity_id` | Konfigurierte Flow-Entität. |
+| `source_available` | Vorhandener Manager-Freigabewert; bei Rebind kann er kurz die alte Quelle beschreiben, während die Anzeige korrekt wartet. |
+| `mqtt_provenance_status` | Herkunftsprüfung; gemeinsam mit aktuellem Zustand und reason lesen. |
+| `last_valid_measurement` | Zeitstempel des letzten gültigen **HA-Reports**, nicht der originale Funk-Timestamp. |
+| `observation_age_seconds` | Monotones Beobachtungsalter; fehlende Werte bleiben null. |
+
+Mehr Diagnosen liegen im Gesamtstatus unter `measurement_diagnostics`, darunter
+`mqtt_measurement_provenance.admission_since` und Low-Resetfortschritt.
+[Fehlersuche](Troubleshooting). Die Anzeige folgt nur der bestehenden Manager-
+Logik und ist unabhängig von persönlichem Mute/globalem ACK.
+
 ## Aktueller Durchfluss
 
 Normalisierter Durchfluss in:
@@ -319,3 +349,19 @@ Status/Alarm/Shutoff aggregieren alle Ereignisse; Attribute zeigen externe
 ACTIVE/WAITING-Quellen, hydraulische Alarme, Beiträge und Migrationsstatus.
 Ein diagnostischer Langzeitmaximum-Sensor zeigt den getrennt bestätigten Wert.
 Alle Sicherheits- und Persistenzregeln: [F04 V3](F04-V3.md).
+
+## Karte und tatsächliche Aktionsschnittstellen
+
+Die [Karte 0.1.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/CARD.md) ist eine optionale Frontend-Ansicht mit
+manueller Ressourcenregistrierung; sie zeigt den neuen Überwachungssensor noch
+nicht separat. Dafür kann bereits eine Standard-HA-Karte verwendet werden.
+`water_leak_detection/acknowledge` und `water_leak_detection/clear_alarm` sind
+nur vorgeschlagene WebSocket-Kommandos, im Backend nicht registriert. Bei
+`unknown_command` öffnet die Karte den geschützten Configure-Dialog.
+
+Die bestehenden Dienste `water_leak_detection.acknowledge_event` und
+`water_leak_detection.external_reset` sind davon verschieden und verlangen ihre
+aktuellen serverseitigen Bindungen/Berechtigungen. Die Karte enthält keine Tokens
+oder Reset-Nonces und ruft diese Dienste nicht als Ersatz direkt auf. Persönlicher
+Mute unterwegs ist kein globales ACK; Home-/Recipient-Regeln bleiben bindend.
+Hydraulische Alarme haben keinen manuellen Karten-Reset.

@@ -173,3 +173,22 @@ verwenden. Vorhandene Tags müssen ebenfalls auf diesen Commit zeigen.
 Eine Freigabe/Veröffentlichung gehört nicht zu dieser Korrekturrunde. Das öffentliche Wiki
 bleibt bis zu einer gesondert autorisierten Synchronisation auf seinem bisherigen Stand.
 Aktuelle Testanzahl und lokale Validierungsergebnisse stehen im Abschlussbericht.
+
+## Veröffentlichte Beta.2 und Beta.3 – 14. Oktober 2026
+
+Beta.2 ist als `v1.2.0-beta.2` veröffentlicht: PR #15 (Bildmaterial/Karte 0.1.0)
+und PR #16 (MQTT-Setupgrenze). Beta.3 ist als `1.2.0-beta.3` veröffentlicht:
+PR #17 (separate hydraulische Überwachungsentität und konsistente Paketversion).
+Die damaligen Beta.2-Paketfelder standen noch auf Beta.1; Tags/Release-Namen und
+tatsächlich installierter Code sind zu unterscheiden.
+
+Beta.3-Feature-SHA: `2564843c2724970b3692714ed18dca5e92ce1f16`;
+Merge-/Release-SHA: `7e1e4e786710f060bc982ba461940da2dbc42697`, identischer Dateibaum.
+Je 1476 Softwaretests unter HA 2026.9.0/2026.9.4, 16 Statusfälle separat und
+Validate/Hassfest/HACS bestanden. Diese Ergebnisse sind keine physischen Tests.
+Der gezielte echte Hydrus-Test nach Beta.3-Installation/HA-Neustart bleibt offen.
+[Chronologie und Haushaltsprüfung](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
+
+Diese Runde aktualisiert nur Repository-Dokumentation/Wiki-Quellen; sie erstellt
+keinen neuen Release und veröffentlicht das öffentliche GitHub-Wiki nicht.
+Die früheren Release-/Korrekturrunden auf dieser Seite sind historischer Kontext.

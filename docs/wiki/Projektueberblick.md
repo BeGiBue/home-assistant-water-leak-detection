@@ -1,6 +1,6 @@
 # Projektüberblick
 
-> **Standhinweis:** Veröffentlichte Basis ist **1.0.3**. Aussagen zur statischen High-Flow-Schwelle (F02) beschreiben den Branch `feature/f02-static-high-flow` und sind noch **nicht Bestandteil von 1.0.3**.
+> **Stand: 14. Oktober 2026 – veröffentlichte 1.2.0-beta.3.** Historische Versions-/Korrekturrunden bleiben als solche bezeichnet. F02, F08 und F04 V3 sind implementiert; Beta-Einschränkungen siehe [F04 V3](F04-V3).
 
 
 ## Identität
@@ -12,7 +12,7 @@
 | Technische Domain | `water_leak_detection` |
 | Plattform | Home Assistant |
 | Integrationstyp | Service-Integration |
-| Aktueller Release | 1.0.3 |
+| Aktueller Release | 1.2.0-beta.3 (Pre-release) |
 | Repository | `BeGiBue/homeassistant-water-leak-detection` |
 | Fokus | Backend-Integration |
 | Sprache | folgt der in Home Assistant eingestellten Sprache; Deutsch und Englisch enthalten |
@@ -141,3 +141,18 @@ Die niedrigeren Detektoren dürfen intern weiter aktiv bleiben. Das ist wichtig,
 - hydraulische Plausibilisierung
 - statische High- und adaptive Burst-Grenzen
 - Burst-Erkennung über schnellen Durchflussanstieg
+
+## Betriebsstand Beta.3
+
+PR #15 liefert Logo/Bildmaterial und eine vorbereitete manuelle Lovelace-Karte
+0.1.0; PR #16 behebt die verzögerte erste MQTT-Messung; PR #17 ergänzt
+**Hydraulische Überwachung**. Die Zustände Aktiv / Warte auf Messung / Gesperrt
+sind von Alarmen unabhängig. Gesperrt bleibt als nutzbarer Sensorzustand sichtbar;
+bestehende ACTIVE-Ereignisse und Shutoff-Beiträge bleiben erhalten.
+[Entitäten](Home-Assistant-Schnittstellen) · [Diagnose](Troubleshooting).
+
+Die Beta ist auf hydraulische Erkennung/Benachrichtigungen ohne konfigurierte
+externe Sensoren oder gespeicherte externe Alarmdatensätze beschränkt; H01 bleibt
+für externe Quellen offen. Softwaretests belegen keinen physischen Hydrus-
+Neustarttest; dieser ist noch offen. [Beta-Chronologie](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
+[Karteninstallation und fehlende Backend-Befehle](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/CARD.md).

@@ -236,3 +236,14 @@ Quellen-, Empfänger- und Nonce-Bindungen. trusted_stationary allein reicht nich
 Erst erfolgreiches HA-Store-Schreiben setzt genau diese Quelle auf WAITING; sie
 bleibt bis echtem OFF dort, auch nach Neustart. Andere Alarme bleiben erhalten.
 Details und frische Actions nach Restart: [F04 V3](F04-V3.md).
+
+## Quittierung und hydraulische Überwachung
+
+Persönlicher Mute und globales ACK ändern weder die Quellenfreigabe noch
+`hydraulic_monitoring_status`. Aktiv/Warten/Gesperrt ist unabhängig davon, ob
+Benachrichtigungen quittiert sind. Persönlicher Mute unterwegs ist kein globales
+ACK; letzteres verlangt weiterhin aktuelle Recipient-Berechtigung und Home-Zone,
+serverseitig geprüft. Ein UI-Button ist keine Autorisierung.
+Hydraulische Alarme enden nur nach ihren physischen Resetregeln; der gesonderte
+berechtigte External Reset betrifft ausschließlich seine externe Quelle.
+[Sensor und vorbereitete Karte](Home-Assistant-Schnittstellen).
