@@ -275,3 +275,39 @@ und unbestätigte Burst-Kandidaten werden unterbrochen. Ein tatsächlicher
 Quellenwechsel verwirft unbestätigten Fortschritt, übernimmt aber keine Entwarnung
 für bestätigte ACTIVE-Alarme. [Diagnose](Troubleshooting). Die historischen
 Korrekturrunden oben sind keine abweichende aktuelle Kadenz- oder Resetregel.
+
+## Vom Benutzer bestätigter Hydrus-Neustarttest
+
+Am **14. Oktober 2026** wurde Home Assistant mit **installierter 1.2.0-beta.3**
+und einem **realen Hydrus-Wasserzähler** neu gestartet. Der Benutzer bestätigte:
+
+| Prüfung | Beobachtung |
+|---|---|
+| Fehlalarm beim Neustart | Keiner |
+| Home-Assistant-Reparaturmeldung | Keine |
+| Hydraulische Überwachung | Zunächst 11 Sekunden „Gesperrt“ |
+| Anschließender Zustand | Automatisch „Aktiv“ |
+| MQTT-Messherkunft | `verified_original_measurement` |
+
+**Dieser konkrete Neustarttest wurde erfolgreich bestanden.** Die vorübergehende
+Sperre ist mit der sicherheitsgerichteten Freigabe vereinbar; die Quelle wurde
+anschließend automatisch für hydraulische Erkennung freigegeben. Das ist ein
+Benutzerbefund, kein von Codex selbst ausgeführter Hardwaretest. Keine zusätzlichen
+Payloads, Logeinträge oder technischen Ablehnungsgründe werden daraus erfunden.
+
+Die 11 Sekunden sind ein beobachteter Einzelwert, **keine garantierte Startdauer**.
+Nicht sämtliche Neustart-, Funk-, Replay-, MQTT-Ausfall- oder Recovery-Szenarien
+wurden damit geprüft. Vorhandene Schutz-/Resetregeln bleiben uneingeschränkt.
+
+Die Anzeige **Hydraulische Überwachung** beschreibt die Betriebsfreigabe:
+
+- **Aktiv** (`active`): gültige hydraulische Messwerte dürfen verarbeitet werden.
+- **Warte auf Messung** (`waiting_for_measurement`): nach Start/Quellenwechsel
+  fehlt die erste gültige Messung, ohne ausdrücklich festgestellte Sperre.
+- **Gesperrt** (`blocked`): die Quelle/Auswertung ist ausgeschlossen; Attribute
+  geben den konkreten Grund an. Die Entität bleibt bei laufender Integration sichtbar.
+
+Dies ist nicht der Alarmzustand: „Kein Alarm“ beweist keine aktive Überwachung,
+und Gesperrt ist weder ein Leckalarm noch ein ACK oder physischer Reset. Ein vor
+Quellenverlust bestätigter ACTIVE-Alarm mit Shutoff-Beitrag bleibt nach seinen
+bestehenden Regeln bestehen. [Diagnose](Troubleshooting).

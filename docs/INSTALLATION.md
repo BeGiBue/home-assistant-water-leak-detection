@@ -95,7 +95,7 @@ release's integration directory manually), then restart HA. Confirm the installe
 version and find **Hydraulic monitoring** / **Hydraulische Überwachung** on the
 existing integration device. Keep your existing config entry; do not delete it
 or its Store to resolve a blocked state. Check the
-[beta prerequisites and open physical test](BETA_1.2.0.md).
+[beta prerequisites and user-confirmed restart test](BETA_1.2.0.md).
 
 The bundled card 0.1.0 is not automatically registered as a Lovelace resource.
 Optional installation: copy

@@ -2,7 +2,7 @@
 
 **Wasserwächter** (englisch: **Water Leak Guard**) ist eine Home-Assistant-Custom-Integration zur Erkennung auffälliger Wasserverbräuche und möglicher Leckagen.
 
-Diese Repository-Wiki-Quellen dokumentieren den veröffentlichten Stand **1.2.0-beta.3** vom 14. Oktober 2026. Die Aktualisierung der Quellen veröffentlicht das GitHub-Wiki nicht automatisch. F02, F08 und F04 V3 sind implementiert; der eingeschränkte Beta-Einsatz und offene Praxistest sind unter [Entwicklung und Release](Entwicklung-und-Release) beschrieben.
+Diese Repository-Wiki-Quellen dokumentieren den veröffentlichten Stand **1.2.0-beta.3** vom 14. Oktober 2026. Die Aktualisierung der Quellen veröffentlicht das GitHub-Wiki nicht automatisch. F02, F08 und F04 V3 sind implementiert; der eingeschränkte Beta-Einsatz und vom Benutzer bestätigte Neustarttest sind unter [Entwicklung und Release](Entwicklung-und-Release) beschrieben.
 
 > **Wichtig:** Die technische Domain bleibt `water_leak_detection`. Der sichtbare Name ist auf Deutsch **Wasserwächter**.
 
@@ -91,4 +91,7 @@ Alarm“ beweist keine funktionierende Messfreigabe; Gesperrt beendet keinen ber
 ACTIVE bestätigten Alarm. [Sensor und Attribute](Home-Assistant-Schnittstellen).
 Die optionale [Lovelace-Karte 0.1.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/CARD.md) ist vorbereitet und manuell
 zu registrieren; ihre vorgeschlagenen ACK-/Clear-WebSocket-Befehle fehlen im Backend.
-Der physische Hydrus-Neustarttest von Beta.3 steht noch aus.
+Am 14. Oktober 2026 bestätigte der Benutzer einen erfolgreichen Hydrus-Neustart
+mit installierter Beta.3: kein Fehlalarm/Repair, 11 Sekunden Gesperrt, anschließend
+automatisch Aktiv und `verified_original_measurement`. Kein Codex-Hardwaretest
+und keine garantierte Startdauer. [Befund und Grenzen](Persistenz-und-Betrieb#vom-benutzer-bestätigter-hydrus-neustarttest).

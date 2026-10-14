@@ -90,20 +90,38 @@ Release-/Merge-Commit `7e1e4e786710f060bc982ba461940da2dbc42697` hat denselben
 getesteten Dateibaum. Die frühere Startup-Reproduktion mit echtem TCP-Broker bestand
 bei 0/100 ms Latenz. Das sind Software-/Brokerbelege, keine physischen Funkbelege.
 
-## Offener physischer Hydrus-Neustarttest
+## Vom Benutzer bestätigter Hydrus-Neustarttest – 14. Oktober 2026
 
-Die beobachteten Nullmeldungen 08:31:02/08:32:45 und Alarmende 08:34:57 sind
-Nutzerbefunde. Tatsächlich empfangene Hydrus-Telegramme mit
-`verified_original_measurement` belegen die reale Messkette punktuell.
-Der gezielte Regressionstest nach **Installation von Beta.3 und HA-Neustart**
-mit dem echten Hydrus ist noch offen; er wird hier nicht als bestanden bezeichnet.
+Der Benutzer hat Home Assistant mit **installierter 1.2.0-beta.3** und einem
+**realen Hydrus-Wasserzähler** neu gestartet und folgende Beobachtungen bestätigt:
 
-Für diesen Test installierte Version, Setupzeit, originale Payload-Zeitstempel,
-Empfangszeit, Zustandswechsel und Event-IDs protokollieren. Erste neue Messung,
-Wiederholungen, echte Ruhe über mindestens 180 Sekunden sowie beobachteten Ausfall
-und frische Rückkehr prüfen; Mobilzustellung, Mute/ACK und ggf. Add-on-Restart
-getrennt erfassen. Keine Schutzprüfung abschalten und fehlende Telegramme niemals
-als Nullverbrauch werten. [Diagnosepfad](TROUBLESHOOTING.md#hydraulic-monitoring-waiting-or-blocked).
+| Prüfung | Beobachtung |
+|---|---|
+| Fehlalarm beim Neustart | Keiner |
+| Home-Assistant-Reparaturmeldung | Keine |
+| Hydraulische Überwachung unmittelbar nach Neustart | Zunächst 11 Sekunden „Gesperrt“ |
+| Anschließender Zustand | Automatisch „Aktiv“ |
+| MQTT-Messherkunft | `verified_original_measurement` |
+
+**Ergebnis: Dieser konkrete Neustarttest wurde erfolgreich bestanden.**
+Dies ist ein vom Benutzer bestätigter Praxistest, kein von Codex selbst
+durchgeführter Hardwaretest. Die vorübergehende Sperre ist mit der
+sicherheitsgerichteten Freigabe der Messquelle vereinbar; anschließend wurde die
+hydraulische Überwachung automatisch aktiviert. Aus dem Befund wird kein
+bestimmter interner Ablehnungsgrund oder zusätzlicher Logeintrag abgeleitet.
+
+Die **11 Sekunden sind nur die beobachtete Dauer dieses Neustarts**, keine
+zugesicherte Startzeit, Wartefrist oder Timeout-Einstellung. Der Test bestätigt
+nicht sämtliche Neustart-, Replay-, MQTT-Ausfall-, Funk- oder Recovery-Szenarien.
+Software-/Brokerabnahme und dieser Benutzerbefund bleiben getrennte Nachweise.
+Weitergehende Ausfallszenarien sind dadurch nicht pauschal abgenommen.
+
+Die früheren Nullmeldungen 08:31:02/08:32:45 und Alarmende 08:34:57 bleiben
+separate historische Nutzerbeobachtungen, keine zusätzliche Neustartmessung.
+Für weitere gezielte Prüfungen installierte Version, reale Original-/Empfangszeit,
+Zustandswechsel und Event-IDs protokollieren; keine Schutzprüfung abschalten und
+fehlende Telegramme niemals als Nullverbrauch interpretieren.
+[Diagnosepfad](TROUBLESHOOTING.md#hydraulic-monitoring-waiting-or-blocked).
 
 ## Karte und Upgrade
 
@@ -114,5 +132,5 @@ nur vorgeschlagen, mit geschütztem Configure-Fallback. [Kartenanleitung](CARD.m
 [Upgrade und Backup](INSTALLATION.md#upgrading-to-the-published-120-beta3).
 
 [Beta.3-Release](https://github.com/BeGiBue/homeassistant-water-leak-detection/releases/tag/1.2.0-beta.3).
-Beta.1 und Beta.2 bleiben unverändert. Ein weiterer Merge oder Release ist kein
-Teil der Dokumentationsaktualisierung.
+Beta.1 und Beta.2 bleiben unverändert. Die Dokumentationsänderung darf nach Prüfung gemergt und das Wiki über seinen
+Veröffentlichungsworkflow synchronisiert werden; ein neuer Release ist nicht nötig.

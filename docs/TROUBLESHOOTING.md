@@ -171,7 +171,10 @@ latency; it does not admit old retained/replayed originals. First accepted evide
 is zero seconds. Missing telegrams, unknown and unavailable never mean zero flow.
 Record Event-IDs when investigating alarm duration, end or repeated notifications.
 
-User-observed Hydrus telegrams and `verified_original_measurement` demonstrate
-the real chain at those instants. They are not a completed **physical Beta.3
-HA-restart regression**; that check remains open. Software and TCP-broker tests
-must be reported separately. See [beta verification status](BETA_1.2.0.md).
+The user confirmed a successful **physical Hydrus HA restart on 14 October 2026**
+with installed Beta.3: no false alarm or Repair, initially blocked for 11 seconds,
+then automatically active with `verified_original_measurement`. This was not a
+Codex-performed hardware test. The temporary block is compatible with conservative
+source admission; 11 seconds is not a guaranteed duration or a reason to disable
+safety checks. It does not prove all MQTT outage/restart scenarios. Software and
+TCP-broker tests remain separate. See [observations and limits](BETA_1.2.0.md).

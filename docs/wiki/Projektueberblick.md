@@ -153,6 +153,7 @@ bestehende ACTIVE-Ereignisse und Shutoff-Beiträge bleiben erhalten.
 
 Die Beta ist auf hydraulische Erkennung/Benachrichtigungen ohne konfigurierte
 externe Sensoren oder gespeicherte externe Alarmdatensätze beschränkt; H01 bleibt
-für externe Quellen offen. Softwaretests belegen keinen physischen Hydrus-
-Neustarttest; dieser ist noch offen. [Beta-Chronologie](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
+für externe Quellen offen. Softwaretests und der am 14. Oktober 2026
+vom Benutzer bestätigte erfolgreiche Hydrus-Neustart mit Beta.3 sind getrennte
+Nachweise; der Einzeltest belegt nicht sämtliche Ausfall-/Neustartszenarien. [Beta-Chronologie](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
 [Karteninstallation und fehlende Backend-Befehle](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/CARD.md).

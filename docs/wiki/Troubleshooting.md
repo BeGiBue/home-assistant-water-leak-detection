@@ -246,5 +246,17 @@ Ein blockierter oder quittierter Alarm ist keine physische Entwarnung. ACTIVE un
 Shutoff bleiben nach ihren eigenen Regeln bestehen. Event-IDs für Dauer und
 Benachrichtigungen getrennt prüfen. Bei Repair wegen beschädigter Daten Datei
 bewahren und geprüftes Backup nutzen; nicht löschen. [Vollständiger Diagnosepfad](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/TROUBLESHOOTING.md#hydraulic-monitoring-waiting-or-blocked).
-Der physische Hydrus-Neustarttest für Beta.3 bleibt offen; Nutzerbeobachtungen und
-Software-/Brokerprüfungen sind getrennte Nachweise.
+## Bestätigter Neustartbefund und Einordnung
+
+Am 14. Oktober 2026 bestätigte der Benutzer nach HA-Neustart mit installierter
+Beta.3 und realem Hydrus: kein Fehlalarm, keine Reparaturmeldung, zunächst
+11 Sekunden „Gesperrt“, dann automatisch „Aktiv“ und
+`verified_original_measurement`. Dieser konkrete Neustarttest ist bestanden;
+Codex hat den Hardwaretest nicht selbst durchgeführt.
+
+Die kurze Sperre ist mit der konservativen Quellenfreigabe vereinbar und
+allein kein Fehlalarm. Sie liefert keinen unbekannten technischen reason nach;
+es wurden keine zusätzlichen Logs oder Messwerte übergeben. 11 Sekunden sind
+keine garantierte Dauer, kein konfigurierter Timeout und kein Maßstab, nach dem
+jede Installation freigegeben sein muss. Nicht sämtliche MQTT-/Neustart- oder
+Ausfallszenarien sind damit geprüft. [Vollständiger Befund](Persistenz-und-Betrieb#vom-benutzer-bestätigter-hydrus-neustarttest).

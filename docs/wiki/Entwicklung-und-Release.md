@@ -186,9 +186,15 @@ Beta.3-Feature-SHA: `2564843c2724970b3692714ed18dca5e92ce1f16`;
 Merge-/Release-SHA: `7e1e4e786710f060bc982ba461940da2dbc42697`, identischer Dateibaum.
 Je 1476 Softwaretests unter HA 2026.9.0/2026.9.4, 16 Statusfälle separat und
 Validate/Hassfest/HACS bestanden. Diese Ergebnisse sind keine physischen Tests.
-Der gezielte echte Hydrus-Test nach Beta.3-Installation/HA-Neustart bleibt offen.
+Am 14. Oktober 2026 bestätigte der Benutzer den erfolgreichen Neustart mit
+installierter Beta.3 und realem Hydrus: kein Fehlalarm oder Repair, 11 Sekunden
+Gesperrt, anschließend automatisch Aktiv, `verified_original_measurement`. Das
+ist kein von Codex selbst ausgeführter Hardwaretest und kein Nachweis aller
+Neustart-/MQTT-Ausfallfälle. Die Dauer ist kein garantierter Startwert.
 [Chronologie und Haushaltsprüfung](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
 
-Diese Runde aktualisiert nur Repository-Dokumentation/Wiki-Quellen; sie erstellt
-keinen neuen Release und veröffentlicht das öffentliche GitHub-Wiki nicht.
+Diese Runde aktualisiert nur Repository-Dokumentation/Wiki-Quellen; ein neuer
+Release ist nicht nötig. Der manuelle Workflow **Publish Wiki** synchronisiert
+`docs/wiki/` aus main. Die tatsächliche Veröffentlichung muss separat bestätigt
+werden; allein ein Merge aktualisiert das öffentliche Wiki nicht.
 Die früheren Release-/Korrekturrunden auf dieser Seite sind historischer Kontext.

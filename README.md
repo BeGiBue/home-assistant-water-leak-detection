@@ -463,6 +463,8 @@ regular sensor in a standard HA card. See [card installation and limitations](do
 
 [Beta.3 is published](https://github.com/BeGiBue/homeassistant-water-leak-detection/releases/tag/1.2.0-beta.3).
 Publishing a release does not update a running HA installation: download the chosen
-version and restart HA. Software/broker tests passed; the targeted **physical Hydrus
-restart regression after installing Beta.3 remains open**. See
-[beta chronology and household checks](docs/BETA_1.2.0.md).
+version and restart HA. Software/broker tests and the **user-confirmed physical Hydrus restart on
+14 October 2026** are separate evidence: no startup false alarm or Repair,
+11 seconds blocked then automatically active, `verified_original_measurement`.
+This observed duration is not guaranteed and does not cover all outage/restart
+scenarios. See [test details and limits](docs/BETA_1.2.0.md).
