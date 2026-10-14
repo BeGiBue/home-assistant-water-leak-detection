@@ -8,8 +8,9 @@
   (measured in Chromium, ±15 px depending on fonts); it fits under the HA toolbar on the 800×480 display.
   Two columns (about 190 px high) only when the card itself is at least about 600 px wide: panel view, or
   a sections view with `column_span` ≥ 2 and `grid_options: columns: full`. While monitoring is
-  confirmed active, a compact "Monitoring active" pill replaces the monitoring row; every other state
-  keeps the full row. Flatter header (about 76 px) with a smaller shield that text never overlaps;
+  confirmed active and nothing is impaired (status and monitoring entities available, no source or
+  store problem, no unreachable external sensor), a compact "Hydraulics active" pill replaces the
+  monitoring row; every other state keeps the full row. All controls have a hit area of at least 44 px. Flatter header (about 76 px) with a smaller shield that text never overlaps;
   detectors as a 2×2 status grid; "High Flow bypass" and "Learning" are collapsible
   (summary row is a button with `aria-expanded`, collapsed by default, state kept per card across
   updates); the four learning values sit in one row. Two columns once the card itself is about 600 px
@@ -23,6 +24,9 @@
   The detector switches are never linked or opened from the card. `getCardSize()` 9 → 7 (14 during an
   alarm); `getGridOptions()` unchanged. Minimum card width 280 px (the container query would otherwise
   let the card collapse in a content-sized container).
+- Card (also on main before): with monitoring reported active but the runtime store damaged or the source
+  impaired (`source_unavailable`, `source_available: false`) the card was green "All quiet"; it is now
+  yellow "Monitoring impaired". An alarm headline keeps priority.
 - Card: the mute button names the paired recipient ("Mute for Bea" / "Für Bea stummschalten", from the
   session's `recipient_name`, escaped; old text without a name), because with a user pairing a laptop
   mutes the paired phone's recipient.

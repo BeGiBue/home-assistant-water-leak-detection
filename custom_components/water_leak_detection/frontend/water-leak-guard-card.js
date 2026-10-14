@@ -81,6 +81,7 @@ const I18N = {
       source_unavailable: "Messquelle nicht verfügbar",
       idle: "Kein Alarm",
       all_quiet: "Alles ruhig",
+      impaired: "Überwachung eingeschränkt",
       slow_leak_monitoring: "Slow Leak wird geprüft",
       low_flow_monitoring: "Low Flow wird geprüft",
       high_flow_monitoring: "High Flow wird geprüft",
@@ -122,7 +123,7 @@ const I18N = {
       missing: "Diese Version der Integration meldet ihren Überwachungszustand nicht (ab 1.2.0-beta.3). Ob ausgewertet wird, ist unbekannt.",
     },
     monitoring_details: "Grund und Messherkunft",
-    monitoring_ok: "Überwachung aktiv",
+    monitoring_ok: "Hydraulik aktiv",
     detail: {
       reason: "Grund",
       source: "Messquelle",
@@ -262,6 +263,7 @@ const I18N = {
       source_unavailable: "Source unavailable",
       idle: "No alarm",
       all_quiet: "All quiet",
+      impaired: "Monitoring impaired",
       slow_leak_monitoring: "Checking Slow Leak",
       low_flow_monitoring: "Checking Low Flow",
       high_flow_monitoring: "Checking High Flow",
@@ -303,7 +305,7 @@ const I18N = {
       missing: "This integration version does not report its monitoring state (available from 1.2.0-beta.3). Whether it is evaluating is unknown.",
     },
     monitoring_details: "Reason and measurement provenance",
-    monitoring_ok: "Monitoring active",
+    monitoring_ok: "Hydraulics active",
     detail: {
       reason: "Reason",
       source: "Source",
@@ -1016,11 +1018,14 @@ class WaterLeakGuardCard extends HTMLElement {
     const extOffline = externalOffline(this._hass, attrs);
     // Alarm state and operating state are independent: "no alarm" never hides a
     // blocked monitoring, and green is reserved for a confirmed active monitoring.
+    // Monitoring reports active, but the source or the runtime store is impaired:
+    // never green / "All quiet" (the maintainer's rule: show what interrupts monitoring).
+    const impaired = !statusUnavailable && this._impaired(status);
     const tone = alarm
       ? "alarm"
       : statusUnavailable
         ? "neutral"
-        : extOffline || monitoring.state === "blocked" || (monitoring.state === "missing" && status.state === "source_unavailable")
+        : extOffline || impaired || monitoring.state === "blocked" || (monitoring.state === "missing" && status.state === "source_unavailable")
           ? "warn"
           : monitoring.state !== "active"
             ? "neutral"
@@ -1028,7 +1033,8 @@ class WaterLeakGuardCard extends HTMLElement {
               ? "watch"
               : "ok";
 
-    const headerPill = !this._config.show_flow && this._monitoringOk(monitoring, status) ? this._monitoringPill(t) : "";
+    const compactMonitoring = this._monitoringOk(monitoring, status, extOffline);
+    const headerPill = !this._config.show_flow && compactMonitoring ? this._monitoringPill(t) : "";
     const header = this._renderHeader(t, status, tone, alarm, shutoff, monitoring, statusUnavailable, extOffline, headerPill);
     if (statusUnavailable) {
       this.shadowRoot.innerHTML = `<style>${STYLES}</style>
@@ -1043,7 +1049,6 @@ class WaterLeakGuardCard extends HTMLElement {
     // Confirmed active monitoring without any source/store problem needs no own
     // row: a compact "Monitoring active" pill (in the flow row, else in the
     // header). Every other state keeps the full row with its details.
-    const compactMonitoring = this._monitoringOk(monitoring, status);
     const main = [
       header,
       alarm ? this._renderAlarm(t, map, status) : "",
@@ -1125,6 +1130,8 @@ class WaterLeakGuardCard extends HTMLElement {
       const kind = [a.active_detector, status.state].find((k) => ALARM_KINDS.includes(k));
       return kind ? label(kind) : t("alarm");
     }
+    // Monitoring active but source or runtime store impaired: say so, never "all quiet".
+    if (monitoring.state === "active" && this._impaired(status)) return t("status.impaired");
     // A configured external sensor that is unreachable: no alarm, but not "all quiet".
     if (extOffline && status.state === "idle") return t("status.idle");
     if (status.state === "source_unavailable") {
@@ -1135,13 +1142,25 @@ class WaterLeakGuardCard extends HTMLElement {
     return label(status.state);
   }
 
-  /** Monitoring confirmed active and nothing else wrong with source or runtime store. */
-  _monitoringOk(monitoring, status) {
+  /** Source or runtime store problem reported by the status sensor. */
+  _impaired(status) {
+    const a = status?.attributes || {};
+    return Boolean(a.storage_recovery_required) || status?.state === "source_unavailable" || a.source_available === false;
+  }
+
+  /**
+   * True only if the compact "Hydraulics active" pill may replace the monitoring
+   * row: status sensor present and available, monitoring entity present and
+   * `active`, no source/store problem and no unreachable external sensor.
+   */
+  _monitoringOk(monitoring, status, extOffline = false) {
+    // isOffline() is also true for a missing entity (status or monitoring).
     return (
+      !isOffline(status) &&
+      !isOffline(monitoring.entity) &&
       monitoring.state === "active" &&
-      !status.attributes?.storage_recovery_required &&
-      status.state !== "source_unavailable" &&
-      status.attributes?.source_available !== false
+      !this._impaired(status) &&
+      !extOffline
     );
   }
 
@@ -1822,7 +1841,7 @@ const STYLES = `
   .monitor-monitoring { background: color-mix(in srgb, var(--wlg-watch) 10%, transparent); }
   .monitor .row-title { font-weight: 500; }
   .details { padding: 0 0 10px; font-size: 13px; }
-  .details summary { cursor: pointer; color: var(--wlg-muted); font-size: 12px; padding: 2px 0 6px; }
+  .details summary { cursor: pointer; color: var(--wlg-muted); font-size: 12px; line-height: 20px; padding: 12px 0; }
   .details dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 0; }
   .details dt { color: var(--wlg-muted); }
   .details dd { margin: 0; overflow-wrap: anywhere; }
@@ -1851,11 +1870,11 @@ const STYLES = `
   .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 6px; }
   .actions.end { justify-content: flex-end; }
   .btn {
-    display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 999px;
     border: 1px solid transparent; cursor: pointer; font-size: 14px; font-weight: 500; --mdc-icon-size: 18px;
     max-width: 100%; text-align: left;
   }
-  .btn-small { min-height: 32px; padding: 0 12px; font-size: 13px; flex: none; }
+  .btn-small { min-height: 44px; padding: 0 12px; font-size: 13px; flex: none; }
   .btn[disabled] { opacity: .5; cursor: not-allowed; }
   .btn-primary { background: var(--primary-color, #03a9f4); color: var(--text-primary-color, #fff); }
   .btn-danger { background: var(--wlg-alarm); color: var(--text-primary-color, #fff); }

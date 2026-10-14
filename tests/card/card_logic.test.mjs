@@ -50,7 +50,7 @@ const K = {
 const SWITCHES = [K.slow_leak_detection, K.low_flow_detection, K.high_flow_bypass, K.high_flow_bypass_duration];
 const HOME = { paired: true, recipient_id: "phone", recipient_name: "Bea", home: true, tracker_entity: "device_tracker.phone", can_global_ack: true, can_external_reset: true };
 
-function hass({ alarm, monitoring = "active", tracker = "home", session = HOME, confidence = "reliable", lang = "de" } = {}) {
+function hass({ alarm, monitoring = "active", tracker = "home", session = HOME, confidence = "reliable", lang = "de", statusState, storage = false, sourceAvailable, externalOffline = false } = {}) {
   const st = (id, state, attributes = {}) => [id, { entity_id: id, state, attributes, last_updated: "x" }];
   const detectors = { slow_leak: "idle", low_flow: "idle", high_flow: "idle", burst_leak: "idle" };
   const hydraulic = {};
@@ -61,15 +61,20 @@ function hass({ alarm, monitoring = "active", tracker = "home", session = HOME, 
     notif[`ev_${alarm}`] = { globally_acknowledged: false, muted_recipients: [] };
   }
   const states = Object.fromEntries([
-    st(K.status, alarm || "idle", { aggregate_alarm_active: Boolean(alarm), aggregate_shutoff_request: Boolean(alarm), active_detector: alarm, active_event_id: alarm ? `ev_${alarm}` : null, detectors, hydraulic_detectors: hydraulic, notification_events: notif, external_sources: [] }),
+    st(K.status, statusState || alarm || "idle", {
+      aggregate_alarm_active: Boolean(alarm), aggregate_shutoff_request: Boolean(alarm), active_detector: alarm,
+      active_event_id: alarm ? `ev_${alarm}` : null, detectors, hydraulic_detectors: hydraulic, notification_events: notif,
+      storage_recovery_required: storage, ...(sourceAvailable === undefined ? {} : { source_available: sourceAvailable }),
+      external_sources: externalOffline ? [{ source_id: "x", source_generation: "g", source_name: "Keller", source_entity: "binary_sensor.cellar", phase: "ARMED" }] : [],
+    }),
     st(K.leak_alarm, alarm ? "on" : "off"), st(K.shutoff_request, alarm ? "on" : "off"),
-    st(K.hydraulic_monitoring_status, monitoring), st(K.current_flow, "0"),
+    ...(monitoring === "missing" ? [] : [st(K.hydraulic_monitoring_status, monitoring)]), st(K.current_flow, "0"),
     st(K.effective_high_threshold, "1200"), st(K.effective_burst_threshold, "3500"),
     st(K.slow_leak_detection, "on"), st(K.low_flow_detection, "on"), st(K.high_flow_bypass, "off"),
     st(K.high_flow_bypass_duration, "90"), st(K.learning_confidence, confidence, { sample_count: 10 }),
     st(K.learning_coverage, "30", { window_days: 30 }), st("device_tracker.phone", tracker),
   ]);
-  const entities = Object.fromEntries(Object.entries(K).map(([key, id]) => [id, { entity_id: id, platform: "water_leak_detection", translation_key: key, device_id: "d" }]));
+  const entities = Object.fromEntries(Object.entries(K).filter(([key]) => !(monitoring === "missing" && key === "hydraulic_monitoring_status")).map(([key, id]) => [id, { entity_id: id, platform: "water_leak_detection", translation_key: key, device_id: "d" }]));
   const calls = [];
   return {
     language: lang, locale: { language: lang }, user: { is_admin: true }, states, entities, devices: { d: { name: "WLG" } }, calls,
@@ -78,9 +83,9 @@ function hass({ alarm, monitoring = "active", tracker = "home", session = HOME, 
   };
 }
 
-async function mount(opts = {}) {
+async function mount(opts = {}, config = {}) {
   const card = new Card();
-  card.setConfig({ type: "custom:water-leak-guard-card", entity: K.status });
+  card.setConfig({ type: "custom:water-leak-guard-card", entity: K.status, ...config });
   card.hass = hass(opts);
   card.__connected = true;
   card.connectedCallback();
@@ -127,14 +132,88 @@ test("collapsible sections: collapsed by default, toggle survives hass updates",
   card.disconnectedCallback();
 });
 
-test("monitoring: compact pill only when confirmed active, full row otherwise", async () => {
+const PILL = 'class="pill pill-ok mon-ok"';
+const headline = (h) => h.match(/class="headline">([^<]*)</)?.[1];
+const toneOf = (h) => h.match(/<ha-card class="tone-(\w+)"/)?.[1];
+
+test("hydraulics pill: one positive case (flow row, and header without flow)", async () => {
   let card = await mount();
-  assert.ok(html(card).includes("mon-ok") && !html(card).includes('class="monitor '));
+  assert.ok(html(card).includes(PILL) && html(card).includes("Hydraulik aktiv"));
+  assert.ok(!html(card).includes('class="monitor '), "no separate row");
+  assert.equal(toneOf(html(card)), "ok");
   card.disconnectedCallback();
+  card = await mount({}, { show_flow: false });
+  assert.match(html(card), /class="flags">[^]*mon-ok/);
+  card.disconnectedCallback();
+});
+
+const NO_PILL = {
+  storage_recovery_required: { storage: true },
+  source_unavailable: { statusState: "source_unavailable" },
+  "source_available false": { sourceAvailable: false },
+  "status unavailable": { statusState: "unavailable" },
+  "status unknown": { statusState: "unknown" },
+  "monitoring blocked": { monitoring: "blocked" },
+  "monitoring waiting": { monitoring: "waiting_for_measurement" },
+  "monitoring unavailable": { monitoring: "unavailable" },
+  "monitoring unknown": { monitoring: "unknown" },
+  "monitoring missing": { monitoring: "missing" },
+  "external sensor offline": { externalOffline: true },
+};
+for (const [name, opts] of Object.entries(NO_PILL)) {
+  for (const show_flow of [true, false]) {
+    test(`no green hydraulics pill: ${name} (show_flow ${show_flow})`, async () => {
+      const card = await mount(opts, { show_flow });
+      const h = html(card);
+      assert.ok(!h.includes("mon-ok"), "pill rendered");
+      assert.notEqual(toneOf(h), "ok", "card is green");
+      assert.ok(!["Alles ruhig"].includes(headline(h)), `headline ${headline(h)}`);
+      card.disconnectedCallback();
+    });
+  }
+}
+
+test("impaired monitoring: warn tone and 'Überwachung eingeschränkt', alarm keeps priority", async () => {
+  for (const opts of [{ storage: true }, { statusState: "source_unavailable" }, { sourceAvailable: false }]) {
+    let card = await mount(opts);
+    assert.equal(toneOf(html(card)), "warn", JSON.stringify(opts));
+    assert.equal(headline(html(card)), "Überwachung eingeschränkt", JSON.stringify(opts));
+    card.disconnectedCallback();
+    card = await mount({ ...opts, lang: "en" });
+    assert.equal(headline(html(card)), "Monitoring impaired");
+    card.disconnectedCallback();
+    card = await mount({ ...opts, alarm: "low_flow" });
+    assert.equal(toneOf(html(card)), "alarm");
+    assert.equal(headline(html(card)), "Low Flow");
+    card.disconnectedCallback();
+  }
+  // Storage recovery with an alarm of unknown kind keeps the generic alarm headline.
+  const card = await mount({ storage: true });
+  card._hass.states[K.status].attributes.aggregate_alarm_active = true;
+  card._signature = "";
+  card._render();
+  assert.equal(headline(html(card)), "Leckalarm");
+  card.disconnectedCallback();
+});
+
+test("_monitoringOk guards each input on its own (defense in depth)", async () => {
+  const card = await mount();
+  const okStatus = { state: "idle", attributes: {} };
+  const okMon = { state: "active", entity: { state: "active" } };
+  assert.equal(card._monitoringOk(okMon, okStatus), true);
+  assert.equal(card._monitoringOk(okMon, undefined), false, "status missing");
+  assert.equal(card._monitoringOk(okMon, { state: "unavailable", attributes: {} }), false, "status unavailable");
+  assert.equal(card._monitoringOk({ state: "active", entity: undefined }, okStatus), false, "monitoring entity missing");
+  assert.equal(card._monitoringOk({ state: "active", entity: { state: "unavailable" } }, okStatus), false, "monitoring entity unavailable");
+  assert.equal(card._monitoringOk({ state: "active", entity: { state: "unknown" } }, okStatus), false, "monitoring entity unknown");
+  assert.equal(card._monitoringOk(okMon, okStatus, true), false, "external offline");
+  card.disconnectedCallback();
+});
+
+test("full monitoring row whenever the pill is not shown", async () => {
   for (const monitoring of ["blocked", "waiting_for_measurement"]) {
-    card = await mount({ monitoring });
-    assert.ok(!html(card).includes("mon-ok") && html(card).includes('class="monitor '), monitoring);
-    assert.ok(!html(card).includes('tone-ok'), `${monitoring} never green`);
+    const card = await mount({ monitoring });
+    assert.ok(html(card).includes('class="monitor '), monitoring);
     card.disconnectedCallback();
   }
 });

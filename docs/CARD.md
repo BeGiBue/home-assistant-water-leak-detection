@@ -69,12 +69,13 @@ views:
   echter Button mit `aria-expanded` und Pfeil (mindestens 44 px hoch), bedienbar per Klick, Enter und
   Leertaste. Beide Abschnitte sind anfangs zu. Der Auf/Zu-Zustand gilt pro Karte und bleibt bei jeder
   Aktualisierung von Home Assistant erhalten (nicht über ein Neuladen der Seite hinweg).
-- **Überwachung kompakt:** Ist die hydraulische Überwachung bestätigt aktiv und ist weder die Messquelle
-  gestört noch der Laufzeitspeicher beschädigt, ersetzt ein grüner Hinweis „Überwachung aktiv“ in der
-  Durchflusszeile die eigene Zeile (ohne Durchflussabschnitt steht er im Kopf). In jedem anderen Zustand
-  – warten auf Messung, gesperrt, nicht verfügbar, unbekannt, Quelle gestört, Speicher beschädigt –
-  erscheint die volle Zeile „Hydraulische Überwachung“ mit Grund und Details wie bisher. Grün bleibt
-  bestätigt aktiver Überwachung vorbehalten.
+- **Überwachung kompakt:** Ist die hydraulische Überwachung bestätigt aktiv, sind Status- und
+  Überwachungs-Entität verfügbar, ist weder die Messquelle gestört (`source_unavailable`,
+  `source_available: false`) noch der Laufzeitspeicher beschädigt und ist kein externer Sensor
+  unerreichbar, ersetzt ein grüner Hinweis „Hydraulik aktiv“ in der Durchflusszeile die eigene Zeile (ohne
+  Durchflussabschnitt steht er im Kopf). In jedem anderen Zustand erscheint die volle Zeile
+  „Hydraulische Überwachung“ mit Grund und Details wie bisher. Grün bleibt bestätigt aktiver
+  Überwachung vorbehalten.
 - **Immer sichtbar:** flacher Kopf (ca. 76 px, kleines Schild rechts; Titel, Überschrift und Kennzeichen
   laufen nie unter das Schild, Kennzeichen dürfen umbrechen), Alarmkasten bei Alarm, Durchfluss, das
   2×2-Raster der Detektoren, die beiden Zusammenfassungszeilen und – wenn konfiguriert – die externen
@@ -83,8 +84,10 @@ views:
   links Kopf, Alarmkasten, Überwachung, Durchfluss; rechts Erkennung, Bypass, externe Sensoren, Lernmodell.
 - **Mindestbreite 280 px:** Die Container Query macht die Breite der Karte unabhängig von ihrem Inhalt; in
   einem Container, der sich nach dem Inhalt richtet, würde sie sonst auf 0 px zusammenfallen.
-- **Bedienflächen:** Buttons sind mindestens 36 px hoch, Zusammenfassungszeilen und das Status-Symbol
-  44 px; kleine Textlinks (Durchflusswert, Sensornamen) haben eine unsichtbare Trefferfläche von 44 px.
+- **Bedienflächen:** Jedes Bedienelement hat mindestens 44 px Trefferfläche. Buttons (auch im
+  Alarmkasten und „Beenden“), Zusammenfassungszeilen, „Grund und Messherkunft“ und das Status-Symbol sind
+  tatsächlich mindestens 44 px hoch; kleine Textlinks (Durchflusswert, Sensornamen) haben eine
+  unsichtbare Trefferfläche von 44 px.
 - `getGridOptions()` bleibt `{ columns: 12, min_columns: 6, rows: "auto" }`: Bestehende Dashboards im
   Abschnitte-Layout behalten Breite und Platz, die Höhe folgt dem Inhalt. `getCardSize()` (nur für das
   Masonry-Layout zum Verteilen der Spalten, Einheit 50 px) liefert 7 ohne und 14 mit Alarm.
@@ -152,7 +155,9 @@ steht immer in der eigenen Zeile **Hydraulische Überwachung**.
 - Ist ein konfigurierter externer Lecksensor nicht erreichbar (Entität fehlt, `unavailable`/`unknown`)
   und meldet kein Leck, ist die Karte gelb mit „Kein Alarm“ statt grün „Alles ruhig“.
 - Ist der Laufzeitspeicher beschädigt (`storage_recovery_required`), zeigen die Detektoren „Pausiert“
-  statt „Bereit“; ein ACTIVE-Detektor bleibt „Alarm“. Ist der Alarm aktiv, ohne dass eine Alarmart
+  statt „Bereit“; ein ACTIVE-Detektor bleibt „Alarm“. Meldet die Überwachung „aktiv“, ist aber der
+  Speicher beschädigt oder die Messquelle gestört (`source_unavailable`, `source_available: false`), ist
+  die Karte ohne Alarm gelb mit „Überwachung eingeschränkt“ statt grün „Alles ruhig“. Ist der Alarm aktiv, ohne dass eine Alarmart
   bekannt ist, lautet die Überschrift „Leckalarm“.
 - Ein **ACTIVE**-Alarm bleibt in jedem Betriebszustand sichtbar: Kopf rot, Detektor „Alarm“,
   Ereignis im Alarmkasten. Das Backend meldet als Status bei Quellenausfall `source_unavailable`,
