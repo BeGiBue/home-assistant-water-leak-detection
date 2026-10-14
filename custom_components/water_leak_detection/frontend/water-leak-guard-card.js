@@ -37,6 +37,7 @@ const DEFAULT_CONFIG = {
   show_bypass: true,
   show_external: true,
   show_learning: true,
+  show_background: true,
   bypass_presets: [60, 120, 240],
 };
 
@@ -124,6 +125,7 @@ const I18N = {
       show_bypass: "Bypass",
       show_external: "Externe Sensoren",
       show_learning: "Lernmodell",
+      show_background: "Hintergrundmotiv",
     },
   },
   en: {
@@ -209,6 +211,7 @@ const I18N = {
       show_bypass: "Bypass",
       show_external: "External sensors",
       show_learning: "Learning",
+      show_background: "Background motif",
     },
   },
 };
@@ -552,7 +555,8 @@ class WaterLeakGuardCard extends HTMLElement {
       ok: "mdi:water-check",
     }[tone];
     return `
-      <header class="head">
+      <header class="head${this._config.show_background ? " has-motif" : ""}">
+        ${this._config.show_background ? BACKGROUND_MOTIF : ""}
         <button class="orb" data-action="more-info" data-entity="${esc(status.entity_id)}" aria-label="${esc(title)}">
           <ha-icon icon="${icon}"></ha-icon>
         </button>
@@ -846,6 +850,28 @@ class WaterLeakGuardCard extends HTMLElement {
   }
 }
 
+/* --------------------------------------------------------- background motif */
+
+/**
+ * Decorative shield filled with moving water, drawn behind the header.
+ * Purely visual (aria-hidden, no pointer events); it takes the status tone.
+ */
+const BACKGROUND_MOTIF = `
+  <svg class="motif" viewBox="0 0 200 240" aria-hidden="true" focusable="false">
+    <defs>
+      <clipPath id="wlg-shield">
+        <path d="M100 6 L186 38 V110 C186 168 150 210 100 234 C50 210 14 168 14 110 V38 Z"/>
+      </clipPath>
+    </defs>
+    <path class="shield-fill" d="M100 6 L186 38 V110 C186 168 150 210 100 234 C50 210 14 168 14 110 V38 Z"/>
+    <g clip-path="url(#wlg-shield)">
+      <path class="wave wave-back" d="M-200 96 Q-175 85 -150 96 T-100 96 T-50 96 T0 96 T50 96 T100 96 T150 96 T200 96 T250 96 T300 96 T350 96 T400 96 V260 H-200 Z"/>
+      <path class="wave wave-front" d="M-200 106 Q-175 117 -150 106 T-100 106 T-50 106 T0 106 T50 106 T100 106 T150 106 T200 106 T250 106 T300 106 T350 106 T400 106 V260 H-200 Z"/>
+    </g>
+    <path class="shield-line" d="M100 6 L186 38 V110 C186 168 150 210 100 234 C50 210 14 168 14 110 V38 Z"/>
+    <path class="shield-line inner" d="M100 22 L172 49 V110 C172 160 142 196 100 217 C58 196 28 160 28 110 V49 Z"/>
+  </svg>`;
+
 /* ------------------------------------------------------------------- styles */
 
 const STYLES = `
@@ -861,6 +887,30 @@ const STYLES = `
     display: block;
   }
   ha-card { overflow: hidden; padding-bottom: 8px; }
+
+  /* Shield + water motif: sits in the header and is cut off at its lower edge,
+     so it never runs behind the readings below. */
+  .head { position: relative; isolation: isolate; overflow: hidden; }
+  .head.has-motif { min-height: 140px; box-sizing: border-box; align-content: center; padding-right: 120px; }
+  .head > :not(.motif) { position: relative; z-index: 1; }
+  .motif {
+    position: absolute; z-index: 0; top: 12px; right: 16px; width: 98px; height: 118px;
+    pointer-events: none; color: var(--tone);
+  }
+  .motif .shield-fill { fill: currentColor; opacity: .06; }
+  .motif .shield-line { fill: none; stroke: currentColor; stroke-width: 3; opacity: .22; }
+  .motif .shield-line.inner { stroke-width: 1.5; opacity: .14; }
+  .motif .wave { fill: var(--wlg-water); }
+  .motif .wave-back { opacity: .12; animation: wlg-drift 9s linear infinite; }
+  .motif .wave-front { opacity: .2; animation: wlg-drift 6s linear infinite reverse; }
+  .tone-alarm .motif .wave { fill: var(--wlg-alarm); }
+  .tone-alarm .motif .wave-back { animation-duration: 3.5s; }
+  .tone-alarm .motif .wave-front { animation-duration: 2.4s; }
+  .tone-alarm .motif .shield-line { opacity: .35; }
+  @keyframes wlg-drift { to { transform: translateX(100px); } }
+  @media (prefers-reduced-motion: reduce) { .motif .wave { animation: none; } }
+  @media (max-width: 380px) { .motif { width: 80px; height: 96px; right: 10px; } .head.has-motif { min-height: 120px; padding-right: 96px; } }
+
   ha-card.tone-alarm { box-shadow: inset 0 3px 0 var(--wlg-alarm), var(--ha-card-box-shadow, none); }
   ha-card.tone-warn { box-shadow: inset 0 3px 0 var(--wlg-warn), var(--ha-card-box-shadow, none); }
   ha-icon { --mdc-icon-size: 18px; display: inline-flex; }
@@ -1013,7 +1063,7 @@ class WaterLeakGuardCardEditor extends HTMLElement {
       {
         type: "grid",
         name: "",
-        schema: ["show_flow", "show_detectors", "show_bypass", "show_external", "show_learning"].map(
+        schema: ["show_flow", "show_detectors", "show_bypass", "show_external", "show_learning", "show_background"].map(
           (name) => ({ name, selector: { boolean: {} } })
         ),
       },

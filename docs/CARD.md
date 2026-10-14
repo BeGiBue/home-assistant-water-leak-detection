@@ -26,6 +26,11 @@ Bei mehreren Instanzen schickt sie `config_entry_id` an die Dienste mit.
 
 Sprache: Deutsch oder Englisch, je nach HA-Sprache. Farben: HA-Theme-Variablen, also Hell und Dunkel.
 
+Im Kopf der Karte steht als dekoratives Hintergrundmotiv ein Schutzschild, das mit sanft bewegtem
+Wasser gefüllt ist. Es übernimmt die Statusfarbe (grün in Ruhe, blau beim Prüfen, gelb bei
+fehlender Messquelle, rot bei Alarm). Im Alarm bewegen sich die Wellen schneller. Bei
+`prefers-reduced-motion` stehen sie still. Mit `show_background: false` lässt sich das Motiv abschalten.
+
 ## Installation (bis zur automatischen Registrierung)
 
 1. `water-leak-guard-card.js` nach `<config>/www/` kopieren.
@@ -42,6 +47,7 @@ show_detectors: true
 show_bypass: true
 show_external: true
 show_learning: true
+show_background: true          # Schutzschild mit Wasser im Kopf der Karte
 bypass_presets: [60, 120, 240]        # Minuten, 1–1440
 ```
 
