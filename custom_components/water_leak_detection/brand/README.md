@@ -9,4 +9,6 @@ Files:
 - `icon.png` — 256×256
 - `icon@2x.png` — 512×512
 
-The icon is neutral project artwork representing a water droplet and leak-detection signal.
+The icon is a guard shield filled with water: the protected household supply.
+It is the static normal-state version of the dashboard card motif.
+The vector master is `docs/assets/logo.svg`; further logo files live in `docs/assets/`.

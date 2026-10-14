@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-wordmark-dark.png">
+    <img src="docs/assets/logo-wordmark-light.png" alt="Water Leak Guard – Wasserwächter für Home Assistant" width="460">
+  </picture>
+</p>
+
 # Water Leak Guard
 
 [![Open your Home Assistant instance and open this repository in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=BeGiBue&repository=homeassistant-water-leak-detection&category=integration)
@@ -130,6 +137,15 @@ The integration creates a Home Assistant device with backend entities including:
 - **Hydraulic reference flow**
 - **High Flow threshold**
 - **Effective Burst Leak threshold**
+
+## Dashboard card (prepared)
+
+A dependency-free Lovelace card ships in
+`custom_components/water_leak_detection/frontend/water-leak-guard-card.js`. It shows
+status, flow, detectors, High Flow bypass, external leak sensors and learning, and controls
+the existing switches and actions. Acknowledge and clear-alarm buttons are prepared for a
+future backend interface and fall back to the protected Configure dialog until then.
+Installation and the proposed interface: [docs/CARD.md](docs/CARD.md).
 
 ## Language and later configuration
 

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="4 -4 192 248" width="192" height="248">
+  <title>Water Leak Guard</title>
+  <defs>
+    <clipPath id="shield"><path d="M100 6 L186 38 V110 C186 168 150 210 100 234 C50 210 14 168 14 110 V38 Z"/></clipPath>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#29a8e8"/><stop offset="1" stop-color="#0277bd"/>
+    </linearGradient>
+  </defs>
+  <path d="M100 6 L186 38 V110 C186 168 150 210 100 234 C50 210 14 168 14 110 V38 Z" fill="#f1f8f2"/>
+  <g clip-path="url(#shield)">
+    <path d="M-60 98 Q-35 86 -10 98 T40 98 T90 98 T140 98 T190 98 T240 98 T290 98 V260 H-60 Z" fill="#8fd3f4"/>
+    <path d="M-60 110 Q-35 122 -10 110 T40 110 T90 110 T140 110 T190 110 T240 110 T290 110 V260 H-60 Z" fill="url(#water)"/>
+  </g>
+  <path d="M100 24 L170 50 V110 C170 159 141 194 100 214 C59 194 30 159 30 110 V50 Z" fill="none" stroke="#ffffff" stroke-opacity=".55" stroke-width="3"/>
+  <path d="M100 6 L186 38 V110 C186 168 150 210 100 234 C50 210 14 168 14 110 V38 Z" fill="none" stroke="#2e9e4a" stroke-width="10" stroke-linejoin="round"/>
+</svg>

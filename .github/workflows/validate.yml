@@ -31,6 +31,8 @@ jobs:
           python -m json.tool custom_components/water_leak_detection/translations/en.json >/dev/null
           python -m json.tool custom_components/water_leak_detection/translations/de.json >/dev/null
           python -m json.tool hacs.json >/dev/null
+      - name: Check card syntax
+        run: node --check custom_components/water_leak_detection/frontend/water-leak-guard-card.js
       - name: Compile
         run: python -m compileall -q custom_components tests
       - name: Lint
