@@ -184,6 +184,17 @@ test("display session: no mute, home actions available, never 'only at home'", a
   card.disconnectedCallback();
 });
 
+test("mute is hidden by either signal: kind display or can_mute false", async () => {
+  for (const session of [{ ...HOME, kind: "display" }, { ...HOME, can_mute: false }]) {
+    const card = await mount({ alarm: "burst_leak", session });
+    assert.ok(!html(card).includes('data-action="mute"'), JSON.stringify(session));
+    card.disconnectedCallback();
+  }
+  const card = await mount({ alarm: "burst_leak", session: { ...HOME, kind: "mobile", can_mute: true } });
+  assert.ok(html(card).includes('data-action="mute"'));
+  card.disconnectedCallback();
+});
+
 test("mute_not_applicable has a localized message", async () => {
   const card = await mount();
   const t = (k) => card._errorText((key) => ({ "error.mute_not_applicable": "X" })[key] ?? key, { code: k });

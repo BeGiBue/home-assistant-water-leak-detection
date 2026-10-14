@@ -19,7 +19,7 @@ both = {
     "dispatch: loop skip + _eligible": ["dispatch: retry loop skip", "dispatch: _eligible guard"],
     "mute: both guards": ["mute: websocket pre-check", "mute: controller guard"],
 }
-TESTS = ["tests/test_display_recipient.py", "tests/test_card_backend_contract.py", "tests/test_notification_runtime.py"]
+TESTS = ["tests/test_display_recipient.py", "tests/test_card_backend_contract.py", "tests/test_notification_runtime.py", "tests/test_external_reset_runtime.py", "tests/test_config_runtime.py"]
 
 
 def run(names):

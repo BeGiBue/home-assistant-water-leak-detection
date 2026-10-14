@@ -1681,8 +1681,11 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
             (raw for raw in recipients if str(raw.get(RECIPIENT_ID, "")) == recipient_id),
             None,
         )
-        if current is None or not _is_display(current):
+        if current is None:
             return self.async_abort(reason="recipient_not_found")
+        if not _is_display(current):
+            # The kind is fixed: a mobile recipient keeps its own form.
+            return await self.async_step_edit_recipient_details()
         sessions, session_options = await self._session_choices(recipients, recipient_id, current)
         current_pairing = _pairing_value(current)
         errors: dict[str, str] = {}

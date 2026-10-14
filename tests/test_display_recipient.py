@@ -200,7 +200,9 @@ async def test_display_is_never_part_of_notification_dispatch(
     # Each guard on its own: even if eligibility said yes, the dispatch loop skips it.
     notifications._eligible = lambda *_: True
     await notifications.async_retry_pending()
-    assert not any(route[1].startswith('["wall"') for route in notifications._dispatch_tasks)
+    await runtime_hass.async_block_till_done()
+    assert "wall" not in state.dispatch_states
+    assert all('"wall"' not in route for route in state.route_states)
     assert_safety(manager)
 
 
