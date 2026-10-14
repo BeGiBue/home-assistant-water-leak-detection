@@ -131,7 +131,13 @@ zweiten Eintrag.
 - Akzeptiert werden nur normale App-/Browser-Anmeldungen aktiver, nicht systemeigener Benutzer, die zum
   Benutzer der Verbindung gehören. Long-Lived-Tokens (Skripte) zählen nie als gekoppeltes Gerät.
 - Wird die Anmeldung in HA gelöscht oder meldet sich das Gerät neu an, verliert die Kopplung sofort
-  ihre Wirkung. Das Gerät muss dann neu gekoppelt werden.
+  ihre Wirkung. Das Gerät muss dann neu gekoppelt werden. Im Empfängerformular steht das Feld in dem
+  Fall auf „—“; wer den Empfänger speichert, entfernt damit die ungültige Kopplung. Alle anderen
+  Einstellungen bleiben unverändert.
+- Die Kopplung wird bei jeder Aktion **innerhalb** der Schreibsperre des Managers erneut geprüft. Wird
+  sie geändert, während ein Befehl wartet, wird der Befehl abgelehnt (`not_paired`).
+- `trusted_stationary` ersetzt die Anwesenheitsprüfung **nicht**: Auch ein stationäres iPad braucht
+  einen Device Tracker mit Zustand `home`.
 - Nicht gekoppelte Sitzungen, etwa ein Desktop-Browser, können nur anzeigen.
 
 Damit hat zum Beispiel ein iPad zuhause (stationär, globale Quittierung erlaubt) mehr Rechte als das

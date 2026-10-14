@@ -325,14 +325,22 @@ class NotificationController:
         return {event_id: state.to_dict() for event_id, state in self.acknowledgements.items()}
 
     def recipient_for_session(self, session_token_id: str | None) -> NotificationRecipient | None:
-        """Recipient paired with exactly this HA login; current options are authoritative."""
+        """Recipient paired with exactly this HA login; current options are authoritative.
+
+        Parses the saved options directly instead of reload_recipients(), so a
+        read-only query never re-subscribes the tracker listeners.
+        """
         if not session_token_id:
             return None
-        self.reload_recipients()
+        raw_recipients = self.entry.options.get(CONF_NOTIFICATION_RECIPIENTS, [])
+        if not isinstance(raw_recipients, list):
+            return None
         matches = [
             recipient
-            for recipient in self.recipients.values()
-            if recipient.session_token_id == session_token_id
+            for raw in raw_recipients
+            if isinstance(raw, dict)
+            and (recipient := NotificationRecipient.from_dict(raw)) is not None
+            and recipient.session_token_id == session_token_id
         ]
         # An ambiguous pairing never authorizes anything.
         return matches[0] if len(matches) == 1 else None

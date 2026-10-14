@@ -144,14 +144,26 @@ async def handle_session(hass: HomeAssistant, connection, msg: dict[str, Any]) -
     )
 
 
+async def _locked(manager: WaterLeakManager, action):
+    """Run inside the manager's writer, like notification actions.
+
+    The pairing is resolved again inside the writer, so a pairing removed or
+    changed while the command waited for the writer can no longer authorize it.
+    """
+    return await manager.async_mobile_notification_action(action)
+
+
 async def handle_mute(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """Device-scoped mute for this paired device only, from anywhere."""
     try:
         manager = _manager(hass, msg)
-        recipient = _require_recipient(hass, manager, connection)
-        reason = await manager.async_mobile_notification_action(
-            lambda: manager.notifications.async_session_mute(msg["event_id"], recipient.id)
-        )
+        _require_recipient(hass, manager, connection)
+
+        async def action():
+            recipient = _require_recipient(hass, manager, connection)
+            return await manager.notifications.async_session_mute(msg["event_id"], recipient.id)
+
+        reason = await _locked(manager, action)
         if reason == "not_paired":
             raise CommandError(ERR_NOT_PAIRED, "Recipient no longer configured")
         if reason == "event_not_active":
@@ -168,10 +180,19 @@ async def handle_acknowledge(hass: HomeAssistant, connection, msg: dict[str, Any
     try:
         manager = _manager(hass, msg)
         recipient = _require_recipient(hass, manager, connection)
-        try:
-            accepted = await manager.async_acknowledge_event(
-                event_id, recipient.id, recipient.token
+
+        async def action():
+            current = _require_recipient(hass, manager, connection)
+            # Native validator re-reads options and checks token, permission,
+            # Home and the active event; it is reentrant inside the writer.
+            return current, await manager.async_acknowledge_event(
+                event_id, current.id, current.token
             )
+
+        try:
+            recipient, accepted = await _locked(manager, action)
+        except CommandError:
+            raise
         except Exception as exc:  # durable write failed; nothing was published
             _LOGGER.exception("Dashboard acknowledgement not committed")
             raise CommandError(ERR_NOT_COMMITTED, "Acknowledgement was not saved") from exc
@@ -197,23 +218,31 @@ async def handle_external_reset(hass: HomeAssistant, connection, msg: dict[str, 
     """Reset one exact external event through the native validator."""
     try:
         manager = _manager(hass, msg)
-        recipient = _require_recipient(hass, manager, connection)
-        source = manager.external.event_for(
-            msg["source_id"], msg["source_generation"], msg["event_id"]
-        )
-        if source is None or msg["event_id"] not in manager.active_events():
-            raise CommandError(ERR_NOT_ACTIVE, "External event is not active")
-        payload = {
-            "action_kind": ACTION_EXTERNAL_RESET,
-            "config_entry_id": manager.entry.entry_id,
-            "source_id": source.source_id,
-            "source_generation": source.identity.generation,
-            "event_id": source.event_id,
-            "recipient_id": recipient.id,
-            "recipient_token": recipient.token,
-            "reset_nonce": source.reset_nonce,
-        }
-        if not await manager.async_external_reset(payload):
+        _require_recipient(hass, manager, connection)
+
+        async def action():
+            # Binding, pairing and nonce are read inside the writer, the same
+            # serialization the notification reset action uses.
+            current = _require_recipient(hass, manager, connection)
+            source = manager.external.event_for(
+                msg["source_id"], msg["source_generation"], msg["event_id"]
+            )
+            if source is None or msg["event_id"] not in manager.active_events():
+                raise CommandError(ERR_NOT_ACTIVE, "External event is not active")
+            payload = {
+                "action_kind": ACTION_EXTERNAL_RESET,
+                "config_entry_id": manager.entry.entry_id,
+                "source_id": source.source_id,
+                "source_generation": source.identity.generation,
+                "event_id": source.event_id,
+                "recipient_id": current.id,
+                "recipient_token": current.token,
+                "reset_nonce": source.reset_nonce,
+            }
+            return current, await manager.async_external_reset(payload)
+
+        recipient, reset = await _locked(manager, action)
+        if not reset:
             if not recipient.allow_external_reset:
                 raise CommandError(ERR_NOT_ALLOWED, "External reset not allowed")
             if not _is_home(hass, recipient):

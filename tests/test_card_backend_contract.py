@@ -5,6 +5,7 @@ iPad at home may acknowledge globally while the same user's phone away may only
 mute itself. All tests use the real manager, Store, event bus and HA auth.
 """
 
+import asyncio
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -223,6 +224,40 @@ async def test_permission_wrong_event_and_foreign_logins_are_rejected(
     state = manager.notifications.state_for(event_id)
     assert not state.muted_recipients and not state.globally_acknowledged
     assert_safety(manager)
+
+
+@pytest.mark.parametrize("handler", [handle_mute, handle_acknowledge])
+async def test_pairing_changed_while_waiting_for_writer_rejects(
+    runtime_hass, runtime_entry, measurement_clock, handler
+):
+    _, manager, event_id, _ = await ack_manager(runtime_hass, runtime_entry, measurement_clock)
+    user, tokens = await logins(runtime_hass, "phone", "other")
+    pair(runtime_hass, runtime_entry, {"phone": tokens["phone"].id})
+    conn = Connection(user, tokens["phone"].id)
+    # Hold the manager's writer: the command must wait and re-check the pairing.
+    async with manager._state_lock:
+        task = asyncio.create_task(handler(runtime_hass, conn, {"id": 1, "event_id": event_id}))
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert not conn.results and not conn.errors
+        pair(runtime_hass, runtime_entry, {"phone": tokens["other"].id})
+    await task
+    assert conn.errors == ["not_paired"] and not conn.results
+    state = manager.notifications.state_for(event_id)
+    assert not state.muted_recipients and not state.globally_acknowledged
+    assert_safety(manager)
+
+
+async def test_session_query_does_not_resubscribe_trackers(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    _, manager, _, _ = await ack_manager(runtime_hass, runtime_entry, measurement_clock)
+    user, tokens = await logins(runtime_hass, "phone")
+    pair(runtime_hass, runtime_entry, {"phone": tokens["phone"].id})
+    subscription = manager.notifications._tracker_unsub
+    result, _ = await call(handle_session, runtime_hass, Connection(user, tokens["phone"].id))
+    assert result["paired"]
+    assert manager.notifications._tracker_unsub is subscription
 
 
 async def test_responses_never_contain_secrets(runtime_hass, runtime_entry, measurement_clock):
