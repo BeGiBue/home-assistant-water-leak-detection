@@ -545,11 +545,13 @@ async def test_inactive_and_system_users_never_match(
     runtime_hass, runtime_entry, measurement_clock, problem
 ):
     _, manager, event_id, _ = await ack_manager(runtime_hass, runtime_entry, measurement_clock)
-    user, tokens = await logins(runtime_hass, "phone")
+    await logins(runtime_hass, "owner_phone")  # the first user is the owner
     if problem == "inactive":
+        user = await runtime_hass.auth.async_create_user("Kim")
+        token = await runtime_hass.auth.async_create_refresh_token(user, CLIENT, client_name="k")
         pair(runtime_hass, runtime_entry, {}, users={"phone": user.id})
         await runtime_hass.auth.async_deactivate_user(user)
-        conn = Connection(user, tokens["phone"].id)
+        conn = Connection(user, token.id)
     else:
         system = await runtime_hass.auth.async_create_system_user("Supervisor")
         token = await runtime_hass.auth.async_create_refresh_token(system)
@@ -725,7 +727,10 @@ async def test_editing_keeps_a_login_pairing_whose_login_is_gone(
     flow = options_flow(runtime_hass, runtime_entry)
     _, result = await edit(flow, "phone", before["phone"])
     assert result["step_id"] == "notifications"
-    assert recipients_by_id(runtime_entry) == before
+    after = recipients_by_id(runtime_entry)["phone"]
+    assert after["session_token_id"] == tokens["phone"].id
+    assert "session_user_id" not in after
+    assert alarm_settings(after) == alarm_settings(before["phone"])
 
 
 async def test_new_recipient_can_be_paired_with_a_user(
