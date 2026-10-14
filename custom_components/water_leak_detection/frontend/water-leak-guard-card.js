@@ -511,6 +511,12 @@ class WaterLeakGuardCard extends HTMLElement {
   _computeSignature() {
     if (!this._hass || !this._config) return "";
     const ids = Object.values(resolveEntities(this._hass, this._statusEntity));
+    // External sensors are other integrations' entities; their live availability
+    // decides between "dry" and "unavailable", so they must trigger a re-render too.
+    const status = this._hass.states[this._statusEntity];
+    for (const src of status?.attributes?.external_sources || []) {
+      if (src?.source_entity) ids.push(src.source_entity);
+    }
     const parts = ids.map((id) => {
       const s = this._hass.states[id];
       return s ? `${id}:${s.state}:${s.last_updated}` : `${id}:-`;
