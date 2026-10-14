@@ -1599,8 +1599,10 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
         stored pairing that is no longer selectable stays offered for the
         edited recipient, so saving the form unchanged never drops it.
         """
-        german = str(self.hass.config.language or "").lower().startswith("de")
-        user_word, login_word = ("Benutzer", "Anmeldung") if german else ("User", "Login")
+        # Labels are language-neutral (the options flow cannot know the viewer's
+        # language): 👤 = HA user, 🔑 = one single login. The field description
+        # in the translations explains both symbols.
+        user_word, login_word = "👤", "🔑"
         users = await self._pairable_users()
         sessions = await self._pairable_sessions()
         paired_by = {
@@ -1620,7 +1622,7 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
             choices[value] = "user"
             options.append(
                 SelectOptionDict(
-                    value=value, label=f"{user_word}: {user.name or user.id}{linked(value)}"
+                    value=value, label=f"{user_word} {user.name or user.id}{linked(value)}"
                 )
             )
         for token in sorted(
@@ -1631,7 +1633,7 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
             value = f"{_PAIR_TOKEN}{token.id}"
             used = token.last_used_at or token.created_at
             label = (
-                f"{login_word}: {token.user.name or '?'}"
+                f"{login_word} {token.user.name or '?'}"
                 f" – {token.client_name or token.client_id or 'Browser'}"
                 f" · {dt_util.as_local(used).strftime('%d.%m.%Y %H:%M') if used else '–'}"
                 + (f" · {token.last_used_ip}" if token.last_used_ip else "")
@@ -1642,8 +1644,8 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
         stored = _pairing_value(current)
         if stored != _NO_PAIRING and stored not in choices:
             word = user_word if stored.startswith(_PAIR_USER) else login_word
-            gone = "nicht mehr gültig" if german else "no longer valid"
-            options.append(SelectOptionDict(value=stored, label=f"{word}: ({gone})"))
+            short = stored.split(":", 1)[1][:8]
+            options.append(SelectOptionDict(value=stored, label=f"{word} ⚠ ({short}…)"))
         return choices, options
 
     @staticmethod

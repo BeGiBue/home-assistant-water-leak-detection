@@ -768,3 +768,98 @@ async def test_new_recipient_can_be_paired_with_a_user(
     assert result["step_id"] == "notifications"
     added = next(raw for key, raw in recipients_by_id(runtime_entry).items() if key not in before)
     assert added["session_user_id"] == other.id and "session_token_id" not in added
+
+
+def resolve(manager, token_id, user_id):
+    return manager.notifications.recipient_for_session(token_id, user_id)
+
+
+async def test_duplicate_user_pairing_never_authorizes(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    """Two recipients with the same session_user_id (hand-edited options) resolve to None."""
+    _, manager, event_id, _ = await ack_manager(runtime_hass, runtime_entry, measurement_clock)
+    add_recipients(runtime_hass, runtime_entry, "ipad")
+    user, tokens = await logins(runtime_hass, "phone")
+    pair(runtime_hass, runtime_entry, {}, users={"phone": user.id, "ipad": user.id})
+    assert resolve(manager, tokens["phone"].id, user.id) is None
+    conn = Connection(user, tokens["phone"].id)
+    assert (await call(handle_session, runtime_hass, conn))[0] == {"paired": False}
+    assert (await call(handle_mute, runtime_hass, conn, event_id=event_id))[1] == "not_paired"
+    assert not manager.notifications.state_for(event_id).muted_recipients
+    assert_safety(manager)
+
+
+async def test_duplicate_login_pairing_does_not_fall_back_to_user_pairing(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    """An ambiguous login pairing is a configuration error, never a user fallback."""
+    _, manager, event_id, _ = await ack_manager(runtime_hass, runtime_entry, measurement_clock)
+    add_recipients(runtime_hass, runtime_entry, "ipad", "tablet")
+    user, tokens = await logins(runtime_hass, "phone", "laptop")
+    pair(
+        runtime_hass,
+        runtime_entry,
+        {"ipad": tokens["phone"].id, "tablet": tokens["phone"].id},
+        users={"phone": user.id},
+    )
+    assert resolve(manager, tokens["phone"].id, user.id) is None
+    conn = Connection(user, tokens["phone"].id)
+    assert (await call(handle_session, runtime_hass, conn))[0] == {"paired": False}
+    assert (await call(handle_mute, runtime_hass, conn, event_id=event_id))[1] == "not_paired"
+    # Another login of the same user still resolves through the user pairing.
+    assert resolve(manager, tokens["laptop"].id, user.id).id == "phone"
+    assert not manager.notifications.state_for(event_id).muted_recipients
+    assert_safety(manager)
+
+
+async def test_entry_with_both_keys_uses_the_login(runtime_hass, runtime_entry, measurement_clock):
+    """A hand-edited entry carrying both keys: the narrower login pairing wins."""
+    _, manager, _, _ = await ack_manager(runtime_hass, runtime_entry, measurement_clock)
+    user, tokens = await logins(runtime_hass, "phone", "laptop")
+    raw = {
+        **runtime_entry.options[CONF_NOTIFICATION_RECIPIENTS][0],
+        "session_token_id": tokens["phone"].id,
+        "session_user_id": user.id,
+    }
+    runtime_hass.config_entries.async_update_entry(
+        runtime_entry, options={**runtime_entry.options, CONF_NOTIFICATION_RECIPIENTS: [raw]}
+    )
+    parsed = NotificationRecipient.from_dict(raw)
+    assert parsed.session_token_id == tokens["phone"].id and parsed.session_user_id is None
+    assert resolve(manager, tokens["phone"].id, user.id).id == "phone"
+    # The user key is ignored: another login of that user is not paired.
+    assert resolve(manager, tokens["laptop"].id, user.id) is None
+    laptop = Connection(user, tokens["laptop"].id)
+    assert (await call(handle_session, runtime_hass, laptop))[0] == {"paired": False}
+
+
+@pytest.mark.parametrize("tracker", ["home", "not_home"])
+async def test_external_reset_with_user_pairing(
+    runtime_hass, runtime_entry, measurement_clock, tracker
+):
+    manager = await configured(runtime_hass, runtime_entry, measurement_clock)
+    await manager._async_external_changed("binary_sensor.kitchen", "on")
+    source = manager.external.sources["a"]
+    user, tokens = await logins(runtime_hass, "laptop")
+    pair(runtime_hass, runtime_entry, {}, users={"phone": user.id})
+    runtime_hass.states.async_set("device_tracker.phone", tracker)
+    conn = Connection(user, tokens["laptop"].id)
+    session = (await call(handle_session, runtime_hass, conn))[0]
+    assert session["paired"] and session["recipient_id"] == "phone"
+    assert session["can_external_reset"] is True
+    result, error = await call(
+        handle_external_reset,
+        runtime_hass,
+        conn,
+        event_id=source.event_id,
+        source_id="a",
+        source_generation=source.identity.generation,
+    )
+    if tracker == "home":
+        assert error is None and result == {"reset": True}
+        assert manager.external.sources["a"].phase is ExternalPhase.RESET_WAITING_FOR_OFF
+    else:
+        assert error == "not_home"
+        assert manager.external.sources["a"].phase is ExternalPhase.ACTIVE
+        assert manager.alarm_active and manager.shutoff_request

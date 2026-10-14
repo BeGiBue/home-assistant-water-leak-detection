@@ -122,6 +122,7 @@ const I18N = {
       missing: "Diese Version der Integration meldet ihren Überwachungszustand nicht (ab 1.2.0-beta.3). Ob ausgewertet wird, ist unbekannt.",
     },
     monitoring_details: "Grund und Messherkunft",
+    monitoring_ok: "Überwachung aktiv",
     detail: {
       reason: "Grund",
       source: "Messquelle",
@@ -166,6 +167,9 @@ const I18N = {
     mute: "Für dieses Gerät stummschalten",
     mute_hint: "Stoppt Benachrichtigungen nur für dieses Gerät. Erkennung, Alarm und Absperranforderung bleiben bestehen.",
     muted_here: "Auf diesem Gerät stummgeschaltet",
+    mute_for: "Für {name} stummschalten",
+    mute_hint_for: "Stoppt Benachrichtigungen nur für {name}. Erkennung, Alarm und Absperranforderung bleiben bestehen.",
+    muted_for: "Bei {name} stummgeschaltet",
     muted_count: "Auf {n} Gerät(en) stummgeschaltet",
     requires_home: "Nur zuhause möglich",
     external_reset: "Externes Leck zurücksetzen",
@@ -177,6 +181,7 @@ const I18N = {
     session_failed: "Kartenaktionen sind gerade nicht verfügbar.",
     success: {
       mute: "Auf diesem Gerät stummgeschaltet. Der Alarm bleibt bestehen.",
+      mute_for: "Für {name} stummgeschaltet. Der Alarm bleibt bestehen.",
       acknowledge: "Global quittiert. Alarm und Absperranforderung bleiben bestehen.",
       external_reset: "Externes Leck zurückgesetzt. Der Sensor wird wieder scharf, sobald er trocken meldet.",
     },
@@ -298,6 +303,7 @@ const I18N = {
       missing: "This integration version does not report its monitoring state (available from 1.2.0-beta.3). Whether it is evaluating is unknown.",
     },
     monitoring_details: "Reason and measurement provenance",
+    monitoring_ok: "Monitoring active",
     detail: {
       reason: "Reason",
       source: "Source",
@@ -342,6 +348,9 @@ const I18N = {
     mute: "Mute on this device",
     mute_hint: "Stops notifications for this device only. Detection, alarm and shutoff request stay active.",
     muted_here: "Muted on this device",
+    mute_for: "Mute for {name}",
+    mute_hint_for: "Stops notifications for {name} only. Detection, alarm and shutoff request stay active.",
+    muted_for: "Muted for {name}",
     muted_count: "Muted on {n} device(s)",
     requires_home: "Only possible at home",
     external_reset: "Reset external leak",
@@ -353,6 +362,7 @@ const I18N = {
     session_failed: "Card actions are currently unavailable.",
     success: {
       mute: "Muted on this device. The alarm stays active.",
+      mute_for: "Muted for {name}. The alarm stays active.",
       acknowledge: "Acknowledged globally. Alarm and shutoff request stay active.",
       external_reset: "External leak reset. The sensor re-arms once it reports dry.",
     },
@@ -840,6 +850,9 @@ class WaterLeakGuardCard extends HTMLElement {
       resolved: s.state !== "pending",
       paired,
       recipientId: paired ? d.recipient_id : undefined,
+      // Display only (escaped where rendered): with a user pairing a laptop mutes
+      // the paired recipient (e.g. the phone), so the button names it.
+      recipientName: paired && typeof d.recipient_name === "string" && d.recipient_name.trim() ? d.recipient_name.trim() : undefined,
       // Home-only buttons need the session's `home` AND, when the tracker state is
       // visible here, a live `home`: a stale session never keeps them enabled.
       home: paired && d.home === true && (!this._trackerState() || this._trackerState().state === "home"),
@@ -859,14 +872,14 @@ class WaterLeakGuardCard extends HTMLElement {
   }
 
   /** Run one backend alarm command; the backend decides, the card reports. */
-  async _command(key, command, payload, successKey) {
+  async _command(key, command, payload, successKey, successVars = {}) {
     if (this._busy.has(key)) return;
     this._busy.add(key);
     this._render();
     const t = translator(this._hass);
     try {
       await this._hass.callWS({ type: command, ...(await this._serviceData(payload)) });
-      fire(this, "hass-notification", { message: t(`success.${successKey}`) });
+      fire(this, "hass-notification", { message: t(`success.${successKey}`, successVars) });
     } catch (err) {
       fire(this, "hass-notification", { message: this._errorText(t, err) });
     } finally {
@@ -946,7 +959,8 @@ class WaterLeakGuardCard extends HTMLElement {
       case "mute": {
         const eventId = target.dataset.event;
         if (!eventId) return;
-        this._command(`mute:${eventId}`, INTERFACE.mute, { event_id: eventId }, "mute");
+        const name = this._perm.recipientName;
+        this._command(`mute:${eventId}`, INTERFACE.mute, { event_id: eventId }, name ? "mute_for" : "mute", { name });
         break;
       }
       case "acknowledge": {
@@ -1014,7 +1028,8 @@ class WaterLeakGuardCard extends HTMLElement {
               ? "watch"
               : "ok";
 
-    const header = this._renderHeader(t, status, tone, alarm, shutoff, monitoring, statusUnavailable, extOffline);
+    const headerPill = !this._config.show_flow && this._monitoringOk(monitoring, status) ? this._monitoringPill(t) : "";
+    const header = this._renderHeader(t, status, tone, alarm, shutoff, monitoring, statusUnavailable, extOffline, headerPill);
     if (statusUnavailable) {
       this.shadowRoot.innerHTML = `<style>${STYLES}</style>
         <ha-card class="tone-${tone}">${header}
@@ -1025,12 +1040,16 @@ class WaterLeakGuardCard extends HTMLElement {
 
     // One column below ~600 px card width; two columns above (container query).
     // The alarm box always comes right after the header, in both layouts.
+    // Confirmed active monitoring without any source/store problem needs no own
+    // row: a compact "Monitoring active" pill (in the flow row, else in the
+    // header). Every other state keeps the full row with its details.
+    const compactMonitoring = this._monitoringOk(monitoring, status);
     const main = [
       header,
       alarm ? this._renderAlarm(t, map, status) : "",
       this._renderBanners(t, status, monitoring, extOffline),
-      this._renderMonitoring(t, map, monitoring),
-      this._config.show_flow ? this._renderFlow(t, map) : "",
+      compactMonitoring ? "" : this._renderMonitoring(t, map, monitoring),
+      this._config.show_flow ? this._renderFlow(t, map, compactMonitoring ? this._monitoringPill(t) : "") : "",
     ];
     const side = [
       this._config.show_detectors ? this._renderDetectors(t, map, status, monitoring) : "",
@@ -1116,7 +1135,22 @@ class WaterLeakGuardCard extends HTMLElement {
     return label(status.state);
   }
 
-  _renderHeader(t, status, tone, alarm, shutoff, monitoring, statusUnavailable, extOffline) {
+  /** Monitoring confirmed active and nothing else wrong with source or runtime store. */
+  _monitoringOk(monitoring, status) {
+    return (
+      monitoring.state === "active" &&
+      !status.attributes?.storage_recovery_required &&
+      status.state !== "source_unavailable" &&
+      status.attributes?.source_available !== false
+    );
+  }
+
+  /** Compact status pill that replaces the monitoring row while all is well (never interactive). */
+  _monitoringPill(t) {
+    return `<span class="pill pill-ok mon-ok" title="${esc(t("monitoring_hint.active"))}">${esc(t("monitoring_ok"))}</span>`;
+  }
+
+  _renderHeader(t, status, tone, alarm, shutoff, monitoring, statusUnavailable, extOffline, monitoringPill = "") {
     const title = this._config.title || deviceName(this._hass, status.entity_id) || t("title");
     const icon = {
       alarm: "mdi:water-alert",
@@ -1125,6 +1159,11 @@ class WaterLeakGuardCard extends HTMLElement {
       neutral: "mdi:water-outline",
       ok: "mdi:water-check",
     }[tone];
+    const flags = [
+      alarm ? `<span class="flag flag-alarm"><ha-icon icon="mdi:pipe-leak"></ha-icon>${esc(t("alarm"))}</span>` : "",
+      shutoff ? `<span class="flag flag-shutoff"><ha-icon icon="mdi:valve-closed"></ha-icon>${esc(t("shutoff"))}</span>` : "",
+      monitoringPill,
+    ].filter(Boolean);
     return `
       <header class="head${this._config.show_background ? " has-motif" : ""}">
         ${this._config.show_background ? BACKGROUND_MOTIF : ""}
@@ -1135,10 +1174,7 @@ class WaterLeakGuardCard extends HTMLElement {
           <div class="eyebrow">${esc(title)}</div>
           <div class="headline">${esc(this._headline(t, status, monitoring, statusUnavailable, alarm, extOffline))}</div>
         </div>
-        <div class="flags">
-          ${alarm ? `<span class="flag flag-alarm"><ha-icon icon="mdi:pipe-leak"></ha-icon>${esc(t("alarm"))}</span>` : ""}
-          ${shutoff ? `<span class="flag flag-shutoff"><ha-icon icon="mdi:valve-closed"></ha-icon>${esc(t("shutoff"))}</span>` : ""}
-        </div>
+        ${flags.length ? `<div class="flags">${flags.join("")}</div>` : ""}
       </header>`;
   }
 
@@ -1275,14 +1311,15 @@ class WaterLeakGuardCard extends HTMLElement {
         // Only what this device may do now (session); the backend re-checks every action.
         const buttons = [];
         const reasons = [];
+        const who = perm.recipientName;
         if (perm.paired && !acked) {
           if (mutedHere) {
-            buttons.push(`<span class="pill pill-off"><ha-icon class="mini" icon="mdi:bell-off"></ha-icon>${esc(t("muted_here"))}</span>`);
+            buttons.push(`<span class="pill pill-off"><ha-icon class="mini" icon="mdi:bell-off"></ha-icon>${esc(who ? t("muted_for", { name: who }) : t("muted_here"))}</span>`);
           } else {
             buttons.push(`
               <button class="btn btn-ghost" data-action="mute" data-event="${esc(ev.event_id)}"
-                ${this._busy.has(muteKey) ? "disabled" : ""} title="${esc(t("mute_hint"))}">
-                <ha-icon icon="mdi:bell-off-outline"></ha-icon>${esc(t("mute"))}
+                ${this._busy.has(muteKey) ? "disabled" : ""} title="${esc(who ? t("mute_hint_for", { name: who }) : t("mute_hint"))}">
+                <ha-icon icon="mdi:bell-off-outline"></ha-icon>${esc(who ? t("mute_for", { name: who }) : t("mute"))}
               </button>`);
           }
         }
@@ -1374,7 +1411,7 @@ class WaterLeakGuardCard extends HTMLElement {
       ${adminLink}<div class="note subtle">${esc(t("acknowledge_hint"))}</div></section>`;
   }
 
-  _renderFlow(t, map) {
+  _renderFlow(t, map, monitoringPill = "") {
     const flowState = this._state(map, "current_flow");
     const flow = flowState && flowState.state !== "unavailable" ? num(flowState.state) : null;
     const high = num(this._state(map, "effective_high_threshold")?.state);
@@ -1387,7 +1424,7 @@ class WaterLeakGuardCard extends HTMLElement {
     return `
       <section class="block flow">
         <div class="block-head">
-          <span>${esc(t("flow"))}</span>
+          <span class="flow-label">${esc(t("flow"))}${monitoringPill}</span>
           <button class="link" data-action="more-info" data-entity="${esc(map.current_flow || "")}" data-focus="flow" ${map.current_flow ? "" : "disabled"}>
             ${flow == null ? esc(t("flow_unavailable")) : `<b class="big">${esc(formatNumber(this._hass, flow, flow < 10 ? 1 : 0))}</b> L/h`}
           </button>
@@ -1612,10 +1649,13 @@ const STYLES = `
     --wlg-line: var(--divider-color, rgba(127,127,127,.2));
     --wlg-soft: color-mix(in srgb, var(--primary-text-color, #212121) 6%, transparent);
     display: block;
+    /* container-type: inline-size makes the card's width independent of its
+       content; in a container that sizes to content it would collapse to 0. */
+    min-width: 280px;
   }
   /* The card measures itself: two columns once the CARD (not the viewport) is wide enough. */
   ha-card { overflow: hidden; container-type: inline-size; container-name: wlg; }
-  .wlg { padding-bottom: 6px; }
+  .wlg { padding-bottom: 4px; }
   .col { min-width: 0; }
   @container wlg (min-width: 600px) {
     .wlg { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
@@ -1627,10 +1667,10 @@ const STYLES = `
   /* Shield + water motif: a small badge at the right edge of the header. Text
      never runs under it (padding-right reserves its width). */
   .head { position: relative; isolation: isolate; overflow: hidden; }
-  .head.has-motif { min-height: 96px; box-sizing: border-box; align-content: center; padding-right: 84px; }
+  .head.has-motif { min-height: 76px; box-sizing: border-box; align-content: center; padding-right: 72px; }
   .head > :not(.motif) { position: relative; z-index: 1; }
   .motif {
-    position: absolute; z-index: 0; top: 50%; right: 14px; width: 62px; height: 74px; margin-top: -37px;
+    position: absolute; z-index: 0; top: 50%; right: 12px; width: 50px; height: 60px; margin-top: -30px;
     pointer-events: none; color: var(--tone);
   }
   .motif .shield-fill { fill: currentColor; opacity: .07; }
@@ -1677,9 +1717,9 @@ const STYLES = `
   button { font: inherit; color: inherit; }
   .empty { padding: 16px; color: var(--wlg-muted); }
 
-  .head { display: flex; align-items: center; gap: 6px 12px; padding: 12px 16px 10px; flex-wrap: wrap; }
+  .head { display: flex; align-items: center; gap: 6px 12px; padding: 10px 16px 8px; flex-wrap: wrap; }
   .orb {
-    width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer; flex: none;
+    width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer; flex: none;
     display: grid; place-items: center; --mdc-icon-size: 22px;
     background: color-mix(in srgb, var(--tone) 18%, transparent); color: var(--tone);
   }
@@ -1693,7 +1733,7 @@ const STYLES = `
   @media (prefers-reduced-motion: reduce) { .tone-alarm .orb { animation: none; } }
   .head-text { flex: 1; min-width: 0; }
   .eyebrow { font-size: 12px; color: var(--wlg-muted); letter-spacing: .02em; overflow-wrap: anywhere; }
-  .headline { font-size: 19px; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
+  .headline { font-size: 19px; font-weight: 500; line-height: 1.2; overflow-wrap: anywhere; }
   .flags { display: flex; gap: 6px; flex-wrap: wrap; flex-basis: 100%; }
   .flags:empty { display: none; }
   .flag {
@@ -1724,27 +1764,31 @@ const STYLES = `
   .event-meta { font-size: 13px; color: var(--wlg-muted); margin-top: 2px; }
   .event-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
 
-  .block { padding: 10px 16px 4px; border-top: 1px solid var(--wlg-line); }
+  .block { padding: 8px 16px 2px; border-top: 1px solid var(--wlg-line); }
   .block-head {
     display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap;
-    font-size: 13px; font-weight: 500; color: var(--wlg-muted); margin-bottom: 6px;
+    font-size: 13px; font-weight: 500; color: var(--wlg-muted); margin-bottom: 4px;
   }
   .big { font-size: 22px; font-weight: 500; color: var(--primary-text-color); font-variant-numeric: tabular-nums; }
   .muted { color: var(--wlg-muted); font-weight: 400; }
 
-  .flow .block-head { margin-bottom: 2px; }
-  .meter { position: relative; height: 10px; border-radius: 999px; background: var(--wlg-soft); margin: 4px 0 6px; }
+  .flow .block-head { margin-bottom: 0; align-items: center; }
+  .flow-label { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .mon-ok { padding: 1px 8px; font-size: 11px; }
+  .flags .mon-ok { font-size: 12px; }
+  .big { line-height: 1.15; }
+  .meter { position: relative; height: 8px; border-radius: 999px; background: var(--wlg-soft); margin: 4px 0 4px; }
   .meter-fill { height: 100%; border-radius: inherit; transition: width .6s ease; background: var(--wlg-water); }
   .meter-fill.level-warn { background: var(--wlg-warn); }
   .meter-fill.level-alarm { background: var(--wlg-alarm); }
   .tick { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--wlg-warn); transform: translateX(-1px); }
   .tick-burst { background: var(--wlg-alarm); }
-  .legend { display: flex; gap: 4px 14px; flex-wrap: wrap; font-size: 11px; color: var(--wlg-muted); margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+  .legend { display: flex; gap: 4px 14px; flex-wrap: wrap; font-size: 11px; color: var(--wlg-muted); margin-bottom: 4px; font-variant-numeric: tabular-nums; }
   .legend span { display: inline-flex; align-items: center; gap: 5px; }
   .key { width: 2px; height: 10px; background: var(--wlg-warn); display: inline-block; }
   .key-burst { background: var(--wlg-alarm); }
 
-  .row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
   .row + .row { border-top: 1px dashed var(--wlg-line); }
   .row-text { flex: 1; min-width: 0; }
   .row-title { font-size: 14px; overflow-wrap: anywhere; }
@@ -1752,10 +1796,10 @@ const STYLES = `
   .mini { --mdc-icon-size: 14px; }
 
   /* Detectors: compact 2×2 status grid, status only (no switches, no links). */
-  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; }
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 6px; margin-bottom: 6px; }
   .tile {
     display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0;
-    padding: 6px 6px 6px 10px; border-radius: 10px; background: var(--wlg-soft);
+    padding: 4px 6px 4px 10px; border-radius: 10px; background: var(--wlg-soft);
   }
   .tile-active { background: color-mix(in srgb, var(--wlg-alarm) 12%, transparent); }
   .tile-name { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1788,15 +1832,15 @@ const STYLES = `
   .how li + li { margin-top: 2px; }
 
   /* Collapsible sections: summary row = real button (aria-expanded) + chevron. */
-  .coll { padding-top: 4px; padding-bottom: 4px; }
+  .coll { padding-top: 0; padding-bottom: 0; }
   .sum { display: flex; align-items: center; gap: 8px; }
   .sum-btn {
-    flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 0;
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 2px 0;
     background: none; border: 0; cursor: pointer; text-align: left; border-radius: 8px;
   }
-  .sum-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-  .sum-title { font-size: 13px; font-weight: 500; color: var(--wlg-muted); }
-  .sum-status { font-size: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; overflow-wrap: anywhere; }
+  .sum-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0; }
+  .sum-title { font-size: 12px; font-weight: 500; color: var(--wlg-muted); line-height: 1.3; }
+  .sum-status { font-size: 14px; line-height: 1.3; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; overflow-wrap: anywhere; }
   .sum-status .pill { padding: 1px 8px; font-size: 12px; }
   .sum-cov { color: var(--wlg-muted); font-variant-numeric: tabular-nums; }
   .bypass-on .sum-status .on { color: var(--wlg-warn); font-weight: 500; }
@@ -1827,6 +1871,9 @@ const STYLES = `
 
   .link, .link-plain, .stat { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
   .link { color: var(--primary-text-color); font-size: 14px; }
+  /* Small text links get a 44 px tall hit area without taking layout space. */
+  .link, .link-plain { position: relative; }
+  .link:not([disabled])::after, .link-plain::after { content: ""; position: absolute; inset: -12px -6px; min-height: 44px; }
   span.link { cursor: default; }
   .link[disabled] { cursor: default; }
   .note { font-size: 12px; color: var(--wlg-muted); line-height: 1.4; }

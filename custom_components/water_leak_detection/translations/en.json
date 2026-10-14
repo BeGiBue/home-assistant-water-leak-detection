@@ -174,7 +174,7 @@
         },
         "submit": "Add and go back",
         "data_description": {
-          "session_pairing": "Whom the dashboard card treats as this device (the backend checks every action). “User: …” (recommended) covers every app/browser login of this Home Assistant user and survives logging out and in or reinstalling the app – a laptop browser of the same user then gets this recipient's rights too, but “home” always comes from the device tracker above. “Login: …” pairs exactly one login (user – app/browser · last used), e.g. when one user has several devices with different rights; select again after that device logs in anew. A paired login takes precedence over a user pairing. Muting applies to this recipient only; global acknowledgement and external reset need the permissions above and the device tracker at home. “—” = not paired."
+          "session_pairing": "Whom the dashboard card treats as this device (the backend checks every action). “👤 …” (user, recommended) covers every app/browser login of this Home Assistant user and survives logging out and in or reinstalling the app – a laptop browser of the same user then gets this recipient's rights too, but “home” always comes from the device tracker above. “🔑 …” pairs exactly one login (user – app/browser · last used), e.g. when one user has several devices with different rights; select again after that device logs in anew. A paired login takes precedence over a user pairing. Muting applies to this recipient only; global acknowledgement and external reset need the permissions above and the device tracker at home. “—” = not paired. “⚠” = stored pairing that is no longer valid."
         }
       },
       "remove_recipient": {
@@ -211,7 +211,7 @@
         },
         "submit": "Save and go back",
         "data_description": {
-          "session_pairing": "Whom the dashboard card treats as this device (the backend checks every action). “User: …” (recommended) covers every app/browser login of this Home Assistant user and survives logging out and in or reinstalling the app – a laptop browser of the same user then gets this recipient's rights too, but “home” always comes from the device tracker above. “Login: …” pairs exactly one login (user – app/browser · last used), e.g. when one user has several devices with different rights; select again after that device logs in anew. A paired login takes precedence over a user pairing. Muting applies to this recipient only; global acknowledgement and external reset need the permissions above and the device tracker at home. “—” = not paired."
+          "session_pairing": "Whom the dashboard card treats as this device (the backend checks every action). “👤 …” (user, recommended) covers every app/browser login of this Home Assistant user and survives logging out and in or reinstalling the app – a laptop browser of the same user then gets this recipient's rights too, but “home” always comes from the device tracker above. “🔑 …” pairs exactly one login (user – app/browser · last used), e.g. when one user has several devices with different rights; select again after that device logs in anew. A paired login takes precedence over a user pairing. Muting applies to this recipient only; global acknowledgement and external reset need the permissions above and the device tracker at home. “—” = not paired. “⚠” = stored pairing that is no longer valid."
         }
       },
       "notifications": {
