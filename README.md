@@ -4,7 +4,10 @@
 
 A backend-focused Home Assistant custom integration for detecting abnormal water consumption and possible water leaks from an existing water-meter flow sensor.
 
-**Current release:** 1.1.0
+**Current release:** 1.2.0-beta.1
+**Release status:** prepared beta candidate, not published; latest published stable: 1.1.0.
+**Beta scope:** hydraulic detection with notifications only, without configured external leak
+sensors or persisted external records. See [the beta prerequisites](docs/BETA_1.2.0.md).
 **Minimum Home Assistant:** 2026.9.0
 **Integration domain:** `water_leak_detection`
 
@@ -12,6 +15,9 @@ A backend-focused Home Assistant custom integration for detecting abnormal water
 > This integration can detect suspicious water usage and expose a shutoff request. It does not guarantee prevention of water damage. Automatic valve closure is opt-in and should be tested carefully.
 
 ## Highlights
+
+- Conservative Store recovery and external identity-conflict quarantine preserve
+  alarm/Shutoff contributions. See the [backup recovery and MQTT-boundary guide](docs/F04_LOW_ACK_DURATION.md#safety-recovery-and-mqtt-interruption-boundaries).
 
 - Separate **Slow Leak**, **Low Flow**, **High Flow**, and **Burst Leak** detectors.
 - Independent enable/disable switches for Slow Leak and Low Flow.
@@ -27,7 +33,10 @@ A backend-focused Home Assistant custom integration for detecting abnormal water
 - Learning confidence states: `insufficient`, `learning`, and `reliable`.
 - Hydraulic plausibility context using nominal pipe diameter and static pressure.
 - Static High Flow and adaptive Burst Leak thresholds.
-- Rapid rate-of-rise Burst detection.
+- Evidence-based Rapid Rise acceleration above the effective Burst boundary.
+- Multiple independent external leak sensors, with persistent per-source lifecycle.
+- Separate Home-authorized External Reset with replay-safe event nonces.
+- Independent Rolling and confirmed Long-Term learning, with legacy quarantine.
 - Persistent event state, bypass expiry, acknowledgements, and learned history across Home Assistant restarts.
 
 ## Installation
@@ -83,7 +92,7 @@ Supported flow units include L/h, L/min, L/s, m³/h, m³/min, and m³/s.
 | Slow Leak | Very small continuous loss | ≥ 3 L/h for 60 min |
 | Low Flow | Moderate flow lasting too long | 150–<600 L/h for 60 min, or stable for 30 min |
 | High Flow | Sustained unusually high use | Static; default 600 L/h |
-| Burst Leak | Major leak / pipe failure | Adaptive absolute + rapid-rise detection |
+| Burst Leak | Major leak / pipe failure | Base 3,500 L/h; 30 s confirmed, accelerated to 10 s by Rapid Rise above the effective boundary |
 
 Low Flow has two activation paths in the band **150 L/h ≤ flow < the static High threshold** (default 600 L/h):
 
@@ -178,23 +187,26 @@ sequence:
 
 ## Adaptive learning
 
-The learner stores peaks from completed, non-suspicious water-use episodes. The general path still excludes High/Burst monitoring, active alarms and bypass. A separate gate can admit clean High episodes only after at least three comparable episodes in the rolling window (default 30 days), with `max_peak <= min_peak × 1.15`. Pending episodes do not affect the normal reference; promotion preserves original timestamps. High stays static; only the existing confidence-weighted adaptive Burst reference may change. See [configuration](docs/CONFIGURATION.md#repeatedly-confirmed-normal-high-episodes).
+Rolling Learning retains normal clean sub-High episodes, the default 30-day
+window, P95 and Confidence. High episodes have a separate persistent Long-Term
+channel: three independent clean episodes within a 15% spread confirm a maximum;
+every increase requires three new peaks above the old maximum, strictly below the
+configured Burst base. They never enter the Rolling pool. Long-Term history does
+not age out and cannot automatically ratchet through the adaptive threshold.
 
-The default rolling window is 30 days. Recent and longer-term references are combined so the model can adapt to seasonal changes without allowing one unusual event to redefine normal behavior.
+`water_leak_detection.reset_learning` clears both channels and rollback context.
+Bypass, any ACTIVE alarm (including external sources), Burst/Rapid-Rise candidates,
+measurement gaps and interrupted High episodes are excluded. Every startup needs
+the configured physical High quiet reset before new High learning.
 
-Learning confidence:
-
-- `insufficient` — learned values do not raise safety thresholds,
-- `learning` — learned values have reduced influence,
-- `reliable` — the robust learned reference can fully influence the adaptive Burst threshold.
-
-Use `water_leak_detection.reset_learning` to clear normal samples, pending High candidates, confirmed High history and their rollback context. Bypass, any active alarm, Burst/Rapid-Rise candidates, measurement gaps and interrupted High episodes are never learned. High duration and the 500-litre limit stay static; older seasonal evidence ages out of the configured rolling window.
+See [F04 V3 configuration and safety contract](docs/F04_V3.md).
 
 ## Hydraulic context
 
 Nominal pipe diameter and static pressure are used as a **plausibility envelope**, not as an exact physical maximum. Actual flow depends on the meter, pressure reducer, dynamic pressure, pipe length, fittings, and upstream supply.
 
-The hydraulic model limits how far the adaptive Burst threshold can move upward.
+The hydraulic model caps the rolling/manual candidate. The independently confirmed
+Long-Term candidate is not capped by that heuristic ceiling.
 
 ## Shutoff request
 
@@ -263,8 +275,10 @@ See [LICENSE](LICENSE) for the complete license text.
 Version **1.1.0** contains the seven reviewed technical correction rounds together with
 F02 static High Flow, F08 Low Flow stability, and the repeatedly confirmed seasonal
 learning of clean High Flow episodes. High remains static and learning can influence only
-the existing adaptive Burst context. F04 / Rapid Rise remains the next separate detector
-design topic and is intentionally unchanged in this release.
+the existing adaptive Burst context in that release. The unreleased F04 V3 feature
+on this branch replaces the shared High-learning channel and Rapid-Rise rule;
+see the current [V3 contract](docs/F04_V3.md). The prepared release candidate is
+1.2.0-beta.1; 1.1.0 remains the latest published stable version.
 
 Only actual flow reports supply detection/quiet evidence. Re-reading a cached HA
 state on an internal tick never matures a timer. Object identity and report
@@ -380,10 +394,32 @@ below High. Low ends exactly where High starts. Learning, manual maximum usage,
 hydraulic context and legacy High multipliers cannot raise this boundary.
 Monitoring is not an immediate alarm: duration, volume, quiet/reset rules and
 High bypass are unchanged. Burst remains active during bypass and can still use
-adaptive context; its dynamic floor uses static High as the High reference.
+adaptive context; Rapid Rise now accelerates only above its effective boundary.
 
 The general learning path still treats High MONITORING as suspicious. The separate
 High-normal confirmation gate admits only repeatedly confirmed, cleanly ended
 High episodes; bypass and alarm episodes remain excluded. This extends learning
-outside F02 without changing static High or Low stability. F04 and Rapid Rise
-remain open.
+outside F02 without changing static High or Low stability. F04 V3 now separates
+this gate into Long-Term learning; the current rules are documented above.
+
+## Low reset, acknowledgement and duration follow-up
+
+MQTT Flow sensors need `force_update: true` to expose repeated equal telegrams.
+Short MQTT expiry or explicit source timeout can repeatedly interrupt reset
+evidence. Missing reports never mean zero. Configure now provides an authorized
+active-event acknowledgement form; numeric event seconds gain DE/EN display
+attributes. Full diagnostics, semantics and limits: [follow-up contract](docs/F04_LOW_ACK_DURATION.md).
+
+
+### F04 Sicherheitsreview: MQTT-Messherkunft und Quittierung
+
+MQTT-Durchflussquellen benötigen jetzt die originale timezone-aware Radio-/
+Empfänger-Messzeit im JSON-Feld `timestamp`; `force_update` allein beweist keine
+neue Messung. Retained, alte oder ungebundene Nachrichten liefern keine Evidenz.
+Fehlende Messherkunft sperrt die Auswertung und erzeugt einen Repair-Hinweis;
+bestehende ACTIVE-Alarme bleiben erhalten. Die fremde Discovery wird nicht
+überschrieben. Details und Vertrauensgrenzen: [Low/ACK/Dauer](docs/F04_LOW_ACK_DURATION.md).
+
+ACK wird erst nach erfolgreicher Persistenz veröffentlicht. Das Configure-ACK ist
+administrative Delegation anhand des ausgewählten Recipients und dessen Home-
+Tracker. Status und Dauer wählen dasselbe hydraulische oder externe Ereignis.

@@ -202,3 +202,15 @@ Vor echter automatischer Ventilsteuerung:
 5. erst danach die automatische Schließautomation aktivieren
 
 Eine automatische Absperrung sollte nie ungeprüft allein aufgrund theoretischer Standardwerte produktiv geschaltet werden.
+
+## F04 V3: unabhängige Beiträge und fehlgeschlagene Writes
+
+Hydraulische und externe ACTIVE-Alarme tragen unabhängig zur Absperranforderung
+bei. Pro externem Sensor ist contributes_to_shutoff konfigurierbar, standardmäßig
+true. Die Alarmanzeige priorisiert gegebenenfalls einen Hauptalarm, verliert aber
+keinen anderen Beitrag. Ein autorisierter External Reset entfernt erst nach
+erfolgreicher atomischer Persistenz genau seinen Beitrag; während oder nach
+einem fehlgeschlagenen Write bleibt ACTIVE mit Shutoff öffentlich bestehen. ACK
+und Mute entfernen keine Beiträge. High-Bypass unterdrückt externe Sensoren nicht.
+Die Integration öffnet oder schließt niemals selbst ein physisches Ventil.
+Weitere Regeln: [F04 V3](F04-V3.md).

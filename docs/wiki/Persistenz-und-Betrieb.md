@@ -244,3 +244,11 @@ Ohne explizite Max-Gap-Einstellung lassen sich eine legitime langsame Meldekaden
 und ein stiller Kommunikationsausfall zwischen zwei gültigen Reports nicht
 unterscheiden. Ein späterer gültiger Report kann daher ein langes Intervall bestätigen.
 Die Grenze wird niemals automatisch aus Reportmustern abgeleitet.
+
+## F04 V3 Upgrade
+
+Der aktuelle Feature-Stand verwendet HA-Store-/Learning-Schema 2 mit atomarer
+Legacy-Learning-Quarantäne. ACTIVE, ACK und Shutoff bleiben erhalten. Externe
+Lifecycles, generationsgebundene Nonces und getrennte Lernkanäle sind beschrieben
+in [F04 V3](F04-V3.md). Ein fehlgeschlagener Reset-Schreibvorgang gibt keinen
+Sicherheitsbeitrag frei. Die frühere F04-Roadmap bleibt historischer Kontext.

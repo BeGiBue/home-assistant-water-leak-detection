@@ -224,3 +224,15 @@ Beim nächsten Ereignis startet die Quittierungslogik frisch.
 | Persönlich stummschalten | bleibt aktiv | aus | bleibt | bleibt | unverändert |
 | Global quittieren | bleibt aktiv | aus | aus | aus | unverändert |
 | Physische Resetbedingung erfüllt | endet | Ereignis endet | Ereignis endet | Ereignis endet | wird neu berechnet |
+
+## F04 V3: externe Alarme und separater Reset
+
+Mehrere externe binary_sensor-Quellen erhalten jeweils eine eigene Event-ID und
+eigene Quittierungen. Normales ACK und persönliches Mute beenden weder hydraulische
+noch externe ACTIVE-Alarme und geben keinen Shutoff-Beitrag frei. Der gesonderte
+External Reset verlangt die unabhängige Berechtigung allow_external_reset (false
+als Standard), einen aktuellen Home-Tracker und sämtliche aktuellen Event-,
+Quellen-, Empfänger- und Nonce-Bindungen. trusted_stationary allein reicht nicht.
+Erst erfolgreiches HA-Store-Schreiben setzt genau diese Quelle auf WAITING; sie
+bleibt bis echtem OFF dort, auch nach Neustart. Andere Alarme bleiben erhalten.
+Details und frische Actions nach Restart: [F04 V3](F04-V3.md).

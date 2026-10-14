@@ -19,7 +19,7 @@ def at(seconds):
 
 @pytest.mark.parametrize("kind,flow", [
     (DetectorKind.SLOW_LEAK, 7), (DetectorKind.LOW_FLOW, 200),
-    (DetectorKind.HIGH_FLOW, 800), (DetectorKind.BURST_LEAK, 2500),
+    (DetectorKind.HIGH_FLOW, 800), (DetectorKind.BURST_LEAK, 4000),
 ])
 @pytest.mark.parametrize("invalid", [-1, float("nan"), float("inf")])
 def test_invalid_flow_preserves_confirmed_safety_state(kind, flow, invalid):
@@ -74,8 +74,8 @@ def test_total_returning_after_gap_does_not_add_unobserved_volume():
 def test_burst_ended_transition_retains_reason():
     engine = DetectionEngine()
     engine.sample(at(0), 0, None)
-    engine.sample(at(10), 1500, None)
-    engine.sample(at(20), 1500, None)
+    engine.sample(at(10), 4000, None)
+    engine.sample(at(20), 4000, None)
     engine.sample(at(30), 0, None)
     ended = engine.sample(at(90), 0, None)
     burst = next(item for item in ended if item.kind is DetectorKind.BURST_LEAK)
@@ -126,13 +126,13 @@ def test_corrupt_learning_and_ack_are_isolated():
     assert ack.globally_acknowledged_at is None
 
 
-def test_deferred_f04_f08_behavior_is_not_redefined():
-    """Known product decisions remain for the separate specification round."""
+def test_f04_v3_floor_and_existing_f08_short_pause_behavior():
+    """Approved Burst floor changes; existing Low safety net still applies."""
     engine = DetectionEngine()
     engine.sample(at(0), 0, None)
     engine.sample(at(10), 1500, None)
     engine.sample(at(20), 1500, None)
-    assert engine.runtimes[DetectorKind.BURST_LEAK].phase is DetectorPhase.ACTIVE  # F04
+    assert engine.runtimes[DetectorKind.BURST_LEAK].phase is DetectorPhase.IDLE  # F04 V3
     engine = DetectionEngine()
     engine.sample(at(0), 200, None)
     engine.sample(at(3590), 0, None)

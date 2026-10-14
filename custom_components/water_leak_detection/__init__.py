@@ -18,6 +18,7 @@ from .const import (
     NAME,
     PLATFORMS,
     SERVICE_CANCEL_HIGH_FLOW_BYPASS,
+    SERVICE_EXTERNAL_RESET,
     SERVICE_RESET_LEARNING,
     SERVICE_START_HIGH_FLOW_BYPASS,
 )
@@ -40,9 +41,7 @@ def _manager_for_call(hass: HomeAssistant, call: ServiceCall) -> WaterLeakManage
     if entry_id:
         manager = managers.get(entry_id)
         if manager is None:
-            raise HomeAssistantError(
-                f"Unknown Water Leak Guard config entry: {entry_id}"
-            )
+            raise HomeAssistantError(f"Unknown Water Leak Guard config entry: {entry_id}")
         return manager
     if len(managers) == 1:
         return next(iter(managers.values()))
@@ -60,9 +59,7 @@ async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
     async def _start_bypass(call: ServiceCall) -> None:
         manager = _manager_for_call(hass, call)
         duration = call.data.get(ATTR_DURATION_MINUTES)
-        await manager.async_start_bypass(
-            float(duration) if duration is not None else None
-        )
+        await manager.async_start_bypass(float(duration) if duration is not None else None)
 
     async def _cancel_bypass(call: ServiceCall) -> None:
         manager = _manager_for_call(hass, call)
@@ -71,6 +68,32 @@ async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
     async def _reset_learning(call: ServiceCall) -> None:
         manager = _manager_for_call(hass, call)
         await manager.async_reset_learning()
+
+    async def _acknowledge_event(call: ServiceCall) -> None:
+        manager = _manager_for_call(hass, call)
+        if not await manager.async_acknowledge_event(
+            call.data["event_id"], call.data["recipient_id"], call.data["recipient_token"]
+        ):
+            raise HomeAssistantError(
+                "Acknowledgement rejected: current recipient, event and Home required"
+            )
+
+    async def _external_reset(call: ServiceCall) -> None:
+        manager = _manager_for_call(hass, call)
+        if not await manager.async_external_reset(dict(call.data)):
+            raise HomeAssistantError("External reset rejected or not durably committed")
+
+    async def _request_external_reset(call: ServiceCall) -> None:
+        manager = _manager_for_call(hass, call)
+        if not await manager.async_request_external_reset_action(
+            call.data["source_id"],
+            call.data["recipient_id"],
+            call.data.get("source_generation"),
+            call.data.get("event_id"),
+        ):
+            raise HomeAssistantError(
+                "External reset action unavailable or recipient not Home-authorized"
+            )
 
     hass.services.async_register(
         DOMAIN,
@@ -90,6 +113,53 @@ async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
         SERVICE_CANCEL_HIGH_FLOW_BYPASS,
         _cancel_bypass,
         schema=probatio.Schema({probatio.Optional(ATTR_CONFIG_ENTRY_ID): str}),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_EXTERNAL_RESET,
+        _external_reset,
+        schema=probatio.Schema(
+            {
+                probatio.Required(field): str
+                for field in (
+                    "action_kind",
+                    ATTR_CONFIG_ENTRY_ID,
+                    "source_id",
+                    "source_generation",
+                    "event_id",
+                    "recipient_id",
+                    "recipient_token",
+                    "reset_nonce",
+                )
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "request_external_reset_action",
+        _request_external_reset,
+        schema=probatio.Schema(
+            {
+                probatio.Required(ATTR_CONFIG_ENTRY_ID): str,
+                probatio.Required("source_id"): str,
+                probatio.Required("recipient_id"): str,
+                probatio.Optional("source_generation"): str,
+                probatio.Optional("event_id"): str,
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "acknowledge_event",
+        _acknowledge_event,
+        schema=probatio.Schema(
+            {
+                probatio.Optional(ATTR_CONFIG_ENTRY_ID): str,
+                probatio.Required("event_id"): str,
+                probatio.Required("recipient_id"): str,
+                probatio.Required("recipient_token"): str,
+            }
+        ),
     )
     hass.services.async_register(
         DOMAIN,
@@ -144,7 +214,7 @@ async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> Non
         manager.total_entity_id != (entry.data.get("total_entity") or None)
     ):
         return
-    manager.apply_options()
+    await manager.async_apply_options()
     await manager.async_refresh()
     await manager.notifications.async_retry_pending()
 

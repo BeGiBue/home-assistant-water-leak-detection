@@ -30,9 +30,9 @@ async def test_f15_completed_sample_then_clock_change_survives_real_unload_resto
             await fresh(runtime_hass, manager, measurement_clock, 0)
     await manager.async_unload()
     raw = await manager._store.async_load()
-    assert raw["learning"]["samples"] == [sample.to_dict()]
+    assert raw["rolling_learning"]["samples"] == [sample.to_dict()]
     if sample.timestamp > measurement_clock.utcnow():
-        assert "clock_rollback" in raw["learning"]
+        assert "clock_rollback" in raw["rolling_learning"]
     restored = WaterLeakManager(runtime_hass, runtime_entry)
     runtime_hass.data[DOMAIN][runtime_entry.entry_id] = restored
     await restored.async_setup()

@@ -328,7 +328,7 @@ def test_adaptive_high_threshold_still_detects_above_reference() -> None:
     assert engine.runtimes[DetectorKind.HIGH_FLOW].phase is DetectorPhase.ACTIVE
 
 
-def test_rapid_rise_burst_triggers_below_absolute_threshold() -> None:
+def test_rapid_rise_burst_never_triggers_below_absolute_threshold() -> None:
     settings = DetectorSettings(
         burst_threshold_lph=2000.0,
         burst_detection_seconds=30,
@@ -352,8 +352,8 @@ def test_rapid_rise_burst_triggers_below_absolute_threshold() -> None:
     )
 
     runtime = engine.runtimes[DetectorKind.BURST_LEAK]
-    assert runtime.phase is DetectorPhase.MONITORING
-    assert runtime.reason == "rapid_rise"
+    assert runtime.phase is DetectorPhase.IDLE
+    assert runtime.reason is None
 
     engine.sample(
         at(20),
@@ -362,7 +362,7 @@ def test_rapid_rise_burst_triggers_below_absolute_threshold() -> None:
         effective_high_threshold_lph=600.0,
         effective_burst_threshold_lph=4000.0,
     )
-    assert engine.runtimes[DetectorKind.BURST_LEAK].phase is DetectorPhase.ACTIVE
+    assert engine.runtimes[DetectorKind.BURST_LEAK].phase is DetectorPhase.IDLE
 
 
 def test_rapid_rise_burst_ignores_high_flow_bypass() -> None:
@@ -381,7 +381,7 @@ def test_rapid_rise_burst_ignores_high_flow_bypass() -> None:
     )
     engine.sample(
         at(10),
-        3200.0,
+        4500.0,
         None,
         high_flow_bypassed=True,
         effective_high_threshold_lph=600.0,
@@ -389,7 +389,7 @@ def test_rapid_rise_burst_ignores_high_flow_bypass() -> None:
     )
     engine.sample(
         at(20),
-        3200.0,
+        4500.0,
         None,
         high_flow_bypassed=True,
         effective_high_threshold_lph=600.0,

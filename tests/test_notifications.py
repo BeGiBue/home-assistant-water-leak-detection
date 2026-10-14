@@ -17,6 +17,8 @@ from custom_components.water_leak_detection.const import (
     RECIPIENT_TOKEN,
     RECIPIENT_TRACKER_ENTITY,
     RECIPIENT_TRUSTED_STATIONARY,
+    DetectorKind,
+    DetectorPhase,
 )
 from custom_components.water_leak_detection.notifications import (
     EventAcknowledgement,
@@ -95,10 +97,7 @@ def test_action_parser_accepts_mute_and_global_ack() -> None:
 
 def test_action_parser_rejects_unknown_action() -> None:
     assert (
-        NotificationController._parse_action(
-            "WLD|DELETE|entry123|slow_leak_1|iphone|token"
-        )
-        is None
+        NotificationController._parse_action("WLD|DELETE|entry123|slow_leak_1|iphone|token") is None
     )
 
 
@@ -156,7 +155,18 @@ def _controller_for_action(*, tracker_state: str):
     manager = SimpleNamespace(
         current_total_l=None,
         current_flow_lph=7.0,
-        engine=SimpleNamespace(snapshot=lambda _total: snapshot),
+        engine=SimpleNamespace(
+            snapshot=lambda _total: snapshot,
+            active_events=lambda: {"slow_leak_1": DetectorKind.SLOW_LEAK},
+            runtimes={
+                DetectorKind.SLOW_LEAK: SimpleNamespace(
+                    plausible_volume_l=12.0,
+                    started_at=snapshot.active_started_at,
+                    phase=DetectorPhase.ACTIVE,
+                    event_id="slow_leak_1",
+                )
+            },
+        ),
     )
     entry = SimpleNamespace(entry_id="entry123", options={})
     persisted: list[bool] = []
@@ -175,16 +185,9 @@ def _controller_for_action(*, tracker_state: str):
 
 @pytest.mark.asyncio
 async def test_remote_device_can_mute_only_itself() -> None:
-    controller, recipient, _hass, persisted = _controller_for_action(
-        tracker_state="not_home"
-    )
+    controller, recipient, _hass, persisted = _controller_for_action(tracker_state="not_home")
     event = SimpleNamespace(
-        data={
-            "action": (
-                "WLD|MUTE|entry123|slow_leak_1|"
-                f"{recipient.id}|{recipient.token}"
-            )
-        }
+        data={"action": (f"WLD|MUTE|entry123|slow_leak_1|{recipient.id}|{recipient.token}")}
     )
 
     await controller._async_mobile_action(event)
@@ -197,17 +200,10 @@ async def test_remote_device_can_mute_only_itself() -> None:
 
 @pytest.mark.asyncio
 async def test_remote_device_cannot_acknowledge_globally() -> None:
-    controller, recipient, hass, persisted = _controller_for_action(
-        tracker_state="not_home"
-    )
+    controller, recipient, hass, persisted = _controller_for_action(tracker_state="not_home")
     controller._async_send_feedback = AsyncMock()
     event = SimpleNamespace(
-        data={
-            "action": (
-                "WLD|ACK_ALL|entry123|slow_leak_1|"
-                f"{recipient.id}|{recipient.token}"
-            )
-        }
+        data={"action": (f"WLD|ACK_ALL|entry123|slow_leak_1|{recipient.id}|{recipient.token}")}
     )
 
     await controller._async_mobile_action(event)
@@ -215,24 +211,14 @@ async def test_remote_device_cannot_acknowledge_globally() -> None:
     state = controller.acknowledgements["slow_leak_1"]
     assert state.globally_acknowledged is False
     assert not persisted
-    assert any(
-        data.get("reason") == "device_not_home"
-        for _event_type, data in hass.bus.fired
-    )
+    assert any(data.get("reason") == "device_not_home" for _event_type, data in hass.bus.fired)
 
 
 @pytest.mark.asyncio
 async def test_home_device_can_acknowledge_globally() -> None:
-    controller, recipient, _hass, persisted = _controller_for_action(
-        tracker_state="home"
-    )
+    controller, recipient, _hass, persisted = _controller_for_action(tracker_state="home")
     event = SimpleNamespace(
-        data={
-            "action": (
-                "WLD|ACK_ALL|entry123|slow_leak_1|"
-                f"{recipient.id}|{recipient.token}"
-            )
-        }
+        data={"action": (f"WLD|ACK_ALL|entry123|slow_leak_1|{recipient.id}|{recipient.token}")}
     )
 
     await controller._async_mobile_action(event)
@@ -246,9 +232,7 @@ async def test_home_device_can_acknowledge_globally() -> None:
 
 @pytest.mark.asyncio
 async def test_arriving_home_retriggers_unacknowledged_alarm() -> None:
-    controller, recipient, _hass, persisted = _controller_for_action(
-        tracker_state="home"
-    )
+    controller, recipient, _hass, persisted = _controller_for_action(tracker_state="home")
     controller.acknowledgements["slow_leak_1"] = EventAcknowledgement(
         muted_recipients={recipient.id}
     )
@@ -263,22 +247,15 @@ async def test_arriving_home_retriggers_unacknowledged_alarm() -> None:
 
     await controller._async_tracker_changed(event)
 
-    assert (
-        recipient.id
-        not in controller.acknowledgements["slow_leak_1"].muted_recipients
-    )
+    assert recipient.id not in controller.acknowledgements["slow_leak_1"].muted_recipients
     controller._async_send_event_notification.assert_awaited_once()
     assert persisted
 
 
 @pytest.mark.asyncio
 async def test_arriving_home_does_not_retrigger_globally_acknowledged_event() -> None:
-    controller, recipient, _hass, _persisted = _controller_for_action(
-        tracker_state="home"
-    )
-    controller.acknowledgements["slow_leak_1"] = EventAcknowledgement(
-        globally_acknowledged=True
-    )
+    controller, recipient, _hass, _persisted = _controller_for_action(tracker_state="home")
+    controller.acknowledgements["slow_leak_1"] = EventAcknowledgement(globally_acknowledged=True)
     controller._async_send_event_notification = AsyncMock()
     event = SimpleNamespace(
         data={
@@ -295,9 +272,7 @@ async def test_arriving_home_does_not_retrigger_globally_acknowledged_event() ->
 
 @pytest.mark.asyncio
 async def test_event_start_notifies_multiple_devices() -> None:
-    controller, recipient, _hass, _persisted = _controller_for_action(
-        tracker_state="home"
-    )
+    controller, recipient, _hass, _persisted = _controller_for_action(tracker_state="home")
     second_raw = _recipient_raw()
     second_raw[RECIPIENT_ID] = "iphone_personal"
     second_raw[RECIPIENT_NAME] = "Personal iPhone"
@@ -327,9 +302,7 @@ async def test_event_start_notifies_multiple_devices() -> None:
 
 @pytest.mark.asyncio
 async def test_event_end_removes_ack_and_new_event_starts_clean() -> None:
-    controller, recipient, _hass, _persisted = _controller_for_action(
-        tracker_state="home"
-    )
+    controller, recipient, _hass, _persisted = _controller_for_action(tracker_state="home")
     controller._async_send_event_notification = AsyncMock()
     controller.acknowledgements["slow_leak_old"] = EventAcknowledgement(
         globally_acknowledged=True,
@@ -363,9 +336,7 @@ async def test_event_end_removes_ack_and_new_event_starts_clean() -> None:
 
 @pytest.mark.asyncio
 async def test_burst_critical_payload_supports_ios_and_android() -> None:
-    controller, recipient, hass, _persisted = _controller_for_action(
-        tracker_state="home"
-    )
+    controller, recipient, hass, _persisted = _controller_for_action(tracker_state="home")
 
     await controller._async_send_event_notification(
         recipient,
@@ -389,9 +360,7 @@ async def test_burst_critical_payload_supports_ios_and_android() -> None:
 
 @pytest.mark.asyncio
 async def test_away_notification_only_offers_personal_mute() -> None:
-    controller, recipient, hass, _persisted = _controller_for_action(
-        tracker_state="not_home"
-    )
+    controller, recipient, hass, _persisted = _controller_for_action(tracker_state="not_home")
 
     await controller._async_send_event_notification(
         recipient,
@@ -409,9 +378,7 @@ async def test_away_notification_only_offers_personal_mute() -> None:
 
 @pytest.mark.asyncio
 async def test_home_notification_offers_global_acknowledgement() -> None:
-    controller, recipient, hass, _persisted = _controller_for_action(
-        tracker_state="home"
-    )
+    controller, recipient, hass, _persisted = _controller_for_action(tracker_state="home")
 
     await controller._async_send_event_notification(
         recipient,
@@ -429,9 +396,7 @@ async def test_home_notification_offers_global_acknowledgement() -> None:
 
 @pytest.mark.asyncio
 async def test_notification_uses_home_assistant_language_strings() -> None:
-    controller, recipient, hass, _persisted = _controller_for_action(
-        tracker_state="home"
-    )
+    controller, recipient, hass, _persisted = _controller_for_action(tracker_state="home")
     controller._async_common_translations = AsyncMock(
         return_value={
             "detector_slow_leak": "Slow Leak",
@@ -453,9 +418,7 @@ async def test_notification_uses_home_assistant_language_strings() -> None:
     service_data = hass.services.calls[0][2]
     assert service_data["title"] == "Wasserwächter: Slow Leak"
     assert service_data["message"] == "Aktueller Durchfluss: 7.0 L/h."
-    assert service_data["data"]["actions"][0]["title"] == (
-        "Auf diesem Gerät stummschalten"
-    )
+    assert service_data["data"]["actions"][0]["title"] == ("Auf diesem Gerät stummschalten")
     assert service_data["data"]["actions"][1]["title"] == "Für alle quittieren"
 
 
@@ -463,9 +426,7 @@ async def test_notification_uses_home_assistant_language_strings() -> None:
 async def test_runtime_translation_loader_uses_home_assistant_language(
     monkeypatch,
 ) -> None:
-    controller, _recipient, _hass, _persisted = _controller_for_action(
-        tracker_state="home"
-    )
+    controller, _recipient, _hass, _persisted = _controller_for_action(tracker_state="home")
     controller.hass.config.language = "de"
 
     async def _fake_get_translations(
@@ -477,15 +438,10 @@ async def test_runtime_translation_loader_uses_home_assistant_language(
         assert language == "de"
         assert category == "common"
         assert list(integrations) == ["water_leak_detection"]
-        return {
-            "component.water_leak_detection.common.action_ack_all": (
-                "Für alle quittieren"
-            )
-        }
+        return {"component.water_leak_detection.common.action_ack_all": ("Für alle quittieren")}
 
     monkeypatch.setattr(
-        "custom_components.water_leak_detection.notifications."
-        "translation.async_get_translations",
+        "custom_components.water_leak_detection.notifications.translation.async_get_translations",
         _fake_get_translations,
     )
     controller._async_common_translations = (

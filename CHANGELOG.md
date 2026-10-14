@@ -2,6 +2,20 @@
 
 All notable changes to Water Leak Guard are documented here.
 
+## 1.2.0-beta.1 — 2026-10-14 (release candidate, not published)
+
+- Prepared restricted household beta for hydraulic Slow/Low/High/Burst detection,
+  notifications, personal mute, Home-authorized ACK and readable event duration.
+- Separated physical MQTT evidence intervals from reception timing so normal
+  delivery jitter no longer interrupts Burst confirmation or Low quiet reset.
+  Replay, timeout, restart and F15 protections remain unchanged.
+- F04 adds separate Rolling/Long-Term learning and legacy-learning quarantine,
+  with a new default Burst base of 3,500 L/h; explicit existing values are preserved.
+- F04-FSR-H01 remains open for damaged active external-sensor records. This beta
+  is restricted to installations without external sources or saved external records.
+- Version metadata and a prerelease/not-latest publisher path are prepared.
+  No merge, tag or GitHub release has been performed.
+
 ## 1.1.0 — 2026-10-10
 
 ### High Flow

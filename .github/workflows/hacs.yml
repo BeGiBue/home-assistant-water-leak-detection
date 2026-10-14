@@ -3,7 +3,8 @@ name: HACS
 on:
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   validate-hacs:
@@ -13,3 +14,6 @@ jobs:
         uses: hacs/action@main
         with:
           category: integration
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          REPOSITORY_REF: ${{ github.sha }}

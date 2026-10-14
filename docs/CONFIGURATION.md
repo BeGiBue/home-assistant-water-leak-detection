@@ -1,5 +1,12 @@
 # Configuration reference
 
+Runtime safety recovery never resets an alarm by discarding its Store. An ERROR
+repair explains damaged bodies or conflicting external event identities. Preserve
+the file, stop HA and restore a verified complete backup; see the
+[recovery procedure](F04_LOW_ACK_DURATION.md#safety-recovery-and-mqtt-interruption-boundaries).
+`identity_conflict` sources retain alarm/Shutoff and cannot use ambiguous ACK/reset
+actions. MQTT timeout/restart boundaries also reject buffered pre-outage values.
+
 ## Reopening the configuration
 
 After installation, open **Settings → Devices & services → Integrations → Water Leak Guard → Configure**.
@@ -99,7 +106,7 @@ rules are unchanged: reaching 600 L/h is not an immediate alarm.
 
 The former High multiplier is hidden and ignored; existing saved values are
 preserved. The Burst multiplier remains available without a High-multiplier
-comparison. Burst remains adaptive and uses static High in its dynamic floor.
+comparison. Burst remains adaptive; Rapid Rise qualifies only at or above effective Burst.
 
 High Flow can be temporarily bypassed. This bypass does not disable Burst Leak.
 
@@ -191,19 +198,24 @@ Use `water_leak_detection.reset_learning` to clear normal samples, pending High 
 
 ### Repeatedly confirmed normal High episodes
 
-High remains **static**: default 600 L/h, ACTIVE after 45 minutes **or** 500 litres, reset after 5 minutes strictly below 100 L/h. Learning changes none of these values. Only the existing adaptive normal reference for Burst can benefit.
+F04 V3 separates High learning completely from Rolling Learning. High remains
+static (600 L/h, 45 minutes OR 500 L, five minutes below 100 L/h by default).
+Only clean, fully observed High-MONITORING episodes below the **configured Burst
+base** can enter Long-Term learning. Three independent episodes with
+`max_peak <= min_peak * 1.15` confirm the first maximum. Every later increase
+requires three **new** episodes above the previous maximum. High peaks never
+become Rolling LearningSamples or receive its old multiplier again.
 
-The ordinary learning path still excludes High MONITORING. A separate gate tracks the peak of a High IDLE → MONITORING episode and creates a pending candidate only at its normal physical MONITORING → IDLE reset. A single episode, such as 750 L/h for 12 minutes, does not enter normal samples. Neither do two episodes.
+Long-Term pending and confirmed audit history do not expire; validated identities
+share a deterministic newest-4096 budget, while the independent confirmed maximum
+remains monotonic. Original timestamps and exact per-list F15 permissions are
+preserved. Running episodes are transient. Bypass, alarms, Burst/Rapid Rise and
+measurement gaps exclude episodes. Every startup requires the full configured
+physical High quiet reset before a new eligible episode. Rolling P95, the default
+30-day window and Confidence remain unchanged for ordinary samples.
 
-At least **three** comparable clean episodes must exist in the same `learning_window_days` rolling window (default **30 days**). The exact, symmetric rule for every confirming cluster is `max_peak <= min_peak × 1.15`. For example 750/780/800 or 700/800/805 qualify; 650/850/1400 do not. Sorted bands are evaluated deterministically, including overlapping valid bands, without greedy order-dependent grouping. The 15% boundary is inclusive.
-
-On confirmation, pending members enter the existing normal LearningSample model once, retaining their **original completion timestamps**. Confirmed High history can help a fourth episode qualify immediately if at least three comparable episodes, including the new one, remain in the window. Only the peak is learned: no durations, litre limits or reset times. Existing P95, short/long references, seasonal weighting and `insufficient` / `learning` / `reliable` confidence rules remain binding. Three High samples alone do not bypass insufficient confidence. With sufficient confidence, admitted peaks affect normal reference → Burst multiplier → hydraulic ceiling → adaptive Burst threshold; High stays static.
-
-Bypass is never learning permission. Any High ACTIVE, any other ACTIVE leak, or Burst MONITORING/ACTIVE—including a transient Rapid Rise candidate—permanently disqualifies that episode. Unknown, unavailable, invalid flow, a real excluded evidence gap, source rebind and restart also prevent admission. The engine's existing evidence-gap decision is reused: float/datetime differences within the existing absolute 2-µs tolerance are not gaps; explicit zero credit remains zero. Cancelling bypass during continuing high consumption cannot make it normal. A rejected episode requires the configured physical High quiet reset before a fresh eligible episode. After every startup or restore, High learning stays blocked until the full configured physical High quiet reset has been confirmed by valid reports. A brief zero-flow or sub-High report cannot release this guard; outages and real evidence gaps restart its quiet progress.
-
-Running candidates and rejection/quiet tracking are transient. Completed pending candidates and confirmed High history persist as separate optional lists of `{timestamp, peak_lph}`, with no storage-version change. They use the existing F15 bounded, exact-identity clock-rollback context; promotion transfers applicable permissions without retimestamping or duplicate admission. Old stores default to empty High histories. Invalid records and duplicates are ignored; confirmation history is bounded to the latest 4096 valid, deduplicated in-window entries, selected chronologically only after full input validation and confirmed/sample consistency checks. Input ordering and expired or malformed prefixes cannot hide current entries. Normal samples and both High histories age out using the same window, including immediately after window reduction or restore. Old winter evidence therefore loses its influence naturally without calendar-season rules.
-
-`reset_learning` clears normal samples, both High histories, running tracking and associated rollback permissions. Source changes retain the existing learning neutralization. There are no new options or entities: the fixed three confirmations and 15% band are internal constants; the existing learning window remains configurable.
+See [F04 V3](F04_V3.md) for the schema-2 legacy quarantine, separate threshold
+formula, learning reset/source identity and external sensors.
 
 
 ## Hydraulic settings
@@ -263,6 +275,38 @@ total-meter quantization, parallel HA dispatch and interruption semantics.
 
 F02 is closed. The general learning path excludes High MONITORING and bypass;
 a separate repeated-confirmation gate can admit only clean, normally completed
-High episodes for the existing Burst reference. F04 and Rapid Rise remain open.
+High episodes in an independent Long-Term channel under F04 V3.
 The `effective_high_threshold` entity identity and translation key are retained;
 its displayed value stays static.
+
+## F04 V3 configuration and upgrade
+
+The new default Burst base is **3,500 L/h**; explicitly saved values remain intact.
+External binary sensors can be added during setup or under Configure → External
+leak sensors. Every source has its own Shutoff contribution (default true).
+Recipients have independent `allow_external_reset` (default false) and global ACK
+permissions. External reset always requires the current tracker to be Home.
+See [F04 V3](F04_V3.md) for all lifecycle, restart, nonce, migration, failed-write,
+calibration and separate Rolling/Long-Term threshold rules.
+
+## Low reset, acknowledgement and duration follow-up
+
+MQTT Flow sensors need `force_update: true` to expose repeated equal telegrams.
+Short MQTT expiry or explicit source timeout can repeatedly interrupt reset
+evidence. Missing reports never mean zero. Configure now provides an authorized
+active-event acknowledgement form; numeric event seconds gain DE/EN display
+attributes. Full diagnostics, semantics and limits: [follow-up contract](F04_LOW_ACK_DURATION.md).
+
+
+### F04 Sicherheitsreview: MQTT-Messherkunft und Quittierung
+
+MQTT-Durchflussquellen benötigen jetzt die originale timezone-aware Radio-/
+Empfänger-Messzeit im JSON-Feld `timestamp`; `force_update` allein beweist keine
+neue Messung. Retained, alte oder ungebundene Nachrichten liefern keine Evidenz.
+Fehlende Messherkunft sperrt die Auswertung und erzeugt einen Repair-Hinweis;
+bestehende ACTIVE-Alarme bleiben erhalten. Die fremde Discovery wird nicht
+überschrieben. Details und Vertrauensgrenzen: [Low/ACK/Dauer](F04_LOW_ACK_DURATION.md).
+
+ACK wird erst nach erfolgreicher Persistenz veröffentlicht. Das Configure-ACK ist
+administrative Delegation anhand des ausgewählten Recipients und dessen Home-
+Tracker. Status und Dauer wählen dasselbe hydraulische oder externe Ereignis.

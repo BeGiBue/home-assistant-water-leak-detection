@@ -30,6 +30,11 @@ def report(hass, clock, value, entity="sensor.flow", unit="L/h"):
 
 
 async def start_manager(hass, entry, clock, value=7, *, configured_gap=0):
+    # Existing runtime regressions exercise the explicitly stored 1.1.0 Burst
+    # basis. F04 default tests separately exercise new/missing options (3500).
+    hass.config_entries.async_update_entry(entry, options={
+        "burst_threshold_lph": 2000, **entry.options,
+    })
     if configured_gap:
         # Tests of established safety states can explicitly declare their cadence.
         hass.config_entries.async_update_entry(entry, options={
@@ -206,7 +211,7 @@ async def test_f17_bus_ended_payload_has_original_burst_reason(
     manager = await start_manager(
         runtime_hass, runtime_entry, measurement_clock, 0, configured_gap=10
     )
-    for flow in (1500, 1500, 0, 0, 0, 0, 0, 0, 0):
+    for flow in (2500, 2500, 0, 0, 0, 0, 0, 0, 0):
         measurement_clock.advance(10)
         report(runtime_hass, measurement_clock, flow)
         await manager.async_refresh()
@@ -240,7 +245,7 @@ async def test_f14_setup_failure_rolls_back_real_manager(
     assert created[0]._save_handle is None
     monkeypatch.setattr(runtime_hass.config_entries, "async_forward_entry_setups", AsyncMock())
     assert await asyncio.wait_for(integration.async_setup_entry(runtime_hass, runtime_entry), 3)
-    assert len(created[1]._unsubs) == 3
+    assert len(created[1]._unsubs) == 4  # Includes the stable source-registry listener.
 
 
 async def test_f12_config_entry_recipient_update_retains_monitoring(
@@ -370,13 +375,13 @@ async def test_f13_entry_unload_setup_rebases_new_meter_and_preserves_safety(
     runtime_hass.config_entries.async_update_entry(runtime_entry, data={
         CONF_FLOW_ENTITY: "sensor.flow", CONF_TOTAL_ENTITY: "sensor.total",
     }, options={CONF_SOURCE_MAX_AGE_SEC: 10})
-    report(runtime_hass, measurement_clock, 2500)
+    report(runtime_hass, measurement_clock, 4000)
     report(runtime_hass, measurement_clock, 1000, "sensor.total", "L")
     await integration.async_setup_entry(runtime_hass, runtime_entry)
     manager = runtime_hass.data[DOMAIN][runtime_entry.entry_id]
     for _ in range(3):
         measurement_clock.advance(10)
-        report(runtime_hass, measurement_clock, 2500)
+        report(runtime_hass, measurement_clock, 4000)
         await manager.async_refresh()
         await runtime_hass.async_block_till_done()
     event_id = manager.engine.snapshot().active_event_id
@@ -388,7 +393,7 @@ async def test_f13_entry_unload_setup_rebases_new_meter_and_preserves_safety(
     assert await integration.async_unload_entry(runtime_hass, runtime_entry)
     assert manager._closed and not manager._unsubs
     assert runtime_entry.entry_id not in runtime_hass.data[DOMAIN]
-    report(runtime_hass, measurement_clock, 2500, "sensor.new_flow")
+    report(runtime_hass, measurement_clock, 4000, "sensor.new_flow")
     report(runtime_hass, measurement_clock, 100000, "sensor.new_total", "L")
     await integration.async_setup_entry(runtime_hass, runtime_entry)
     restored = runtime_hass.data[DOMAIN][runtime_entry.entry_id]

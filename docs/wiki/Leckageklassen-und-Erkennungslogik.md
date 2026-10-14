@@ -193,7 +193,28 @@ Die konfigurierte Experten-Schwelle beträgt standardmäßig 600 L/h.
 Lernen, manuelles Maximum und Hydraulik erhöhen sie nicht.
 Low endet exakt darunter; High beginnt exakt an der Schwelle.
 
-Sauber beendetes High-MONITORING kann erst nach mindestens drei ähnlichen Episoden im rollierenden Lernfenster (standardmäßig 30 Tage) als normale Peak-Evidenz zugelassen werden. Für einen bestätigenden Cluster gilt `max_peak <= min_peak × 1,15`. Bypass, High ACTIVE, andere aktive Alarme, Burst-/Rapid-Rise-Kandidaten und Messlücken verhindern die Aufnahme. Nur der Peak wird gelernt; High-Dauer, 500-Liter-Grenze und Reset bleiben statisch. Ursprüngliche Abschlusszeiten und bestehende Confidence bleiben bindend. Alte Bestätigungen altern mit dem Fenster aus.
+## Wiederholt bestätigte normale High-Episoden
+
+F04 V3 führt einen getrennten Langzeitkanal ein. High bleibt statisch: 600 L/h,
+45 Minuten ODER 500 Liter und fünf Minuten strikt unter 100 L/h als Standard.
+Nur vollständig beobachtete, sauber beendete High-MONITORING-Episoden mit Peak
+**unter der konfigurierten Burst-Basis** dürfen kandidieren. Drei unabhängige
+Episoden mit `max_peak <= min_peak × 1,15` bestätigen das erste Maximum. Jede
+spätere Erhöhung benötigt drei **neue** Episoden über dem bisherigen Maximum.
+Alte Bestätigungen liefern diese neuen Stimmen nicht. High-Peaks gelangen niemals
+in den Rolling-Sample-Pool und wirken nicht zusätzlich über dessen Faktor 1,8.
+
+Pending- und Audit-Historie verfallen nicht zeitlich. Nach Validierung,
+Identitätsprüfung, Deduplizierung und deterministischer Sortierung bleiben
+höchstens die neuesten 4096 Datensätze insgesamt; das separate bestätigte Maximum
+bleibt monoton erhalten. Originalzeitstempel und exakt gebundene F15-Berechtigungen
+bleiben erhalten. Bypass, Alarme, Burst/Rapid Rise und Messlücken schließen die
+Episode aus. Laufende Episoden bleiben flüchtig. Nach jedem Neustart ist zunächst
+die vollständige konfigurierte physische High-Ruhe neu zu bestätigen.
+Das Rolling-Modell mit 30-Tage-Fenster, P95 und Confidence bleibt für gewöhnliche
+Samples erhalten. Einzelheiten: [F04 V3](F04-V3.md).
+
+
 
 Details: [Adaptives Lernen und Hydraulik](Adaptives-Lernen-und-Hydraulik)
 
@@ -259,7 +280,7 @@ Burst Leak ist die höchste Gefahrenklasse.
 
 | Parameter | Standard |
 |---|---:|
-| absolute Basisgrenze | 2000 L/h |
+| absolute Basisgrenze | 3500 L/h (neue/nicht gesetzte Konfiguration) |
 | absolute Bestätigung | 30 Sekunden |
 | schneller Anstieg | +1000 L/h normiert auf 10 s |
 | Rapid-Rise-Bestätigung | 10 Sekunden |
@@ -285,13 +306,12 @@ Standard:
 
 `Anstieg >= 1000 L/h je 10 s`
 
-Zusätzlich muss der aktuelle Durchfluss eine dynamische Mindesthöhe erreichen:
-
-`max(1,8 × effektive High-Grenze; 0,75 × effektive Burst-Grenze)`
-
-Damit reicht ein schneller Sprung von 0 auf einen kleinen normalen Verbrauch nicht aus.
-
-Der Rapid-Rise-Kandidat wird nach **10 Sekunden** bestätigt.
+Zusätzlich muss der aktuelle Durchfluss mindestens die **effektive Burst-Grenze**
+erreichen. Rapid Rise beschleunigt nur diesen Burst-Kandidaten und beginnt seine
+10 Sekunden bestätigter Evidenz erst am qualifizierenden Report. Die frühere
+gültige Frist gewinnt; keine Rückdatierung oder Verlängerung der normalen Frist.
+Echte Evidenzlücken und relevante Optionsänderungen verwerfen unbestätigtes
+Monitoring. Bereits ACTIVE bleibt an den bestehenden physischen Reset gekoppelt.
 
 ## Warum absolute UND dynamische Erkennung?
 

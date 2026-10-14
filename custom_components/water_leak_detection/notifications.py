@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import ast
 import asyncio
+import base64
+import inspect
 import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from functools import wraps
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -20,6 +23,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     ACTION_ACK_ALL,
+    ACTION_EXTERNAL_RESET,
     ACTION_MUTE,
     ACTION_PREFIX,
     CONF_NOTIFICATION_RECIPIENTS,
@@ -29,6 +33,7 @@ from .const import (
     EVENT_LEAK_ENDED,
     EVENT_LEAK_STARTED,
     MOBILE_ACTION_EVENT,
+    RECIPIENT_ALLOW_EXTERNAL_RESET,
     RECIPIENT_ALLOW_GLOBAL_ACK,
     RECIPIENT_CRITICAL_ENABLED,
     RECIPIENT_ID,
@@ -47,6 +52,19 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+def notification_writer(method):
+    """Use the manager's shared writer for per-event metadata mutations."""
+
+    @wraps(method)
+    async def guarded(self, *args, **kwargs):
+        writer = getattr(self.manager, "async_notification_action", None)
+        if writer is None:
+            return await method(self, *args, **kwargs)
+        return await writer(lambda: method(self, *args, **kwargs))
+
+    return guarded
+
+
 @dataclass(slots=True, frozen=True)
 class NotificationRecipient:
     """One configured Companion notification target."""
@@ -59,6 +77,7 @@ class NotificationRecipient:
     allow_global_ack: bool
     trusted_stationary: bool
     token: str
+    allow_external_reset: bool = False
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> NotificationRecipient | None:
@@ -68,8 +87,8 @@ class NotificationRecipient:
             name = str(raw[RECIPIENT_NAME])
             notify_service = str(raw[RECIPIENT_NOTIFY_SERVICE])
             tracker_entity = str(raw[RECIPIENT_TRACKER_ENTITY])
-            token = str(raw[RECIPIENT_TOKEN])
-        except (KeyError, TypeError, ValueError):
+            token = raw[RECIPIENT_TOKEN]
+        except KeyError, TypeError, ValueError:
             return None
 
         if (
@@ -77,7 +96,8 @@ class NotificationRecipient:
             or not name
             or not notify_service.startswith("notify.")
             or not tracker_entity.startswith("device_tracker.")
-            or not token
+            or not isinstance(token, str)
+            or not token.strip()
         ):
             return None
 
@@ -87,9 +107,10 @@ class NotificationRecipient:
             notify_service=notify_service,
             tracker_entity=tracker_entity,
             critical_enabled=bool(raw.get(RECIPIENT_CRITICAL_ENABLED, True)),
-            allow_global_ack=bool(raw.get(RECIPIENT_ALLOW_GLOBAL_ACK, True)),
+            allow_global_ack=raw.get(RECIPIENT_ALLOW_GLOBAL_ACK, True) is True,
             trusted_stationary=bool(raw.get(RECIPIENT_TRUSTED_STATIONARY, False)),
             token=token,
+            allow_external_reset=raw.get(RECIPIENT_ALLOW_EXTERNAL_RESET) is True,
         )
 
 
@@ -126,9 +147,7 @@ class EventAcknowledgement:
             "globally_acknowledged": self.globally_acknowledged,
             "globally_acknowledged_by": self.globally_acknowledged_by,
             "globally_acknowledged_at": (
-                self.globally_acknowledged_at.isoformat()
-                if self.globally_acknowledged_at
-                else None
+                self.globally_acknowledged_at.isoformat() if self.globally_acknowledged_at else None
             ),
             "muted_recipients": sorted(self.muted_recipients),
             "accepted_recipients": dict(self.accepted_recipients),
@@ -152,23 +171,34 @@ class EventAcknowledgement:
             globally_acknowledged_at=parse_datetime(raw.get("globally_acknowledged_at")),
             muted_recipients=string_set(raw.get("muted_recipients")),
             accepted_recipients={
-                key: value for key, value in delivered.items()
+                key: value
+                for key, value in delivered.items()
                 if isinstance(key, str) and isinstance(value, str)
-            } if isinstance(delivered, dict) else {},
+            }
+            if isinstance(delivered, dict)
+            else {},
             dispatch_states={
-                key: (DispatchState.INTERRUPTED.value
-                      if value == DispatchState.IN_FLIGHT else value)
+                key: (
+                    DispatchState.INTERRUPTED.value if value == DispatchState.IN_FLIGHT else value
+                )
                 for key, value in statuses.items()
-                if isinstance(key, str) and isinstance(value, str)
+                if isinstance(key, str)
+                and isinstance(value, str)
                 and value in {s.value for s in DispatchState}
-            } if isinstance(statuses, dict) else {},
+            }
+            if isinstance(statuses, dict)
+            else {},
             route_states={
-                key: (DispatchState.INTERRUPTED.value
-                      if value == DispatchState.IN_FLIGHT else value)
+                key: (
+                    DispatchState.INTERRUPTED.value if value == DispatchState.IN_FLIGHT else value
+                )
                 for key, value in routes.items()
-                if isinstance(key, str) and isinstance(value, str)
+                if isinstance(key, str)
+                and isinstance(value, str)
                 and value in {status.value for status in DispatchState}
-            } if isinstance(routes, dict) else {},
+            }
+            if isinstance(routes, dict)
+            else {},
         )
 
 
@@ -203,12 +233,15 @@ class NotificationController:
         self._unsubs.append(
             self.hass.bus.async_listen(EVENT_LEAK_STARTED, self._async_leak_started)
         )
-        self._unsubs.append(
-            self.hass.bus.async_listen(EVENT_LEAK_ENDED, self._async_leak_ended)
-        )
+        self._unsubs.append(self.hass.bus.async_listen(EVENT_LEAK_ENDED, self._async_leak_ended))
         self.reload_recipients()
         self._migrate_routes()
         for event_id, kind in self.manager.engine.active_events().items():
+            if (
+                hasattr(self.manager, "active_events")
+                and event_id not in self.manager.active_events()
+            ):
+                continue
             runtime = self.manager.engine.runtimes[kind]
             self._events[event_id] = {
                 "type": kind.value,
@@ -216,8 +249,14 @@ class NotificationController:
                 "started_at": runtime.started_at.isoformat() if runtime.started_at else None,
             }
             self.acknowledgements.setdefault(event_id, EventAcknowledgement())
+        external = getattr(self.manager, "external", None)
+        if external is not None:
+            for event_id, source in external.active_events().items():
+                self._events[event_id] = source.public_payload()
+                self.acknowledgements.setdefault(event_id, EventAcknowledgement())
         self.acknowledgements = {
-            event_id: state for event_id, state in self.acknowledgements.items()
+            event_id: state
+            for event_id, state in self.acknowledgements.items()
             if event_id in self._events
         }
 
@@ -276,10 +315,7 @@ class NotificationController:
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize acknowledgement state."""
-        return {
-            event_id: state.to_dict()
-            for event_id, state in self.acknowledgements.items()
-        }
+        return {event_id: state.to_dict() for event_id, state in self.acknowledgements.items()}
 
     def state_for(self, event_id: str | None) -> EventAcknowledgement | None:
         """Return acknowledgement state for an event."""
@@ -287,6 +323,7 @@ class NotificationController:
             return None
         return self.acknowledgements.get(event_id)
 
+    @notification_writer
     async def _async_leak_started(self, event: Event) -> None:
         if event.data.get("config_entry_id") != self.entry.entry_id:
             return
@@ -314,7 +351,7 @@ class NotificationController:
                     # Round 1/2 stored repr(sorted(asdict(recipient).items())).
                     old = dict(ast.literal_eval(accepted))
                     key = json.dumps([recipient_id, old["notify_service"]], separators=(",", ":"))
-                except (ValueError, SyntaxError, TypeError, KeyError):
+                except ValueError, SyntaxError, TypeError, KeyError:
                     key = accepted
                 state.accepted_recipients[recipient_id] = key
                 state.route_states[key] = DispatchState.ACCEPTED.value
@@ -327,7 +364,9 @@ class NotificationController:
                     state.route_states.setdefault(unknown_route, status)
 
     def _eligible(self, event_id: str, recipient: NotificationRecipient) -> bool:
-        active_events = getattr(self.manager.engine, "active_events", None)
+        active_events = getattr(self.manager, "active_events", None) or getattr(
+            self.manager.engine, "active_events", None
+        )
         if active_events is not None and event_id not in active_events():
             return False
         state = self.acknowledgements.get(event_id)
@@ -365,6 +404,19 @@ class NotificationController:
         # Fast local services complete without making slower recipients a barrier.
         await asyncio.sleep(0)
 
+    async def _async_metadata(self, mutation) -> None:
+        async def apply():
+            mutation()
+
+        writer = getattr(self.manager, "async_notification_action", None)
+        if writer is None:
+            mutation()
+        else:
+            # Track the short writer acquisition with HA, while the possibly
+            # slow notify service remains an isolated dispatch worker.
+            task = self.hass.async_create_task(writer(apply))
+            await task
+
     async def _dispatch(self, event_id, recipient, payload) -> None:
         route = self._delivery_key(recipient)
         identity = (event_id, route)
@@ -376,40 +428,61 @@ class NotificationController:
             self._delivery_tasks.discard(asyncio.current_task())
             return
 
-        def set_status(status: DispatchState) -> None:
-            state.route_states[route] = status.value
-            if self.recipients.get(recipient.id) == recipient:
-                state.dispatch_states[recipient.id] = status.value
+        async def set_status(status: DispatchState) -> None:
+            def mutate():
+                if self.acknowledgements.get(event_id) is not state:
+                    return
+                state.route_states[route] = status.value
+                if self.recipients.get(recipient.id) == recipient:
+                    state.dispatch_states[recipient.id] = status.value
 
-        set_status(DispatchState.NOT_DISPATCHED)
+            await self._async_metadata(mutate)
 
-        def handed_off():
-            set_status(DispatchState.IN_FLIGHT)
+        await set_status(DispatchState.NOT_DISPATCHED)
+
+        async def handed_off():
+            await set_status(DispatchState.IN_FLIGHT)
             self._persist_callback()
 
         try:
             sent = await self._async_send_event_notification(
-                recipient, event_id, str(payload.get("type", "unknown")),
+                recipient,
+                event_id,
+                str(payload.get("type", "unknown")),
                 {**payload, "flow_lph": self.manager.current_flow_lph},
                 returning_home=bool(payload.get("returning_home")),
                 authorize=lambda: self._eligible(event_id, recipient),
                 on_dispatch=handed_off,
             )
             if sent is not False and self.acknowledgements.get(event_id) is state:
-                state.accepted_recipients[recipient.id] = route
-                set_status(DispatchState.ACCEPTED)
+                await self._async_metadata(
+                    lambda: (
+                        state.accepted_recipients.update({recipient.id: route})
+                        if self.acknowledgements.get(event_id) is state
+                        else None
+                    )
+                )
+                await set_status(DispatchState.ACCEPTED)
         except asyncio.CancelledError:
             if state.route_states.get(route) == DispatchState.IN_FLIGHT:
-                set_status(DispatchState.INTERRUPTED)
+                # Event-end holds the writer while cancelling its workers. Queue
+                # cleanup instead of awaiting that same writer in cancellation.
+                def interrupted():
+                    if self.acknowledgements.get(event_id) is state:
+                        state.route_states[route] = DispatchState.INTERRUPTED.value
+                        state.dispatch_states[recipient.id] = DispatchState.INTERRUPTED.value
+
+                self._defer_mutation(interrupted)
             raise
         except Exception:
-            set_status(DispatchState.FAILED)
+            await set_status(DispatchState.FAILED)
             _LOGGER.exception("HA notify dispatch to %s failed; will retry", recipient.name)
         finally:
             self._dispatch_tasks.pop(identity, None)
             self._delivery_tasks.discard(asyncio.current_task())
             self._persist_callback()
 
+    @notification_writer
     async def _async_leak_ended(self, event: Event) -> None:
         if event.data.get("config_entry_id") != self.entry.entry_id:
             return
@@ -417,8 +490,11 @@ class NotificationController:
         if isinstance(event_id, str):
             self._events.pop(event_id, None)
             self.acknowledgements.pop(event_id, None)
-            tasks = [task for (pending_event, _route), task in self._dispatch_tasks.items()
-                     if pending_event == event_id]
+            tasks = [
+                task
+                for (pending_event, _route), task in self._dispatch_tasks.items()
+                if pending_event == event_id
+            ]
             for task in tasks:
                 task.cancel()
             if tasks:
@@ -430,8 +506,35 @@ class NotificationController:
             self._persist_callback()
 
     async def _async_mobile_action(self, event: Event) -> None:
+        writer = getattr(self.manager, "async_mobile_notification_action", None) or getattr(
+            self.manager, "async_notification_action", None
+        )
+        if writer is not None:
+            await writer(lambda: self._async_handle_mobile_action(event))
+        else:
+            await self._async_handle_mobile_action(event)
+
+    async def _async_handle_mobile_action(self, event: Event) -> None:
         action = event.data.get("action")
         if not isinstance(action, str) or not action.startswith(f"{ACTION_PREFIX}|"):
+            return
+
+        if action.startswith(f"{ACTION_PREFIX}|{ACTION_EXTERNAL_RESET}|"):
+            try:
+                encoded = action.split("|", 2)[2]
+                if len(encoded) > 4096:
+                    return
+                payload = json.loads(base64.urlsafe_b64decode(encoded.encode()))
+            except ValueError, TypeError, UnicodeError:
+                return
+            if isinstance(payload, dict):
+                success = await self.manager.async_external_reset(payload)
+                if not success:
+                    self._fire_rejected(
+                        payload.get("event_id"),
+                        payload.get("recipient_id"),
+                        "external_reset_rejected",
+                    )
             return
 
         parsed = self._parse_action(action)
@@ -448,9 +551,13 @@ class NotificationController:
 
         snapshot = self.manager.engine.snapshot(self.manager.current_total_l)
         active_ids = {
-            runtime.event_id for runtime in getattr(self.manager.engine, "runtimes", {}).values()
+            runtime.event_id
+            for runtime in getattr(self.manager.engine, "runtimes", {}).values()
             if runtime.phase.value == "active"
         }
+        all_events = getattr(self.manager, "active_events", None)
+        if all_events is not None:
+            active_ids.update(all_events())
         if snapshot.active_event_id != event_id and event_id not in active_ids:
             self._fire_rejected(event_id, recipient_id, "event_not_active")
             return
@@ -493,6 +600,11 @@ class NotificationController:
             )
             return
 
+        native_ack = getattr(self.manager, "async_acknowledge_event", None)
+        if native_ack is not None:
+            await native_ack(event_id, recipient_id, token)
+            return
+
         state.globally_acknowledged = True
         state.globally_acknowledged_by = recipient_id
         state.globally_acknowledged_at = dt_util.utcnow()
@@ -508,6 +620,7 @@ class NotificationController:
             },
         )
 
+    @notification_writer
     async def _async_tracker_changed(self, event: Event) -> None:
         old_state = event.data.get("old_state")
         new_state = event.data.get("new_state")
@@ -520,33 +633,38 @@ class NotificationController:
         if not isinstance(tracker_entity, str):
             return
 
-        snapshot = self.manager.engine.snapshot(self.manager.current_total_l)
-        event_id = snapshot.active_event_id
-        if event_id is None or snapshot.active_kind is None:
-            return
-
-        state = self.acknowledgements.get(event_id)
-        if state is None or state.globally_acknowledged:
-            return
-
-        for recipient in tuple(self.recipients.values()):
-            if recipient.tracker_entity != tracker_entity:
+        events = (
+            self.manager.active_events()
+            if hasattr(self.manager, "active_events")
+            else self.manager.engine.active_events()
+        )
+        for event_id, kind in events.items():
+            state = self.acknowledgements.get(event_id)
+            if state is None or state.globally_acknowledged:
                 continue
-            state.muted_recipients.discard(recipient.id)
-            route = self._delivery_key(recipient)
-            state.accepted_recipients.pop(recipient.id, None)
-            if state.route_states.get(route) == DispatchState.ACCEPTED:
-                state.route_states.pop(route, None)
-            self._persist_callback()
-            # Queue through the same guarded/retryable path as the first delivery.
-            self._events[event_id] = {
-                "type": snapshot.active_kind.value,
-                "flow_lph": self.manager.current_flow_lph,
-                "volume_l": snapshot.active_volume_l,
-                "started_at": snapshot.active_started_at.isoformat()
-                if snapshot.active_started_at else None,
-                "returning_home": True,
-            }
+            for recipient in tuple(self.recipients.values()):
+                if recipient.tracker_entity != tracker_entity:
+                    continue
+                state.muted_recipients.discard(recipient.id)
+                route = self._delivery_key(recipient)
+                state.accepted_recipients.pop(recipient.id, None)
+                if state.route_states.get(route) == DispatchState.ACCEPTED:
+                    state.route_states.pop(route, None)
+                self._persist_callback()
+                if not isinstance(kind, DetectorKind):
+                    source = self.manager.external.active_events()[event_id]
+                    payload = source.public_payload()
+                else:
+                    runtime = self.manager.engine.runtimes[kind]
+                    payload = {
+                        "type": kind.value,
+                        "flow_lph": self.manager.current_flow_lph,
+                        "volume_l": runtime.plausible_volume_l,
+                        "started_at": runtime.started_at.isoformat()
+                        if runtime.started_at
+                        else None,
+                    }
+                self._events[event_id] = {**payload, "returning_home": True}
         await self.async_retry_pending()
 
     async def _async_send_event_notification(
@@ -576,6 +694,8 @@ class NotificationController:
             f"detector_{detector_type}",
             detector_type.replace("_", " ").title(),
         )
+        if detector_type == "external_leak":
+            detector = f"{detector}: {payload.get('source_name', payload.get('source_entity', ''))}"
         title = (
             self._translate(
                 strings,
@@ -635,9 +755,7 @@ class NotificationController:
             "wld_recipient_id": recipient.id,
             "actions": [
                 {
-                    "action": self._action_id(
-                        ACTION_MUTE, event_id, recipient
-                    ),
+                    "action": self._action_id(ACTION_MUTE, event_id, recipient),
                     "title": self._translate(
                         strings,
                         "action_mute_device",
@@ -652,9 +770,7 @@ class NotificationController:
         if recipient.allow_global_ack and device_is_home:
             notification_data["actions"].append(
                 {
-                    "action": self._action_id(
-                        ACTION_ACK_ALL, event_id, recipient
-                    ),
+                    "action": self._action_id(ACTION_ACK_ALL, event_id, recipient),
                     "title": self._translate(
                         strings,
                         "action_ack_all",
@@ -662,6 +778,18 @@ class NotificationController:
                     ),
                 }
             )
+
+        if detector_type == "external_leak" and recipient.allow_external_reset and device_is_home:
+            reset_action = self.external_reset_action(event_id, recipient)
+            if reset_action is not None:
+                notification_data["actions"].append(
+                    {
+                        "action": reset_action,
+                        "title": self._translate(
+                            strings, "action_external_reset", "Reset external alarm"
+                        ),
+                    }
+                )
 
         if is_burst and recipient.critical_enabled:
             notification_data.update(
@@ -676,7 +804,11 @@ class NotificationController:
         if authorize is not None and not authorize():
             return False
         if on_dispatch is not None:
-            on_dispatch()
+            result = on_dispatch()
+            if inspect.isawaitable(result):
+                await result
+        if authorize is not None and not authorize():
+            return False
         await self.hass.services.async_call(
             domain,
             service,
@@ -765,6 +897,31 @@ class NotificationController:
                 recipient.token,
             )
         )
+
+    def external_reset_action(self, event_id: str, recipient: NotificationRecipient) -> str | None:
+        external = getattr(self.manager, "external", None)
+        source = external.active_events().get(event_id) if external is not None else None
+        if source is None:
+            return None
+        payload = {
+            "action_kind": ACTION_EXTERNAL_RESET,
+            "config_entry_id": self.entry.entry_id,
+            "source_id": source.source_id,
+            "source_generation": source.identity.generation,
+            "event_id": event_id,
+            "recipient_id": recipient.id,
+            "recipient_token": recipient.token,
+            "reset_nonce": source.reset_nonce,
+        }
+        encoded = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode())
+        return f"{ACTION_PREFIX}|{ACTION_EXTERNAL_RESET}|{encoded.decode()}"
+
+    def _defer_mutation(self, mutation) -> None:
+        writer = getattr(self.manager, "defer_notification_mutation", None)
+        if writer is None:
+            mutation()
+        else:
+            writer(mutation)
 
     @staticmethod
     def _parse_action(

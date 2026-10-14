@@ -29,7 +29,7 @@ def _manager_with_learning(
     options: dict[str, float] | None = None,
 ) -> WaterLeakManager:
     manager = WaterLeakManager.__new__(WaterLeakManager)
-    manager.entry = SimpleNamespace(options=options or {})
+    manager.entry = SimpleNamespace(options={CONF_BURST_THRESHOLD_LPH: 2000, **(options or {})})
     snapshot = LearningSnapshot(
         learned_max_lph=learned_max_lph,
         short_reference_lph=learned_max_lph,

@@ -386,3 +386,16 @@ Das entspricht dem HA-Übersetzungsmodell und erlaubt gleichzeitig vollständige
 12. Verdächtige Ereignisse werden nicht automatisch normal.
 13. Integration funktioniert vollständig ohne Custom Card.
 14. Unknown wird niemals als Null interpretiert.
+
+## F04 V3: ausdrücklich begrenzte Ergänzungen
+
+Die oben beschriebenen physischen Resetbedingungen bleiben für hydraulische
+Detektoren bindend. Externe Quellen ergänzen einen ausdrücklich autorisierten,
+Home-gebundenen External Reset mit persistierendem WAITING bis OFF; normales ACK
+ist weiterhin ausschließlich eine Benachrichtigungsaktion. Quellenersatz darf
+keinen fremden Lifecycle, keine Event-ID und keinen Reset-Nonce übernehmen.
+High-Peaks werden getrennt im Langzeitkanal bestätigt und wirken ausschließlich
+über Faktor 1,20; das heuristische hydraulische Ceiling begrenzt diesen Kanal
+nicht. Die konfigurierte Burst-Basis bleibt stets der feste Aufnahmeanker.
+Eine unveröffentlichte Funktion auf diesem Branch ersetzt frühere F04-Entwürfe;
+[der aktuelle V3-Vertrag](F04-V3.md) hat Vorrang.

@@ -420,15 +420,16 @@ def test_real_gap_just_above_rounding_tolerance_still_interrupts():
 def test_rapid_rise_history_cannot_bridge_real_unknown_gap(gap):
     engine = DetectionEngine(DetectorSettings(burst_rate_rise_lph_10s=100))
     report(engine, 0, 0)
-    report(engine, 10, 1500, 10 - gap)
-    assert engine.runtimes[DetectorKind.BURST_LEAK].phase is DetectorPhase.IDLE
-    assert engine.runtimes[DetectorKind.BURST_LEAK].reason is None
+    report(engine, 10, 4000, 10 - gap)
+    assert engine.runtimes[DetectorKind.BURST_LEAK].phase is DetectorPhase.MONITORING
+    assert engine.runtimes[DetectorKind.BURST_LEAK].reason == "absolute_flow"
+    assert engine.burst_rapid_evidence_seconds is None
 
 
 def test_rounding_preserves_existing_rapid_rise_evidence():
     engine = DetectionEngine(DetectorSettings(burst_rate_rise_lph_10s=100))
     report(engine, 0, 0)
-    report(engine, 10, 1500, 10 - 1e-7)
+    report(engine, 10, 4000, 10 - 1e-7)
     assert engine.runtimes[DetectorKind.BURST_LEAK].phase is DetectorPhase.MONITORING
     assert engine.runtimes[DetectorKind.BURST_LEAK].reason == "rapid_rise"
 

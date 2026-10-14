@@ -92,6 +92,20 @@ sys.exit(code)
     return launch
 
 
+@pytest.mark.parametrize("version", ["1.2.0-beta.1", "1.2.0-beta.2", "1.2.0"])
+def test_prerelease_publication_flags_without_touching_real_github(release_model, version):
+    command, env, state = release_model(version=version)
+    result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
+    creates = [
+        c for c in json.loads(state.read_text())["commands"]
+        if c[:3] == ["gh", "release", "create"]
+    ]
+    assert len(creates) == 1
+    assert ("--prerelease" in creates[0]) is ("-beta." in version)
+    assert ("--latest=false" in creates[0]) is ("-beta." in version)
+
+
 @pytest.mark.parametrize("version", ["1.0.1", "1.0.2"])
 @pytest.mark.parametrize(
     "tag,kind,release",

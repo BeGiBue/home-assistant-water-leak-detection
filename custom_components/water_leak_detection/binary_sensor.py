@@ -19,9 +19,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Water Leak Guard binary sensors."""
     manager: WaterLeakManager = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
-        [LeakAlarmBinarySensor(manager), ShutoffRequestBinarySensor(manager)]
-    )
+    async_add_entities([LeakAlarmBinarySensor(manager), ShutoffRequestBinarySensor(manager)])
 
 
 class LeakAlarmBinarySensor(WaterLeakEntity, BinarySensorEntity):
@@ -36,19 +34,17 @@ class LeakAlarmBinarySensor(WaterLeakEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        return self.manager.engine.snapshot(
-            self.manager.current_total_l
-        ).alarm_active
+        return self.manager.alarm_active
 
     @property
     def extra_state_attributes(self):
         snapshot = self.manager.engine.snapshot(self.manager.current_total_l)
         return {
+            "hydraulic_active_events": list(self.manager.engine.active_events()),
+            "external_sources": self.manager.external_diagnostics(),
             "status": snapshot.status,
             "event_id": snapshot.active_event_id,
-            "detector": snapshot.active_kind.value
-            if snapshot.active_kind
-            else None,
+            "detector": snapshot.active_kind.value if snapshot.active_kind else None,
         }
 
 
@@ -64,14 +60,15 @@ class ShutoffRequestBinarySensor(WaterLeakEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        return self.manager.engine.snapshot(
-            self.manager.current_total_l
-        ).shutoff_request
+        return self.manager.shutoff_request
 
     @property
     def extra_state_attributes(self):
         snapshot = self.manager.engine.snapshot(self.manager.current_total_l)
         return {
+            "hydraulic_shutoff": snapshot.shutoff_request,
+            "external_shutoff": self.manager.external.shutoff_request,
+            "external_sources": self.manager.external_diagnostics(),
             "decoupled_from_alarm_acknowledgement": True,
             "status": snapshot.status,
             "event_id": snapshot.active_event_id,
