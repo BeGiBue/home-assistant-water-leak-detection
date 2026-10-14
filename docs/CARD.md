@@ -405,17 +405,26 @@ Ein fest montiertes Display (TouchKio, Kiosk-Browser) wird unter *Konfigurieren 
 Benachrichtigungsempfänger → Wanddisplay hinzufügen* angelegt. Es hat keinen Benachrichtigungsdienst und
 keinen Device Tracker, bekommt nie Benachrichtigungen und gilt bei **jeder** Zuhause-Prüfung als
 zuhause (globale Quittierung, externer Reset, die alarmbeendenden Kartenaktionen). Es braucht eine
-Kopplung, und zwar **nur an eine einzelne Anmeldung** (🔑): die Anmeldung des Kiosk-Geräts. Eine
-Benutzer-Kopplung ist für ein Display nicht erlaubt (Formularfehler `display_requires_login`); in einem
-von Hand bearbeiteten Eintrag wird sie ignoriert und im Log gemeldet. Sonst wäre jede Anmeldung dieses
-Benutzers – Laptop im Büro, Handy nach einer Neuanmeldung – über den Benutzer-Rückfall „zuhause“.
-Eindeutigkeit und „nur normale Anmeldungen“ gelten wie oben. Die Rechte sind die üblichen Häkchen des
-Empfängers; „Globales Quittieren“ ist bei einem Display ohne gespeicherten Wert aus. Die Karte blendet
-dort „Stummschalten“ aus und zeigt nie „Nur zuhause möglich“. **Abwägung:** Wer diese Kiosk-Anmeldung
-nutzt – am Display oder aus der Ferne mit derselben Browser-Sitzung –, hat diese Rechte. Empfohlen ist
-ein eigener HA-Benutzer ohne Adminrechte für das Kiosk-Gerät. Meldet sich das Kiosk-Gerät neu an, muss die
-Kopplung erneuert werden. Empfänger mit unbekannter oder leerer Art (`kind`) werden ignoriert und im Log
-gemeldet; sie bekommen keine Benachrichtigungen und dürfen nichts. Beispiel-Automation zum
+Kopplung; Vorrang, Eindeutigkeit und „nur normale Anmeldungen“ gelten wie oben. Zwei Arten:
+
+- **„👤 Kiosk-Benutzer“:** nur ein eigener Benutzer, der aktiv ist, **weder Besitzer noch
+  Administrator** ist und von **keinem anderen Empfänger** genutzt wird – weder als Benutzer noch über eine
+  seiner Anmeldungen (Formularfehler `display_user_not_allowed` bzw. `display_user_in_use`). Umgekehrt
+  kann kein anderer Empfänger diesen Benutzer oder eine seiner Anmeldungen wählen
+  (`session_user_reserved_for_display`). **Achtung:** Bei einer Benutzer-Kopplung gilt **jede** Anmeldung
+  des Kiosk-Benutzers als das Display und damit als zuhause – auch eine Anmeldung aus der Ferne mit
+  seinem Passwort. Deshalb ein eigener Kiosk-Benutzer ohne Adminrechte mit eigenem, starkem Passwort, das
+  niemand anderswo verwendet.
+- **„🔑 Anmeldung“** (strenger): bindet die Rechte an genau die eine Sitzung des Kiosk-Geräts. Meldet sich
+  das Kiosk-Gerät neu an, muss die Kopplung erneuert werden.
+
+Dieselbe Regel gilt zur Laufzeit: Ein von Hand bearbeitetes Display, dessen Benutzer Besitzer oder
+Administrator ist oder auch in der Kopplung eines anderen Empfängers vorkommt (als Benutzer oder über eine
+seiner Anmeldungen), wird nie erkannt; das Log nennt den Empfänger. Die Rechte sind die üblichen Häkchen
+des Empfängers; „Globales Quittieren“ ist bei einem Display ohne gespeicherten Wert aus. Die Karte blendet
+dort „Stummschalten“ aus und zeigt nie „Nur zuhause möglich“. Empfänger mit unbekannter oder leerer Art
+(`kind`) werden ignoriert und im Log gemeldet; sie bekommen keine Benachrichtigungen und dürfen nichts.
+Beispiel-Automation zum
 Einschalten des Displays bei Alarm: Wiki-Seite *Dashboard-Karte*, Abschnitt „Wanddisplay / TouchKio“.
 
 ## Entwicklungsstand

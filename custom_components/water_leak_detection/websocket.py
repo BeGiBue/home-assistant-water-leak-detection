@@ -96,7 +96,9 @@ def session_recipient(
     With a user pairing every login of that user (e.g. a laptop browser) gets
     the paired recipient's rights; the Home check still uses that recipient's
     device tracker. Deleting the login in HA, or deactivating the user, removes
-    the pairing's effect.
+    the pairing's effect. A wall display (always Home) resolves through a user
+    pairing only for a dedicated kiosk user: never the owner or an admin, and
+    never a user that another recipient's pairing also uses.
     """
     token_id = getattr(connection, "refresh_token_id", None)
     user = getattr(connection, "user", None)
@@ -112,7 +114,7 @@ def session_recipient(
         or token.user.system_generated
     ):
         return None
-    return manager.notifications.recipient_for_session(token_id, token.user.id)
+    return manager.notifications.recipient_for_session(token_id, token.user.id, token.user)
 
 
 def _require_recipient(hass, manager, connection) -> NotificationRecipient:

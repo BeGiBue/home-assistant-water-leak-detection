@@ -260,5 +260,6 @@ unterwegs), globale Quittierung (Berechtigung und Device Tracker `home`) und ext
 (Berechtigung und `home`, mit Rückfrage). Die Rechte hängen am Gerät: Ein iPad zuhause kann global
 quittieren, das Telefon desselben Benutzers unterwegs nur sich selbst stummschalten. Nicht gekoppelte
 Geräte sehen nur die Anzeige. Ein gekoppeltes **Wanddisplay** gilt immer als zuhause: Es darf, was seine
-Häkchen erlauben, hat aber kein Stummschalten. Wer vor dem Display steht, hat diese Rechte. Auch in der
+Häkchen erlauben, hat aber kein Stummschalten. Jede Sitzung, die als das Display erkannt wird (bei
+einer Kiosk-Benutzer-Kopplung jede Anmeldung dieses Benutzers), hat diese Rechte. Auch in der
 Karte gilt: Quittierung beendet weder Erkennung noch Alarm noch Absperranforderung.

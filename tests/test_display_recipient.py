@@ -1,19 +1,23 @@
 """Stationary display recipients (e.g. TouchKio): no push, no tracker, always Home.
 
-A display is only useful paired with a HA user or login. It never takes part in
+A display is only useful paired with a HA login or a dedicated kiosk user (active,
+neither owner nor admin, used by no other recipient's pairing). It never takes part in
 notification dispatch, has nothing to mute and passes every Home check; its
 permissions are the ordinary per-recipient flags. Mobile recipients are unchanged.
 """
 
 import pytest
+from homeassistant.auth.const import GROUP_ID_ADMIN
 from homeassistant.auth.models import TOKEN_TYPE_LONG_LIVED_ACCESS_TOKEN
 from test_ack_duration_diagnostics import ack_manager
 from test_card_backend_contract import (
     ALARM_FIELDS,
+    CLIENT,
     Connection,
     alarm_settings,
     assert_safety,
     call,
+    edit,
     logins,
     recipients_by_id,
 )
@@ -61,6 +65,36 @@ def add(hass, entry, raw):
             CONF_NOTIFICATION_RECIPIENTS: [*entry.options[CONF_NOTIFICATION_RECIPIENTS], raw],
         },
     )
+
+
+async def kiosk_user(hass, *names, admin=False):
+    """A further HA user (not the owner, created after logins()) with normal logins."""
+    user = await hass.auth.async_create_user(
+        "Admin" if admin else "Kiosk", group_ids=[GROUP_ID_ADMIN] if admin else None
+    )
+    tokens = {}
+    for name in names:
+        tokens[name] = await hass.auth.async_create_refresh_token(user, CLIENT, client_name=name)
+    return user, tokens
+
+
+def set_recipients(hass, entry, raws):
+    hass.config_entries.async_update_entry(
+        entry, options={**entry.options, CONF_NOTIFICATION_RECIPIENTS: raws}
+    )
+
+
+def mobile_pairing(entry, **pairing):
+    """The configured phone with exactly this pairing (and nothing else changed)."""
+    raws = []
+    for raw in entry.options[CONF_NOTIFICATION_RECIPIENTS]:
+        raw = dict(raw)
+        if raw.get("id") == "phone":
+            raw.pop("session_token_id", None)
+            raw.pop("session_user_id", None)
+            raw.update(pairing)
+        raws.append(raw)
+    return raws
 
 
 def test_parsing_display_and_legacy_kind(runtime_hass):
@@ -232,14 +266,20 @@ async def test_long_lived_tokens_never_match_a_display(
     runtime_hass, runtime_entry, measurement_clock
 ):
     _, manager, event_id, _ = await ack_manager(runtime_hass, runtime_entry, measurement_clock)
-    user, _ = await logins(runtime_hass, "kiosk")
+    await logins(runtime_hass)
+    user, tokens = await kiosk_user(runtime_hass, "kiosk_browser")
     lla = await runtime_hass.auth.async_create_refresh_token(
         user, client_name="script", token_type=TOKEN_TYPE_LONG_LIVED_ACCESS_TOKEN
     )
     add(runtime_hass, runtime_entry, display(session_token_id=lla.id))
     script = Connection(user, lla.id)
     assert (await call(handle_session, runtime_hass, script))[0] == {"paired": False}
-    add(runtime_hass, runtime_entry, {**display(id="wall2", session_user_id=user.id)})
+    # A valid kiosk-user pairing: its normal login resolves, the long-lived token never.
+    raws = [r for r in runtime_entry.options[CONF_NOTIFICATION_RECIPIENTS] if r.get("id") != "wall"]
+    set_recipients(runtime_hass, runtime_entry, [*raws, display(session_user_id=user.id)])
+    browser = Connection(user, tokens["kiosk_browser"].id)
+    assert (await call(handle_session, runtime_hass, browser))[0]["recipient_id"] == "wall"
+    assert (await call(handle_session, runtime_hass, script))[0] == {"paired": False}
     assert (await call(handle_acknowledge, runtime_hass, script, event_id=event_id))[1] == (
         "not_paired"
     )
@@ -251,12 +291,13 @@ async def _form(flow, step, **values):
     return form, await getattr(flow, f"async_step_{step}")(form["data_schema"](values))
 
 
-async def test_display_form_requires_a_login_pairing_and_keeps_mobile_unchanged(
+async def test_display_form_accepts_a_kiosk_user_or_a_login_and_keeps_mobile_unchanged(
     runtime_hass, runtime_entry, measurement_clock
 ):
     await ack_manager(runtime_hass, runtime_entry, measurement_clock)
     owner, tokens = await logins(runtime_hass, "phone", "kiosk_browser")
-    kiosk = await runtime_hass.auth.async_create_user("Kiosk")
+    kiosk, _ = await kiosk_user(runtime_hass)
+    assert owner.is_owner and not kiosk.is_owner and not kiosk.is_admin
     before = recipients_by_id(runtime_entry)
     flow = options_flow(runtime_hass, runtime_entry)
     menu = await flow.async_step_notifications()
@@ -267,12 +308,11 @@ async def test_display_form_requires_a_login_pairing_and_keeps_mobile_unchanged(
     assert fields >= {"name", "session_pairing", "allow_global_ack", "allow_external_reset"}
     assert not fields & {"notify_service", "tracker_entity", "critical_enabled"}
     offered = [o["value"] for o in form["data_schema"].schema["session_pairing"].config["options"]]
-    # Only single logins: no "—" and no users.
-    assert offered and all(value.startswith("token:") for value in offered)
-    assert f"token:{tokens['kiosk_browser'].id}" in offered
-    assert f"user:{kiosk.id}" not in offered
+    # Users and single logins, but no "—".
+    assert "__none__" not in offered
+    assert f"user:{kiosk.id}" in offered and f"token:{tokens['kiosk_browser'].id}" in offered
 
-    # Without a pairing, or with a user, nothing is saved.
+    # Without a pairing, nothing is saved.
     flags = {"allow_global_ack": True, "allow_external_reset": False}
     missing = await flow.async_step_add_display({"name": "Flur", **flags})
     assert missing["errors"] == {"base": "required_fields_missing"}
@@ -280,16 +320,13 @@ async def test_display_form_requires_a_login_pairing_and_keeps_mobile_unchanged(
         {"name": "Flur", "session_pairing": "__none__", **flags}
     )
     assert none["errors"] == {"base": "display_pairing_required"}
-    user = await flow.async_step_add_display(
-        {"name": "Flur", "session_pairing": f"user:{kiosk.id}", **flags}
-    )
-    assert user["errors"] == {"base": "display_requires_login"}
     assert recipients_by_id(runtime_entry) == before
 
     # Uniqueness: a login paired elsewhere cannot be paired to the display.
-    raws = [{**r, "session_token_id": tokens["phone"].id} for r in before.values()]
-    runtime_hass.config_entries.async_update_entry(
-        runtime_entry, options={**runtime_entry.options, CONF_NOTIFICATION_RECIPIENTS: raws}
+    set_recipients(
+        runtime_hass,
+        runtime_entry,
+        mobile_pairing(runtime_entry, session_token_id=tokens["phone"].id),
     )
     before = recipients_by_id(runtime_entry)
     _, dup = await _form(
@@ -297,23 +334,24 @@ async def test_display_form_requires_a_login_pairing_and_keeps_mobile_unchanged(
     )
     assert dup["errors"] == {"base": "session_already_paired"}
 
+    # A kiosk user is accepted and stored as user pairing.
     _, result = await _form(
         flow,
         "add_display",
         name="Flur",
-        session_pairing=f"token:{tokens['kiosk_browser'].id}",
+        session_pairing=f"user:{kiosk.id}",
         allow_global_ack=True,
     )
     assert result["step_id"] == "notifications"
     after = recipients_by_id(runtime_entry)
     wall = next(raw for key, raw in after.items() if key not in before)
-    assert wall["kind"] == "display" and wall["session_token_id"] == tokens["kiosk_browser"].id
-    assert "session_user_id" not in wall
+    assert wall["kind"] == "display" and wall["session_user_id"] == kiosk.id
+    assert "session_token_id" not in wall
     assert wall["allow_global_ack"] is True and wall["allow_external_reset"] is False
     assert not {"notify_service", "tracker_entity", "critical_enabled"} & wall.keys()
     assert wall["token"]
 
-    # Editing routes to the display form, keeps kind, id, token and the login pairing.
+    # Editing routes to the display form, keeps kind, id, token and the pairing.
     flow._editing_recipient_id = wall["id"]
     form = await flow.async_step_edit_recipient({"id": wall["id"]})
     assert form["step_id"] == "edit_display_details"
@@ -321,14 +359,28 @@ async def test_display_form_requires_a_login_pairing_and_keeps_mobile_unchanged(
     await flow.async_step_edit_display_details(values)
     edited = recipients_by_id(runtime_entry)[wall["id"]]
     assert edited == {**wall, "name": "Flur oben", "allow_external_reset": True}
-    # Switching the display to a user is rejected on edit, too.
+    # Switching the display to the owner is rejected on edit, too.
     flow._editing_recipient_id = wall["id"]
     form = await flow.async_step_edit_display_details()
     rejected = await flow.async_step_edit_display_details(
-        {"name": "Flur oben", "session_pairing": f"user:{kiosk.id}", **flags}
+        {"name": "Flur oben", "session_pairing": f"user:{owner.id}", **flags}
     )
-    assert rejected["errors"] == {"base": "display_requires_login"}
+    assert rejected["errors"] == {"base": "display_user_not_allowed"}
     assert recipients_by_id(runtime_entry)[wall["id"]] == edited
+    # A single login stays allowed, also one of the owner (the stricter option).
+    flow._editing_recipient_id = wall["id"]
+    form = await flow.async_step_edit_display_details()
+    result = await flow.async_step_edit_display_details(
+        {
+            "name": "Flur oben",
+            "session_pairing": f"token:{tokens['kiosk_browser'].id}",
+            **flags,
+        }
+    )
+    assert result["step_id"] == "notifications"
+    relogin = recipients_by_id(runtime_entry)[wall["id"]]
+    assert relogin["session_token_id"] == tokens["kiosk_browser"].id
+    assert "session_user_id" not in relogin
 
     # The mobile recipient's alarm settings are untouched by all of this.
     phone = recipients_by_id(runtime_entry)["phone"]
@@ -341,45 +393,165 @@ async def test_display_form_requires_a_login_pairing_and_keeps_mobile_unchanged(
     assert wall["id"] not in choices and "phone" in choices
 
 
-async def test_display_with_a_hand_edited_user_pairing_never_resolves(
-    runtime_hass, runtime_entry, measurement_clock, caplog
+@pytest.mark.parametrize("who", ["owner", "admin"])
+async def test_display_form_rejects_owner_and_admin_users(
+    runtime_hass, runtime_entry, measurement_clock, who
 ):
-    """A display is always Home: a user pairing would make every login of that user
-    (here: the laptop in the office) "at home". It is ignored and logged."""
+    await ack_manager(runtime_hass, runtime_entry, measurement_clock)
+    owner, _ = await logins(runtime_hass, "phone")
+    admin, _ = await kiosk_user(runtime_hass, admin=True)
+    assert owner.is_owner and admin.is_admin and not admin.is_owner
+    user = owner if who == "owner" else admin
+    before = recipients_by_id(runtime_entry)
+    flow = options_flow(runtime_hass, runtime_entry)
+    _, result = await _form(flow, "add_display", name="Flur", session_pairing=f"user:{user.id}")
+    assert result["errors"] == {"base": "display_user_not_allowed"}
+    assert recipients_by_id(runtime_entry) == before
+
+
+@pytest.mark.parametrize("via", ["user", "token"])
+async def test_display_user_must_not_be_used_by_another_recipient(
+    runtime_hass, runtime_entry, measurement_clock, via
+):
+    """Both directions: display after mobile, and mobile after display."""
+    await ack_manager(runtime_hass, runtime_entry, measurement_clock)
+
+    async def notify(call):
+        pass
+
+    runtime_hass.services.async_register("notify", "mobile_app_tablet", notify)
+    await logins(runtime_hass, "phone")
+    kiosk, kiosk_tokens = await kiosk_user(runtime_hass, "kiosk_browser", "kiosk_phone")
+    mobile = (
+        {"session_user_id": kiosk.id}
+        if via == "user"
+        else {"session_token_id": kiosk_tokens["kiosk_phone"].id}
+    )
+    choice = f"user:{kiosk.id}" if via == "user" else f"token:{kiosk_tokens['kiosk_phone'].id}"
+    flow = options_flow(runtime_hass, runtime_entry)
+
+    # 1. The phone uses the kiosk user (or one of its logins): no display with that user.
+    set_recipients(runtime_hass, runtime_entry, mobile_pairing(runtime_entry, **mobile))
+    before = recipients_by_id(runtime_entry)
+    _, result = await _form(flow, "add_display", name="Flur", session_pairing=f"user:{kiosk.id}")
+    assert result["errors"] == {"base": "display_user_in_use"}
+    assert recipients_by_id(runtime_entry) == before
+
+    # 2. The display has the kiosk user: no mobile recipient with it or its logins.
+    set_recipients(runtime_hass, runtime_entry, mobile_pairing(runtime_entry))
+    _, result = await _form(flow, "add_display", name="Flur", session_pairing=f"user:{kiosk.id}")
+    assert result["step_id"] == "notifications"
+    before = recipients_by_id(runtime_entry)
+    _, rejected = await edit(flow, "phone", before["phone"], session_pairing=choice)
+    assert rejected["errors"] == {"base": "session_user_reserved_for_display"}
+    form = await flow.async_step_add_recipient()
+    added = await flow.async_step_add_recipient(
+        form["data_schema"](
+            {
+                "name": "Tablet",
+                "notify_service": "notify.mobile_app_tablet",
+                "tracker_entity": "device_tracker.tablet",
+                "critical_enabled": True,
+                "allow_global_ack": True,
+                "trusted_stationary": False,
+                "session_pairing": choice,
+            }
+        )
+    )
+    assert added["errors"] == {"base": "session_user_reserved_for_display"}
+    # A second display cannot take one of the kiosk user's logins either.
+    _, second = await _form(
+        flow,
+        "add_display",
+        name="Küche",
+        session_pairing=f"token:{kiosk_tokens['kiosk_browser'].id}",
+    )
+    assert second["errors"] == {"base": "session_user_reserved_for_display"}
+    assert recipients_by_id(runtime_entry) == before
+
+
+@pytest.mark.parametrize("problem", ["admin", "owner", "other_user", "other_token"])
+async def test_hand_edited_display_user_pairing_that_is_not_a_kiosk_user_never_resolves(
+    runtime_hass, runtime_entry, measurement_clock, caplog, problem
+):
+    """The display is always Home: an admin, the owner, or a user that another device
+    also uses would give e.g. the laptop in the office or the phone away home rights."""
     notifications_module._WARNED.clear()
     _, manager, event_id, _ = await ack_manager(runtime_hass, runtime_entry, measurement_clock)
     runtime_hass.states.async_set("device_tracker.phone", "not_home")
-    user, tokens = await logins(runtime_hass, "kiosk_browser", "laptop")
-    add(runtime_hass, runtime_entry, display(session_user_id=user.id))
-    assert NotificationRecipient.from_dict(display(session_user_id=user.id)).session_user_id is None
-    laptop = Connection(user, tokens["laptop"].id)
-    assert (await call(handle_session, runtime_hass, laptop))[0] == {"paired": False}
-    for handler in (handle_acknowledge, handle_mute):
-        assert (await call(handler, runtime_hass, laptop, event_id=event_id))[1] == "not_paired"
-    assert not manager.notifications.state_for(event_id).globally_acknowledged
-    assert "may only be paired with a single login" in caplog.text
-    # The same user still reaches a mobile recipient paired as user, with its tracker.
-    raws = [
-        {**r, "session_user_id": user.id} if r.get("id") == "phone" else r
-        for r in runtime_entry.options[CONF_NOTIFICATION_RECIPIENTS]
-    ]
-    runtime_hass.config_entries.async_update_entry(
-        runtime_entry, options={**runtime_entry.options, CONF_NOTIFICATION_RECIPIENTS: raws}
-    )
-    session = (await call(handle_session, runtime_hass, laptop))[0]
-    assert session["recipient_id"] == "phone" and session["home"] is False
-    assert (await call(handle_acknowledge, runtime_hass, laptop, event_id=event_id))[1] == (
-        "not_home"
-    )
-    # A login pairing on the display works for exactly that login.
-    add(
+    owner, owner_tokens = await logins(runtime_hass, "laptop", "phone")
+    if problem == "owner":
+        user, tokens = owner, owner_tokens
+    else:
+        user, tokens = await kiosk_user(runtime_hass, "laptop", "phone", admin=problem == "admin")
+    phone = {
+        "other_user": {"session_user_id": user.id},
+        "other_token": {"session_token_id": tokens["phone"].id},
+    }.get(problem, {})
+    set_recipients(
         runtime_hass,
         runtime_entry,
-        display(id="wall2", session_token_id=tokens["kiosk_browser"].id),
+        [*mobile_pairing(runtime_entry, **phone), display(session_user_id=user.id)],
     )
-    kiosk = Connection(user, tokens["kiosk_browser"].id)
-    session = (await call(handle_session, runtime_hass, kiosk))[0]
-    assert session["recipient_id"] == "wall2" and session["home"] is True
+    laptop = Connection(user, tokens["laptop"].id)
+    assert manager.notifications.recipient_for_session(tokens["laptop"].id, user.id, user) is None
+    session = (await call(handle_session, runtime_hass, laptop))[0]
+    assert session == {"paired": False} or session["recipient_id"] == "phone"
+    assert (await call(handle_acknowledge, runtime_hass, laptop, event_id=event_id))[1] in (
+        "not_paired",
+        "not_home",
+    )
+    assert not manager.notifications.state_for(event_id).globally_acknowledged
+    assert "Wall display wall (Flur)" in caplog.text
+    if problem == "other_token":
+        # The phone keeps its own pairing and, away, gets no home rights.
+        phone_conn = Connection(user, tokens["phone"].id)
+        session = (await call(handle_session, runtime_hass, phone_conn))[0]
+        assert session["recipient_id"] == "phone" and session["home"] is False
+        assert (await call(handle_acknowledge, runtime_hass, phone_conn, event_id=event_id))[
+            1
+        ] == "not_home"
+    if problem == "other_user":
+        # Ambiguous user pairing: nothing resolves at all.
+        assert session == {"paired": False}
+    assert_safety(manager)
+
+
+async def test_kiosk_user_pairing_resolves_for_its_logins_and_is_home(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    _, manager, event_id, _ = await ack_manager(runtime_hass, runtime_entry, measurement_clock)
+    runtime_hass.states.async_set("device_tracker.phone", "not_home")
+    owner, owner_tokens = await logins(runtime_hass, "phone")
+    kiosk, tokens = await kiosk_user(runtime_hass, "kiosk_browser", "kiosk_relogin")
+    set_recipients(
+        runtime_hass,
+        runtime_entry,
+        [
+            *mobile_pairing(runtime_entry, session_token_id=owner_tokens["phone"].id),
+            display(session_user_id=kiosk.id),
+        ],
+    )
+    for login in ("kiosk_browser", "kiosk_relogin"):
+        conn = Connection(kiosk, tokens[login].id)
+        session = (await call(handle_session, runtime_hass, conn))[0]
+        assert session["recipient_id"] == "wall" and session["home"] is True
+    # Without the session user (unknown caller) a display user pairing fails closed.
+    assert manager.notifications.recipient_for_session(tokens["kiosk_browser"].id, kiosk.id) is None
+    result, error = await call(
+        handle_acknowledge,
+        runtime_hass,
+        Connection(kiosk, tokens["kiosk_relogin"].id),
+        event_id=event_id,
+    )
+    assert error is None and result == {"acknowledged": True, "scope": "global"}
+    state = manager.notifications.state_for(event_id)
+    assert state.globally_acknowledged and state.globally_acknowledged_by == "wall"
+    # The owner's phone keeps its own pairing and tracker.
+    session = (
+        await call(handle_session, runtime_hass, Connection(owner, owner_tokens["phone"].id))
+    )[0]
+    assert session["recipient_id"] == "phone" and session["home"] is False
     assert_safety(manager)
 
 

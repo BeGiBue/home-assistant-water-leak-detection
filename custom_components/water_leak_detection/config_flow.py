@@ -131,6 +131,7 @@ from .const import (
     DetectorKind,
 )
 from .low_flow_options import low_stability_minutes
+from .notifications import kiosk_user_problem
 from .units import is_supported_flow_unit, is_supported_volume_unit
 
 SOURCE_ENTITIES = "entities"
@@ -1414,7 +1415,8 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
             elif any(raw.get(RECIPIENT_NOTIFY_SERVICE) == notify_service for raw in existing):
                 errors["base"] = "recipient_notify_service_exists"
             elif session_id is not None and (
-                session_error := self._session_error(str(session_id), sessions, existing, None)
+                session_error := self._kiosk_user_conflict(str(session_id), existing, None)
+                or self._session_error(str(session_id), sessions, existing, None)
             ):
                 errors["base"] = session_error
             else:
@@ -1536,9 +1538,10 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                 session_id is not None
                 and session_id != current_pairing
                 and (
-                    session_error := self._session_error(
-                        str(session_id), sessions, recipients, recipient_id
+                    session_error := self._kiosk_user_conflict(
+                        str(session_id), recipients, recipient_id
                     )
+                    or self._session_error(str(session_id), sessions, recipients, recipient_id)
                 )
             ):
                 errors["base"] = session_error
@@ -1592,11 +1595,11 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
 
         A display has no notify service, no device tracker and no notification
         settings; it is always treated as Home. "—" (no pairing) is not offered.
+        Users (👤) and single logins (🔑) are offered; a user is only accepted if
+        it is a dedicated kiosk user (validated on submit, see kiosk_user_problem).
         """
         current = current or {}
-        # Only single logins (🔑): a display is always Home, so a user pairing
-        # would make every login of that user "at home" anywhere.
-        options = [o for o in session_options if o["value"].startswith(_PAIR_TOKEN)]
+        options = [o for o in session_options if o["value"] != _NO_PAIRING]
         paired = _pairing_value(current)
         pairing_key = (
             probatio.Required(FORM_SESSION_PAIRING, default=paired)
@@ -1638,9 +1641,12 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                 errors["base"] = "recipient_name_required"
             elif session_id == _NO_PAIRING:
                 errors["base"] = "display_pairing_required"
-            elif not session_id.startswith(_PAIR_TOKEN):
-                errors["base"] = "display_requires_login"
-            elif session_error := self._session_error(session_id, sessions, existing, None):
+            # The kiosk-user rule first: its error explains more than "already paired".
+            elif session_error := (
+                await self._display_user_error(session_id, existing, None)
+                or self._session_error(session_id, sessions, existing, None)
+                or self._kiosk_user_conflict(session_id, existing, None)
+            ):
                 errors["base"] = session_error
             else:
                 display = self._apply_session(
@@ -1700,10 +1706,16 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                 errors["base"] = "recipient_name_required"
             elif session_id == _NO_PAIRING:
                 errors["base"] = "display_pairing_required"
-            elif not session_id.startswith(_PAIR_TOKEN):
-                errors["base"] = "display_requires_login"
-            elif session_id != current_pairing and (
-                session_error := self._session_error(session_id, sessions, recipients, recipient_id)
+            # The kiosk-user rule is checked first and even for an unchanged
+            # pairing, so a display never keeps a user pairing that became invalid.
+            elif session_error := (
+                await self._display_user_error(session_id, recipients, recipient_id)
+                or (
+                    self._session_error(session_id, sessions, recipients, recipient_id)
+                    if session_id != current_pairing
+                    else None
+                )
+                or self._kiosk_user_conflict(session_id, recipients, recipient_id)
             ):
                 errors["base"] = session_error
             else:
@@ -1848,6 +1860,57 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
             for raw in recipients
         ):
             return already
+        return None
+
+    async def _display_user_error(
+        self, session_id: str, recipients: list[dict[str, Any]], editing_id: str | None
+    ) -> str | None:
+        """A display's user pairing must be a dedicated kiosk user.
+
+        A display is always Home and a user pairing covers every login of that
+        user, also a remote one with its password. So the user must be active,
+        neither owner nor administrator, and not used by any other recipient's
+        pairing (as user or through one of its logins). Login pairings (🔑) are
+        not affected.
+        """
+        if not session_id.startswith(_PAIR_USER):
+            return None
+        user = (await self._pairable_users()).get(session_id.removeprefix(_PAIR_USER))
+        if user is None:
+            return "session_user_not_found"
+        others = [raw for raw in recipients if str(raw.get(RECIPIENT_ID, "")) != (editing_id or "")]
+        return {
+            "not_allowed": "display_user_not_allowed",
+            "in_use": "display_user_in_use",
+        }.get(kiosk_user_problem(self.hass, user, others) or "")
+
+    def _kiosk_user_conflict(
+        self, session_id: str, recipients: list[dict[str, Any]], editing_id: str | None
+    ) -> str | None:
+        """The reverse kiosk-user rule for every recipient form.
+
+        A user that a wall display is paired with is reserved for that display:
+        no other recipient may be paired with that user or with one of its logins.
+        """
+        if session_id.startswith(_PAIR_USER):
+            user_id: str | None = session_id.removeprefix(_PAIR_USER)
+        elif session_id.startswith(_PAIR_TOKEN):
+            auth = getattr(self.hass, "auth", None)
+            token = (
+                auth.async_get_refresh_token(session_id.removeprefix(_PAIR_TOKEN))
+                if auth is not None
+                else None
+            )
+            user_id = token.user.id if token is not None else None
+        else:
+            return None
+        if user_id and any(
+            _is_display(raw)
+            and str(raw.get(RECIPIENT_ID, "")) != (editing_id or "")
+            and _pairing_value(raw) == f"{_PAIR_USER}{user_id}"
+            for raw in recipients
+        ):
+            return "session_user_reserved_for_display"
         return None
 
     @staticmethod

@@ -159,17 +159,27 @@ device tracker and no notification settings:
   (the card hides the button, the `mute` command answers `mute_not_applicable`),
 - it counts as **home** for every home check (global acknowledgement, external reset, the card's
   alarm-ending actions),
-- it **requires a pairing with a single login** (🔑, the kiosk device's own login). A user pairing is
-  not allowed for a display (form error "display requires login"): the display always counts as home,
-  so a user pairing would make every login of that user (a laptop at work, a phone after a re-login)
-  "at home". A user pairing in a hand-edited entry is ignored and logged. After the kiosk device logs
-  in anew, select its new login,
+- it **requires a pairing**, either
+  - a **kiosk user** ("👤"): only a dedicated user that is active, **neither the owner nor an
+    administrator**, and used by **no other recipient's pairing** – neither as user nor through one of
+    its logins (form errors "display user not allowed" / "display user in use"). In return, no other
+    recipient can select that user or one of its logins ("reserved for a wall display"). With a user
+    pairing **every login of the kiosk user counts as the display and therefore as home**, including a
+    remote login with its password. Use a dedicated non-admin kiosk user with its own strong password
+    that nobody uses elsewhere; or
+  - a **single login** ("🔑", stricter): binds the rights to the one kiosk session instead; after the
+    kiosk device logs in again, the pairing must be renewed.
+
+  Login precedence, uniqueness and "only normal logins" are as for mobile recipients. The same rule is
+  enforced at runtime: a hand-edited display whose user is the owner or an administrator, or also
+  appears in another recipient's pairing (by user or through one of its logins), never resolves and is
+  logged with its name,
 - its rights are the usual flags "Allow global acknowledgement" and "Allow external reset" (both off by
   default, also for a hand-edited entry without the keys),
 - the kind cannot be changed after creation (remove and add again); editing keeps id, token and pairing.
 
-Trade-off: whoever uses that kiosk login – at the display or remotely with the same browser session –
-has these rights. Recommended: a dedicated non-admin HA user for the kiosk device, and pair its login.
+Trade-off: every session recognised as the display has these rights – not only whoever stands in front
+of it. Only allow what is fine for everyone in the household (and guests).
 A recipient with an unknown or empty `kind` is ignored and logged once; it receives no notifications and
 authorizes nothing. Stored entries carry `kind: display`; entries without `kind`
 are mobile recipients, so existing configurations stay unchanged. The admin "acknowledge active

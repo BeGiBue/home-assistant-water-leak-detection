@@ -10,13 +10,23 @@
   (744 px); collapsed unchanged at about 335 px (188 px in two columns).
 - New recipient kind **wall display** (`kind: display`, options: "Add wall display") for a fixed display
   such as TouchKio: no notify service, no device tracker, never notified or part of dispatch, always
-  counts as home, requires a pairing with a single login only (a user pairing would make every login
-  of that user "at home"; form error `display_requires_login`, a hand-edited user pairing is ignored and
-  logged), permissions are the usual flags (both off by default, also without stored keys). The session reports `kind` and `can_mute`; mute answers `mute_not_applicable` and the card
+  counts as home, requires a pairing, permissions are the usual flags (global acknowledgement off by
+  default, also for a hand-edited entry without the key). The session reports `kind` and `can_mute`; mute answers `mute_not_applicable` and the card
   hides it. The kind cannot be changed after creation. Entries without `kind` stay mobile; no migration.
   The admin acknowledgement form offers only mobile recipients. Wiki: TouchKio example automation.
-- Recipients with an unknown or empty `kind` are logged once (they receive no notifications); the
-  external-reset validator rejects them as well.
+- Wall display pairing: either a single login (🔑, binds the rights to the one kiosk session; renew it
+  after the kiosk logs in again) or a **dedicated kiosk user** (👤). A kiosk user must be active, neither
+  owner nor administrator, and used by no other recipient's pairing, neither as user nor through one of
+  its logins (form errors `display_user_not_allowed`, `display_user_in_use`); in return no other
+  recipient can select that user or its logins (`session_user_reserved_for_display`). The same rule is
+  enforced when resolving sessions: such a hand-edited display never resolves and is logged by name.
+  With a user pairing every login of the kiosk user counts as home, also a remote one with its
+  password; docs and form texts recommend a non-admin kiosk user with its own strong password.
+- Recipients with an unknown or empty `kind` are logged by id and name (they receive no notifications);
+  the external-reset validator rejects them as well.
+- Wiki (TouchKio): recommend only turning the display on when the card's dashboard is the kiosk start
+  page; a `text.set_value` page URL must use exactly TouchKio's `web_url` base (scheme, host, port),
+  otherwise the browser has no stored login and the dashboard does not load.
 
 ## 2.0.0-beta.2 — 2026-10-14
 

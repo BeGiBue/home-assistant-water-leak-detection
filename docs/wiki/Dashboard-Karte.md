@@ -106,24 +106,32 @@ Seit Karte 0.6.0 gibt es dafür den Empfängertyp **Wanddisplay**:
 - Ein Wanddisplay bekommt **keine Benachrichtigungen** und ist nie Teil der Zustellung; Stummschalten
   entfällt (die Karte zeigt den Knopf dort nicht).
 - Es gilt bei jeder Zuhause-Prüfung **immer als zuhause**.
-- Es braucht eine **Kopplung an genau die Anmeldung des Kiosk-Geräts** („🔑 …“, Pflichtfeld). Ein
-  Benutzer („👤 …“) ist für ein Display nicht erlaubt: Weil das Display immer als zuhause gilt, wäre sonst
-  jede Anmeldung dieses Benutzers – Laptop im Büro, Handy – überall „zuhause“. Empfohlen: ein eigener
-  HA-Benutzer **ohne Adminrechte** für das Kiosk-Gerät. Meldet sich das Kiosk-Gerät neu an, die neue
-  Anmeldung wählen.
+- Es braucht eine **Kopplung** (Pflichtfeld), sonst erkennt die Karte es nicht. Zwei Möglichkeiten:
+  - **„👤 Kiosk-Benutzer“:** ein eigener HA-Benutzer **ohne Adminrechte** (nicht der Besitzer), den
+    **kein anderer Empfänger** nutzt – weder als Benutzer noch über eine seiner Anmeldungen. Das Formular
+    lehnt Besitzer, Administratoren und schon anderweitig gekoppelte Benutzer ab; umgekehrt kann kein
+    anderer Empfänger diesen Benutzer oder eine seiner Anmeldungen wählen. **Achtung:** Dann gilt **jede** Anmeldung
+    des Kiosk-Benutzers als das Display und damit als zuhause – auch eine Anmeldung aus der Ferne mit
+    seinem Passwort. Deshalb ein eigenes, starkes Passwort, das niemand anderswo verwendet.
+  - **„🔑 Anmeldung“** (strenger): bindet die Rechte an genau die eine Sitzung des Kiosk-Geräts. Meldet
+    sich das Kiosk-Gerät neu an, muss die Kopplung erneuert werden.
 - Die Rechte sind die üblichen Häkchen des Empfängers: „Globales Quittieren erlauben“ und „Externen Reset
   erlauben“ (beide standardmäßig aus). Im Alarm bietet die Karte dort außerdem „Erkennung abschalten“
   (Slow Leak/Low Flow) und „Bypass starten“ (High Flow) an, weil das Display als gekoppelt und zuhause gilt.
-- **Abwägung:** Wer diese Kiosk-Anmeldung nutzt – vor dem Display oder aus der Ferne mit derselben
-  Browser-Sitzung –, hat diese Rechte, ohne Device Tracker. Nur freigeben, was für jeden im Haushalt (und
-  Besuch) in Ordnung ist.
+- **Abwägung:** Jede Sitzung, die als das Display erkannt wird, hat diese Rechte – ohne Device Tracker,
+  also nicht nur, wer vor dem Display steht (siehe Kopplung oben). Nur freigeben, was für jeden im
+  Haushalt (und Besuch) in Ordnung ist.
 - Die Art lässt sich nach dem Anlegen nicht ändern (Eintrag entfernen und neu anlegen).
 
 Auf dem 7″-Display hochkant (480×800) reicht der Standard; quer (800×480) `collapsed: true` setzen (siehe oben).
 
-**Beispiel-Automation:** Bei einem Leckalarm das Display einschalten, volle Helligkeit und das Dashboard
-öffnen. Die Entity-IDs sind **Platzhalter** – die echten Namen stehen unter *Einstellungen → Geräte &
-Dienste → Geräte → TouchKio (Gerät des Displays)*; TouchKio meldet sie per MQTT.
+**Beispiel-Automation:** Bei einem Leckalarm das Display einschalten und auf volle Helligkeit stellen.
+Die Entity-IDs sind **Platzhalter** – die echten Namen stehen unter *Einstellungen → Geräte & Dienste →
+Geräte → TouchKio (Gerät des Displays)*; TouchKio meldet sie per MQTT.
+
+**Empfohlen (einfachste Variante):** Das Dashboard mit der Karte ist schon die Startseite des Kiosks
+(TouchKio `web_url`). Dann genügt es, das Display einzuschalten; eine Aktion für die Seiten-URL ist
+nicht nötig:
 
 ```yaml
 alias: Wasserwächter – Display bei Leck einschalten
@@ -139,12 +147,23 @@ actions:
       entity_id: light.touchkio_flur_display          # Platzhalter: Display-Licht von TouchKio
     data:
       brightness_pct: 100
+mode: single
+```
+
+**Nur wenn der Kiosk sonst eine andere Seite zeigt,** zusätzlich die Seiten-URL setzen. Dabei **exakt
+dieselbe Basis-URL** (Schema, Host, Port) verwenden, mit der TouchKio startet, also die konfigurierte
+`web_url` – nur der Pfad darf sich unterscheiden. Beispiel: Startet TouchKio mit
+`http://192.168.1.20:8123/…`, dann nicht `http://homeassistant.local:8123/…` setzen (IP statt Hostname
+oder umgekehrt). Ein anderer Host ist für den Browser ein anderer Ursprung (Origin) ohne die gespeicherte
+Anmeldung; dann lädt das Dashboard bzw. die Karte nicht.
+
+```yaml
   - action: text.set_value
     target:
       entity_id: text.touchkio_flur_page_url          # Platzhalter: Seiten-URL von TouchKio
     data:
-      value: "http://homeassistant.local:8123/wasser" # Platzhalter: URL deines Dashboards
-mode: single
+      # Platzhalter: gleiche Basis-URL wie TouchKios web_url, nur der Pfad deines Dashboards
+      value: "http://192.168.1.20:8123/wasser"
 ```
 
 Optional kann [Browser Mod](https://github.com/thomasloven/hass-browser_mod) zusätzlich ein Popup oder

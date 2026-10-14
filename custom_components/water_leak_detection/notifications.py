@@ -53,6 +53,8 @@ from .const import (
 from .validation import parse_datetime, string_set
 
 if TYPE_CHECKING:
+    from homeassistant.auth.models import User
+
     from .manager import WaterLeakManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,6 +68,43 @@ def _warn_once(reason: str, raw: dict[str, Any], message: str) -> None:
         return
     _WARNED.add(key)
     _LOGGER.warning(message, raw.get(RECIPIENT_ID), raw.get(RECIPIENT_NAME))
+
+
+def pairing_uses_user(hass: HomeAssistant, raw: dict[str, Any], user_id: str) -> bool:
+    """Whether a stored recipient pairing refers to this HA user.
+
+    True for a user pairing with this user and for a login pairing with one of
+    this user's logins (of any token type). Both keys are checked, even though a
+    login pairing takes precedence: this is a conflict check, so stricter is safer.
+    """
+    if raw.get(RECIPIENT_SESSION_USER_ID) == user_id:
+        return True
+    token_id = raw.get(RECIPIENT_SESSION_TOKEN_ID)
+    if not isinstance(token_id, str) or not token_id:
+        return False
+    auth = getattr(hass, "auth", None)
+    token = auth.async_get_refresh_token(token_id) if auth is not None else None
+    return token is not None and token.user.id == user_id
+
+
+def kiosk_user_problem(hass: HomeAssistant, user: User | None, others: list[Any]) -> str | None:
+    """Why this user may not be the user pairing of a wall display, or None.
+
+    A display is always Home, and a user pairing covers every normal login of
+    that user, also a remote one. So only a dedicated kiosk user is allowed:
+    active, not system-generated, neither owner nor administrator, and not used
+    by any other recipient's pairing (as user or through one of its logins).
+    ``others`` are the stored entries of every other recipient.
+
+    Returns "not_allowed" (no such active person, owner or admin), "in_use" or None.
+    """
+    if user is None or not user.is_active or user.system_generated:
+        return "not_allowed"
+    if user.is_owner or user.is_admin:
+        return "not_allowed"
+    if any(isinstance(raw, dict) and pairing_uses_user(hass, raw, user.id) for raw in others):
+        return "in_use"
+    return None
 
 
 def notification_writer(method):
@@ -152,16 +191,6 @@ class NotificationRecipient:
             if session_token_id is None and isinstance(session_user_id, str) and session_user_id
             else None
         )
-        if display and session_user_id is not None:
-            # A display is always Home. A user pairing would make every login of
-            # that user (laptop, phone) "at home" anywhere: never honoured.
-            _warn_once(
-                "display_user_pairing",
-                raw,
-                "Wall display %s (%s) is paired with a user; displays may only be paired "
-                "with a single login. The pairing is ignored.",
-            )
-            session_user_id = None
 
         return cls(
             id=recipient_id,
@@ -396,18 +425,28 @@ class NotificationController:
         return {event_id: state.to_dict() for event_id, state in self.acknowledgements.items()}
 
     def recipient_for_session(
-        self, session_token_id: str | None, session_user_id: str | None = None
+        self,
+        session_token_id: str | None,
+        session_user_id: str | None = None,
+        session_user: User | None = None,
     ) -> NotificationRecipient | None:
         """Recipient paired with this HA login or, failing that, with its user.
 
         The caller (websocket.session_recipient) has already verified that the
         login is a normal app/browser login of an active, non-system user and
-        that ``session_user_id`` is the owner of exactly that login.
+        that ``session_user_id`` (``session_user``) is the owner of exactly that login.
 
         Resolution order:
         1. A recipient paired with exactly this login (``session_token_id``) wins.
         2. Otherwise a recipient paired with the login's user (``session_user_id``).
         3. Otherwise the session is not paired.
+
+        A wall display is always Home, and its user pairing covers every login of
+        that user, also a remote one. It therefore only resolves for a dedicated
+        kiosk user (see kiosk_user_problem): never for the owner or an admin and
+        never when another recipient's pairing uses that user or one of its
+        logins. Hand-edited options cannot bypass this; such a display is logged
+        and treated as not paired. Without ``session_user`` it never resolves.
 
         Current options are authoritative: they are parsed directly instead of
         reload_recipients(), so a read-only query never re-subscribes the tracker
@@ -418,18 +457,49 @@ class NotificationController:
         raw_recipients = self.entry.options.get(CONF_NOTIFICATION_RECIPIENTS, [])
         if not isinstance(raw_recipients, list):
             return None
-        recipients = [
-            recipient
+        parsed = [
+            (raw, NotificationRecipient.from_dict(raw))
             for raw in raw_recipients
-            if isinstance(raw, dict) and (recipient := NotificationRecipient.from_dict(raw))
+            if isinstance(raw, dict)
         ]
+        recipients = [recipient for _, recipient in parsed if recipient is not None]
         by_token = [r for r in recipients if r.session_token_id == session_token_id]
         if by_token:
             return by_token[0] if len(by_token) == 1 else None
         if not session_user_id:
             return None
         by_user = [r for r in recipients if r.session_user_id == session_user_id]
-        return by_user[0] if len(by_user) == 1 else None
+        user = (
+            session_user
+            if session_user is not None and session_user.id == session_user_id
+            else None
+        )
+        # A display that is not a valid kiosk-user pairing is logged and never
+        # resolves; checked before the ambiguity rule so that it is always logged.
+        invalid = False
+        for candidate in by_user:
+            if not candidate.is_display:
+                continue
+            # Every other stored entry counts, also ones that do not parse.
+            others = [raw for raw, parsed_one in parsed if parsed_one is not candidate]
+            if problem := kiosk_user_problem(self.hass, user, others):
+                invalid = True
+                _warn_once(
+                    f"display_user_{problem}",
+                    {RECIPIENT_ID: candidate.id, RECIPIENT_NAME: candidate.name},
+                    "Wall display %s (%s) is paired with a user that "
+                    + (
+                        "is also used by another recipient's pairing (as user or by one "
+                        "of its logins)"
+                        if problem == "in_use"
+                        else "is the owner or an administrator (or not an active person)"
+                    )
+                    + "; the display is treated as not paired. Pair a dedicated non-admin "
+                    "kiosk user nobody else uses, or the kiosk's single login.",
+                )
+        if invalid or len(by_user) != 1:
+            return None
+        return by_user[0]
 
     async def async_session_mute(self, event_id: str, recipient_id: str) -> str | None:
         """Device-scoped mute from a paired dashboard session; None means accepted.
