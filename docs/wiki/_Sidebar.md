@@ -16,8 +16,10 @@
 
 ### Home Assistant
 - [Entitäten, Aktionen & Events](Home-Assistant-Schnittstellen)
+- [Hydraulische Überwachung & Diagnose](Home-Assistant-Schnittstellen#hydraulische-überwachung)
 - [Persistenz & Betrieb](Persistenz-und-Betrieb)
 - [Troubleshooting](Troubleshooting)
+- [Lovelace-Karte 0.1.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/CARD.md)
 
 ### Entwicklung
 - [Entwicklung & Release](Entwicklung-und-Release)

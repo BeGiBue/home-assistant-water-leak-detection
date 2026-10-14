@@ -1,6 +1,6 @@
 # Persistenz und Neustartverhalten
 
-> **Standhinweis:** Veröffentlichte Basis ist **1.0.3**. Aussagen zur statischen High-Flow-Schwelle (F02) beschreiben den Branch `feature/f02-static-high-flow` und sind noch **nicht Bestandteil von 1.0.3**.
+> **Stand: 14. Oktober 2026 – veröffentlichte 1.2.0-beta.3.** Historische Versions-/Korrekturrunden bleiben als solche bezeichnet. F02, F08 und F04 V3 sind implementiert; Beta-Einschränkungen siehe [F04 V3](F04-V3).
 
 
 ## Ziel
@@ -52,7 +52,7 @@ Die Engine kann Runtime-Zustände speichern, behandelt fehlende Messwerte aber k
 
 Wenn die Quelle nicht verfügbar ist:
 
-- noch unbestätigte Monitoring-Evidenz wird verworfen
+- normaler bestätigter Slow/Low/High-Monitoring-Fortschritt derselben Quelle bleibt erhalten; unbestätigte Burst-Kandidaten und Low-Stabilität werden unterbrochen
 - laufende Quiet-/Resetintervalle werden verworfen
 
 Warum?
@@ -164,7 +164,7 @@ Ein Absturz zwischen Versand und Speicherung kann eine doppelte Meldung verursac
 
 Negative, nicht endliche und überalterte Messungen sind keine Ruhe-Evidenz.
 `last_reported` unterscheidet neue identische Meldungen von eingefrorenen Zuständen;
-der Standard ist jetzt automatische Meldekadenz (Option 0, Details im README). Laufzeitintervalle
+die frühere automatische Meldekadenz wurde später entfernt: Option 0 setzt heute keine künstliche Max-Gap-Grenze (siehe aktuelle Regeln unten). Laufzeitintervalle
 verwenden eine monotone Uhr; Neustarts setzen unbestätigte Intervalle zurück.
 Zählerreset, unplausibler Sprung und Quellenwechsel lösen den alten Volumenbezug.
 Aktive Leckage und Absperranforderung bleiben dabei erhalten. Eingefrorene oder fehlende
@@ -247,8 +247,31 @@ Die Grenze wird niemals automatisch aus Reportmustern abgeleitet.
 
 ## F04 V3 Upgrade
 
-Der aktuelle Feature-Stand verwendet HA-Store-/Learning-Schema 2 mit atomarer
+Der veröffentlichte Beta.3-Stand verwendet HA-Store-/Learning-Schema 2 mit atomarer
 Legacy-Learning-Quarantäne. ACTIVE, ACK und Shutoff bleiben erhalten. Externe
 Lifecycles, generationsgebundene Nonces und getrennte Lernkanäle sind beschrieben
 in [F04 V3](F04-V3.md). Ein fehlgeschlagener Reset-Schreibvorgang gibt keinen
 Sicherheitsbeitrag frei. Die frühere F04-Roadmap bleibt historischer Kontext.
+
+## Aktueller Startup-/Quellenzustand (Beta.3)
+
+Die neue Anzeige wird nicht aus einem früheren „Aktiv“ restauriert, sondern aus
+aktuellen Manager-Entscheidungen neu abgeleitet. Start/Quellenwechsel wartet auf
+eine gültige Messung; eine explizit unverfügbare Quelle oder abgewiesene Messung
+zeigt Gesperrt. Cached/retained/replayed Werte können nach Restart gesperrt sein,
+obwohl zuvor ein Alarm bestätigt war. Dieser ACTIVE-Alarm bleibt erhalten.
+
+Vor Store-I/O wird die tatsächliche Setupzeit erfasst. Nach Restore bindet
+`MqttProvenance.bind_startup()` die Grenze einmal an das Maximum aus gespeicherter
+Grenze und Setupbeginn. Neue Quellengenerationen werden ebenfalls explizit
+initialisiert. Die Prüfzeit des ersten Reports verschiebt die Grenze nicht.
+Retained, Replay, Out-of-Order, Zukunft, Messalter, echte Unterbrechungen und
+Persistenzfehler bleiben geschützt. Erster gültiger Report: null Sekunden;
+interne Ticks erzeugen weder Verbrauchs- noch Ruhe-Evidenz.
+
+Aktuelle Round7-Regel: Normaler bestätigter Slow/Low/High-Monitoring-Fortschritt
+bleibt bei Unterbrechung derselben Quelle erhalten; Quiet-Fenster, Low-Stabilität
+und unbestätigte Burst-Kandidaten werden unterbrochen. Ein tatsächlicher
+Quellenwechsel verwirft unbestätigten Fortschritt, übernimmt aber keine Entwarnung
+für bestätigte ACTIVE-Alarme. [Diagnose](Troubleshooting). Die historischen
+Korrekturrunden oben sind keine abweichende aktuelle Kadenz- oder Resetregel.
