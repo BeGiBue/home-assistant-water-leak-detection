@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Dashboard card 0.3.2: the confirmation before ending a hydraulic alarm reads the detector phase from
+  the resolved status sensor, also when the editor points at another sensor of the integration; the
+  editor offers only status sensors (`include_entities`). During an ACTIVE High Flow alarm the bypass
+  header no longer opens the bypass switch's more-info dialog.
 - Dashboard card 0.3.1: alarm hints are now correct per kind (Slow/Low also end when the detector is
   switched off, High when the bypass starts, Burst only physically); switching off an alarming
   Slow/Low detector or starting the bypass during a High Flow alarm asks for confirmation. Generic

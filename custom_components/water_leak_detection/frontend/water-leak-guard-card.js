@@ -25,7 +25,7 @@
  * License: AGPL-3.0-only (same as the integration).
  */
 
-const CARD_VERSION = "0.3.1";
+const CARD_VERSION = "0.3.2";
 const DOMAIN = "water_leak_detection";
 const CARD_TAG = "water-leak-guard-card";
 const EDITOR_TAG = "water-leak-guard-card-editor";
@@ -435,13 +435,16 @@ function formatClock(hass, iso) {
   }).format(date);
 }
 
+/** All status sensors of this integration (one per instance). */
+function statusEntityIds(hass) {
+  return Object.values(hass?.entities || {})
+    .filter((e) => e.platform === DOMAIN && e.translation_key === "status")
+    .map((e) => e.entity_id);
+}
+
 /** First status sensor of this integration, for auto-configuration. */
 function findStatusEntity(hass) {
-  const registry = hass?.entities || {};
-  const match = Object.values(registry).find(
-    (e) => e.platform === DOMAIN && e.translation_key === "status"
-  );
-  return match ? match.entity_id : undefined;
+  return statusEntityIds(hass)[0];
 }
 
 /** Map translation_key -> entity_id for the device that owns the status sensor. */
@@ -557,7 +560,7 @@ class WaterLeakGuardCard extends HTMLElement {
     const ids = Object.values(resolveEntities(this._hass, this._statusEntity));
     // External sensors are other integrations' entities; their live availability
     // decides between "dry" and "unavailable", so they must trigger a re-render too.
-    const status = this._hass.states[this._statusEntity];
+    const status = this._hass.states[this._resolvedStatusId];
     for (const src of status?.attributes?.external_sources || []) {
       if (src?.source_entity) ids.push(src.source_entity);
     }
@@ -598,10 +601,36 @@ class WaterLeakGuardCard extends HTMLElement {
 
   /* -------------------------------------------------------------- actions */
 
-  /** Current phase of one hydraulic detector, read fresh from the status sensor. */
+  /**
+   * The status sensor the card actually renders: resolved via translation_key on
+   * the device of the configured entity, so a mis-configured entity (e.g. the
+   * flow sensor of the same device) still reaches the real status sensor.
+   * Every safety decision must read from this id, never from the raw config.
+   */
+  get _resolvedStatusId() {
+    return resolveEntities(this._hass, this._statusEntity).status;
+  }
+
+  /** Current phase of one hydraulic detector, read fresh from the resolved status sensor. */
   _detectorPhase(kind) {
-    const status = this._hass?.states?.[this._statusEntity];
+    const status = this._hass?.states?.[this._resolvedStatusId];
     return status?.attributes?.detectors?.[kind];
+  }
+
+  /**
+   * True if opening this entity's more-info dialog would offer a control that
+   * ends an ACTIVE alarm without the card's confirmation (bypass switch/duration
+   * during High Flow, Slow/Low detector switch during its own alarm).
+   */
+  _guardedEntity(entityId) {
+    if (!entityId) return false;
+    const map = resolveEntities(this._hass, this._statusEntity);
+    const guards = [
+      ["high_flow", [map.high_flow_bypass, map.high_flow_bypass_duration]],
+      ["slow_leak", [map.slow_leak_detection]],
+      ["low_flow", [map.low_flow_detection]],
+    ];
+    return guards.some(([kind, ids]) => ids.includes(entityId) && this._detectorPhase(kind) === "active");
   }
 
   async _run(key, job) {
@@ -641,6 +670,8 @@ class WaterLeakGuardCard extends HTMLElement {
 
     switch (action) {
       case "more-info":
+        // Defense in depth: rendering already omits these links during an alarm.
+        if (this._guardedEntity(target.dataset.entity)) return;
         fire(this, "hass-more-info", { entityId: target.dataset.entity });
         break;
       case "open-integration":
@@ -773,7 +804,7 @@ class WaterLeakGuardCard extends HTMLElement {
       alarm ? this._renderAlarm(t, map, status) : "",
       this._config.show_flow ? this._renderFlow(t, map) : "",
       this._config.show_detectors ? this._renderDetectors(t, map, status, monitoring) : "",
-      this._config.show_bypass ? this._renderBypass(t, map) : "",
+      this._config.show_bypass ? this._renderBypass(t, map, status) : "",
       this._config.show_external ? this._renderExternal(t, status) : "",
       this._config.show_learning ? this._renderLearning(t, map) : "",
     ];
@@ -1113,10 +1144,13 @@ class WaterLeakGuardCard extends HTMLElement {
     return `<section class="block"><div class="block-head"><span>${esc(t("detectors"))}</span></div>${rows}</section>`;
   }
 
-  _renderBypass(t, map) {
+  _renderBypass(t, map, status) {
     const sw = this._state(map, "high_flow_bypass");
     if (!sw) return "";
     const active = sw.state === "on";
+    // During an ACTIVE High Flow alarm the switch's more-info dialog would start the
+    // bypass (and end the alarm) without the card's confirmation: plain text only.
+    const highAlarm = status?.attributes?.detectors?.high_flow === "active";
     const remaining = num(this._state(map, "high_flow_bypass_remaining")?.state) ?? num(sw.attributes?.remaining_seconds) ?? 0;
     const finishes = sw.attributes?.finishes_at;
     const defaultMinutes = num(this._state(map, "high_flow_bypass_duration")?.state);
@@ -1133,11 +1167,11 @@ class WaterLeakGuardCard extends HTMLElement {
       <section class="block">
         <div class="block-head">
           <span>${esc(t("bypass"))}</span>
-          <button class="link" data-action="more-info" data-entity="${esc(sw.entity_id)}">
+          ${highAlarm ? `<span class="link">` : `<button class="link" data-action="more-info" data-entity="${esc(sw.entity_id)}">`}
             ${active
               ? `${esc(t("bypass_on", { left: formatSeconds(remaining) }))}${finishes ? ` <span class="muted">${esc(t("bypass_until", { time: formatClock(this._hass, finishes) }))}</span>` : ""}`
               : `<span class="muted">${esc(t("bypass_off"))}</span>`}
-          </button>
+          ${highAlarm ? `</span>` : `</button>`}
         </div>
         <div class="actions">
           ${active
@@ -1443,6 +1477,7 @@ const STYLES = `
 
   .link, .link-plain, .stat { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
   .link { color: var(--primary-text-color); font-size: 14px; }
+  span.link { cursor: default; }
   .link[disabled] { cursor: default; }
   .note { font-size: 12px; color: var(--wlg-muted); line-height: 1.4; }
   .note.subtle { margin: 6px 0 4px; }
@@ -1466,13 +1501,27 @@ class WaterLeakGuardCardEditor extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    if (this._form) this._form.hass = hass;
-    else this._render();
+    if (!this._form) {
+      this._render();
+      return;
+    }
+    this._form.hass = hass;
+    const key = statusEntityIds(hass).join(",");
+    if (key !== this._statusKey) {
+      this._statusKey = key;
+      this._form.schema = this._schema();
+    }
   }
 
   _schema() {
+    // HA's entity selector cannot filter by translation_key (filter keys: integration,
+    // domain, device_class, supported_features, unit_of_measurement). include_entities
+    // is supported, so offer exactly the status sensors when the registry is loaded.
+    const ids = statusEntityIds(this._hass);
+    const entity = { filter: { integration: DOMAIN, domain: "sensor" } };
+    if (ids.length) entity.include_entities = ids;
     return [
-      { name: "entity", selector: { entity: { filter: { integration: DOMAIN, domain: "sensor" } } } },
+      { name: "entity", selector: { entity } },
       { name: "title", selector: { text: {} } },
       {
         type: "grid",
@@ -1498,6 +1547,7 @@ class WaterLeakGuardCardEditor extends HTMLElement {
       this.appendChild(this._form);
     }
     this._form.hass = this._hass;
+    this._statusKey = statusEntityIds(this._hass).join(",");
     this._form.schema = this._schema();
     this._form.data = { ...DEFAULT_CONFIG, ...this._config };
   }

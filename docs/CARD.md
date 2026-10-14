@@ -1,6 +1,6 @@
 # Dashboard-Karte (Lovelace)
 
-**Status:** Version 0.3.1 (Etappen A, B und D; Etappe C offen). Die Karte ist eine reine Ansicht auf die vorhandenen
+**Status:** Version 0.3.2 (Etappen A, B und D; Etappe C offen). Die Karte ist eine reine Ansicht auf die vorhandenen
 Entitäten und Dienste und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
 Reset-Nonce, und Berechtigung, Anwesenheit und erlaubte Alarmaktionen prüft ausschließlich das
 Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).
@@ -76,6 +76,11 @@ keinen sicheren Vertrag hat. Zu jedem Ereignis erklärt sie stattdessen, was heu
 | Global quittieren | stoppt Benachrichtigungen für alle | nur zuhause (Backend-Prüfung) | Benachrichtigung oder **Konfigurieren → Quittierung** (Admin) |
 | Externes Leck zurücksetzen | beendet den externen Alarm; der Sensor wird erst wieder scharf, wenn er „trocken“ meldet | nur zuhause, berechtigtes Gerät | Benachrichtigung |
 | Hydraulischen Alarm beenden | beendet den Alarm und seinen Beitrag zur Absperranforderung sofort; die Ursache (z. B. offener Hahn, Leck) bleibt | Karte oder Entitäten | Slow Leak/Low Flow: Detektor ausschalten; High Flow: Bypass starten. Die Karte fragt bei laufendem Alarm dieser Art nach. Burst Leak: nicht möglich |
+
+Die Rückfrage liest die Phase immer aus dem Status-Sensor, den die Karte anzeigt (über das Gerät der
+gewählten Entität aufgelöst), auch wenn im Editor eine andere Entität der Integration gewählt wurde.
+Während eines laufenden High-Flow-Alarms öffnet der Kopf des Bypass-Abschnitts keinen Detaildialog
+des Bypass-Schalters, damit der Bypass dort nicht ohne Rückfrage gestartet werden kann.
 
 Ohne Eingriff endet ein hydraulischer Alarm, sobald der Durchfluss die Ruhe-/Rücksetzbedingung
 erfüllt. Burst Leak endet nur physisch. Der Hinweis im Alarmkasten nennt den Weg passend zur Alarmart.
