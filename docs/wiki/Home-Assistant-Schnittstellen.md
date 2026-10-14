@@ -350,18 +350,31 @@ ACTIVE/WAITING-Quellen, hydraulische Alarme, Beiträge und Migrationsstatus.
 Ein diagnostischer Langzeitmaximum-Sensor zeigt den getrennt bestätigten Wert.
 Alle Sicherheits- und Persistenzregeln: [F04 V3](F04-V3.md).
 
-## Karte und tatsächliche Aktionsschnittstellen
+## Dashboard-Karte und Kartenbefehle
 
-Die [Karte 0.1.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/CARD.md) ist eine optionale Frontend-Ansicht mit
-manueller Ressourcenregistrierung; sie zeigt den neuen Überwachungssensor noch
-nicht separat. Dafür kann bereits eine Standard-HA-Karte verwendet werden.
-`water_leak_detection/acknowledge` und `water_leak_detection/clear_alarm` sind
-nur vorgeschlagene WebSocket-Kommandos, im Backend nicht registriert. Bei
-`unknown_command` öffnet die Karte den geschützten Configure-Dialog.
+Seit 2.0.0-beta.1 stellt die Integration die Karte selbst bereit
+(`/water_leak_detection/water-leak-guard-card.js`, als Frontend-Modul geladen). Bedienung und Kopplung:
+[Dashboard-Karte](Dashboard-Karte).
 
-Die bestehenden Dienste `water_leak_detection.acknowledge_event` und
-`water_leak_detection.external_reset` sind davon verschieden und verlangen ihre
-aktuellen serverseitigen Bindungen/Berechtigungen. Die Karte enthält keine Tokens
-oder Reset-Nonces und ruft diese Dienste nicht als Ersatz direkt auf. Persönlicher
-Mute unterwegs ist kein globales ACK; Home-/Recipient-Regeln bleiben bindend.
-Hydraulische Alarme haben keinen manuellen Karten-Reset.
+Für die Karte registriert die Integration WebSocket-Befehle. Alle nehmen optional `config_entry_id`
+(nötig bei mehreren Instanzen). Die Identität ist ausschließlich die Anmeldung der Verbindung, die beim
+Empfänger als **Gekoppelte Anmeldung** hinterlegt ist; Long-Lived-Tokens zählen nie. Empfänger-Token und
+Reset-Nonce verlassen nie den Server.
+
+| Befehl | Felder | Wirkung | Prüfung beim Ausführen |
+|---|---|---|---|
+| `water_leak_detection/session` | – | Auskunft: `paired`, `recipient_id`, `recipient_name`, `home`, `tracker_entity`, `trusted_stationary`, `can_global_ack`, `can_external_reset` | nur Anzeige |
+| `water_leak_detection/mute` | `event_id` | stummschalten nur für dieses Gerät | gekoppelt, Ereignis aktiv; überall |
+| `water_leak_detection/acknowledge` | `event_id` | globale Quittierung | Berechtigung, Device Tracker `home`, Ereignis aktiv, gespeichert vor Bestätigung |
+| `water_leak_detection/external_reset` | `event_id`, `source_id`, `source_generation` | externes Leck zurücksetzen | Berechtigung, `home`, exakte Ereignisbindung, gespeichert |
+
+Fehlercodes: `not_paired`, `not_home`, `not_allowed`, `event_not_active`, `not_committed`, `rejected`,
+`instance_not_found`. Die Kopplung wird innerhalb der Schreibsperre des Managers erneut geprüft.
+
+Für hydraulische Alarme gibt es keinen Befehl. Sie enden, wenn der Durchfluss die Ruhebedingung
+erfüllt; Slow/Low außerdem beim Abschalten des Detektors und High Flow beim Start des Bypass (die Karte
+fragt dann nach). Burst endet nur physisch.
+
+Die bestehenden Dienste `water_leak_detection.acknowledge_event` und `water_leak_detection.external_reset`
+bleiben unverändert; sie verlangen ihre Token- bzw. Nonce-Bindungen und werden von der Karte nicht
+aufgerufen.

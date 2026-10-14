@@ -97,12 +97,23 @@ existing integration device. Keep your existing config entry; do not delete it
 or its Store to resolve a blocked state. Check the
 [beta prerequisites and user-confirmed restart test](BETA_1.2.0.md).
 
-The bundled card 0.1.0 is not automatically registered as a Lovelace resource.
-Optional installation: copy
-`custom_components/water_leak_detection/frontend/water-leak-guard-card.js` to
-`<config>/www/`, add `/local/water-leak-guard-card.js` as a **JavaScript module**
-under Dashboard resources, and reload the browser. Use the real alarm/status entity
-ID from your installation in the card configuration. Its proposed WebSocket ACK
-and Clear commands remain absent from the backend; use the protected Configure
-fallback. The separate monitoring sensor can be shown in a standard HA entities
-card; custom card 0.1.0 does not yet render it. Full steps: [card guide](CARD.md).
+Card 0.1.0 of this beta had to be registered manually; since 2.0.0-beta.1 the card is loaded
+automatically (see below).
+
+## Upgrading to 2.0.0-beta.1
+
+A GitHub pre-release does **not** update a running Home Assistant. Back up the HA configuration
+and the integration runtime Store. In HACS enable beta versions, download `2.0.0-beta.1` and restart
+Home Assistant. Then:
+
+1. Reload the browser / Companion app and add the card via **Add card → Water Leak Guard**. No file
+   copy and no dashboard resource are needed.
+2. If you added the card manually before, delete the resource `/local/water-leak-guard-card.js`
+   (*Settings → Dashboards → ⋮ → Resources*) and the file in `<config>/www/`. Existing card
+   configurations (`type: custom:water-leak-guard-card`) keep working.
+3. Optional: pair devices for alarm actions in the card under **Configure → Notification recipients →
+   Edit recipient → Paired login for the dashboard card**.
+
+The beta scope is unchanged: hydraulic detection with notifications, without configured external
+leak sensors or persisted external records. See [2.0 beta notes](BETA_2.0.0.md) and
+[card guide](CARD.md).

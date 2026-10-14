@@ -11,10 +11,10 @@
 
 A backend-focused Home Assistant custom integration for detecting abnormal water consumption and possible water leaks from an existing water-meter flow sensor.
 
-**Current release:** 1.2.0-beta.3
+**Current release:** 2.0.0-beta.1
 **Release status:** pre-release; latest published stable: 1.1.0.
-**Beta scope:** hydraulic detection with notifications only, without configured external leak
-sensors or persisted external records. See [the beta prerequisites](docs/BETA_1.2.0.md).
+**Beta scope:** hydraulic detection with notifications and the bundled dashboard card, without
+configured external leak sensors or persisted external records. See [the 2.0 beta notes](docs/BETA_2.0.0.md).
 **Minimum Home Assistant:** 2026.9.0
 **Integration domain:** `water_leak_detection`
 
@@ -138,7 +138,7 @@ The integration creates a Home Assistant device with backend entities including:
 - **High Flow threshold**
 - **Effective Burst Leak threshold**
 
-## Dashboard card (preview)
+## Dashboard card
 
 A dependency-free Lovelace card ships with the integration and is loaded automatically: after
 installing or updating and restarting Home Assistant, choose **Add card → Water Leak Guard**. No
@@ -149,7 +149,9 @@ blocked, with reason), flow, detectors, High Flow bypass, external leak sensors 
 and controls only the existing switches and actions. For a device paired with a notification
 recipient it offers exactly the alarm actions the backend allows right now (device mute, global
 acknowledgement at home, external reset at home with permission); other devices are view only.
-Details and migration: [docs/CARD.md](docs/CARD.md). Not yet tested on a live Home Assistant instance.
+Pair a device under **Configure → Notification recipients → Edit recipient → Paired login for
+the dashboard card**. Details, permissions and migration: [docs/CARD.md](docs/CARD.md). Tested with
+a simulated Home Assistant and the full CI suite; not yet tested on a live installation.
 
 ## Language and later configuration
 
@@ -454,16 +456,12 @@ and includes `reason`, `source_entity_id`, `source_available`,
 `mqtt_provenance_status`, `last_valid_measurement` and `observation_age_seconds`.
 See [configuration](docs/CONFIGURATION.md#hydraulische-überwachung).
 
-### Prepared Lovelace card and verification status
+### Dashboard card and beta verification status
 
-The bundled **Water Leak Guard card 0.1.0** is an optional frontend. Copy its JS
-file to `<config>/www/` and register `/local/water-leak-guard-card.js` manually as
-a JavaScript module; the integration does not register the resource automatically.
-Its proposed `water_leak_detection/acknowledge` and
-`water_leak_detection/clear_alarm` WebSocket commands are not implemented.
-The protected Configure dialog is the fallback, not a bypass of Home authorization.
-Card 0.1.0 does not yet display `hydraulic_monitoring_status` separately; use the
-regular sensor in a standard HA card. See [card installation and limitations](docs/CARD.md).
+Since 2.0.0-beta.1 the card (0.4.1) is installed and loaded with the integration, shows the
+hydraulic monitoring state separately from the alarm state and offers per-device alarm actions
+that the backend authorizes (see [Dashboard card](#dashboard-card) and [docs/CARD.md](docs/CARD.md)).
+Remove an older manual `/local/water-leak-guard-card.js` resource after upgrading.
 
 [Beta.3 is published](https://github.com/BeGiBue/homeassistant-water-leak-detection/releases/tag/1.2.0-beta.3).
 Publishing a release does not update a running HA installation: download the chosen

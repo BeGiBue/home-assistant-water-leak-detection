@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 2.0.0-beta.1 — 2026-10-14
+
+Major release for the dashboard: the card ships with the integration, shows alarm and hydraulic
+monitoring state separately, and offers alarm actions per paired device, authorized only by the
+backend. Detection, alarm, shutoff, acknowledgement semantics, persistence and MQTT provenance are
+unchanged. Beta scope as before: without configured external leak sensors (H01 remains open).
 
 - Dashboard card 0.4.1: `session` is requested only on connect/instance change, page visible again,
   alarm start, after a card command, on a change of the paired recipient's tracker and every 60 s
