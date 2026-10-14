@@ -1,22 +1,27 @@
 /*
- * Water Leak Guard card (Wasserwächter-Karte) for Home Assistant dashboards.
+ * Water Leak Guard card for Home Assistant dashboards.
  *
- * Prepared frontend for the `water_leak_detection` integration. The card is a
- * pure view on the existing entities and services; it never holds recipient
- * tokens or reset nonces. Safety decisions stay in the backend:
+ * Frontend view for the `water_leak_detection` integration. The card is a pure
+ * view on the existing entities and services and is not a trust boundary: it
+ * never holds recipient tokens or reset nonces, and every safety decision
+ * (authorization, Home presence, allowed alarm actions) stays in the backend.
  *
- *   - Acknowledge (silence notifications) is offered from anywhere.
- *   - Clear alarm is only offered while the viewer's person entity is `home`.
- *     This is a UI hint only; the backend must re-check Home authorization.
+ * Alarm handling today (no card endpoints yet):
+ *   - Personal mute: from the notification on the recipient's own device, anywhere.
+ *   - Global acknowledgement: only while that recipient is Home – from the
+ *     notification or from Configure → Acknowledgements (admin).
+ *   - External reset: from the notification of an authorized device at Home.
+ *   - Hydraulic alarms end only through their physical reset rules.
+ * Acknowledging never ends detection, the alarm or the shutoff request.
  *
- * Both actions call proposed WebSocket commands (see INTERFACE below). Until
- * the backend implements them, the card falls back to the existing, protected
- * Configure dialog of the integration.
+ * INTERFACE below keeps the proposed WebSocket commands for a later stage. They
+ * stay disabled until the backend contract exists, so the card never offers an
+ * action that cannot work.
  *
  * License: AGPL-3.0-only (same as the integration).
  */
 
-const CARD_VERSION = "0.1.0";
+const CARD_VERSION = "0.2.0";
 const DOMAIN = "water_leak_detection";
 const CARD_TAG = "water-leak-guard-card";
 const EDITOR_TAG = "water-leak-guard-card-editor";
@@ -26,10 +31,13 @@ const EDITOR_TAG = "water-leak-guard-card-editor";
  * documentation can be adopted by changing only this object.
  */
 const INTERFACE = {
+  enabled: false, // switch on only together with an implemented, tested backend contract
   acknowledge: `${DOMAIN}/acknowledge`, // { config_entry_id, event_id }
   clearAlarm: `${DOMAIN}/clear_alarm`, // { config_entry_id, event_id, source_id?, source_generation? }
-  fallbackPath: `/config/integrations/integration/${DOMAIN}`,
+  integrationPath: `/config/integrations/integration/${DOMAIN}`,
 };
+
+const MONITORING_STATES = ["active", "waiting_for_measurement", "blocked"];
 
 const DEFAULT_CONFIG = {
   show_flow: true,
@@ -44,10 +52,12 @@ const DEFAULT_CONFIG = {
 const I18N = {
   de: {
     title: "Wasserwächter",
-    not_found: "Keine Wasserwächter-Instanz gefunden. Bitte im Karteneditor die Status-Entität wählen.",
+    not_found: "Keine Instanz der Integration gefunden. Bitte im Karteneditor die Status-Entität wählen.",
     status: {
+      unavailable: "Status nicht verfügbar",
       source_unavailable: "Messquelle nicht verfügbar",
-      idle: "Alles ruhig",
+      idle: "Kein Alarm",
+      all_quiet: "Alles ruhig",
       slow_leak_monitoring: "Slow Leak wird geprüft",
       low_flow_monitoring: "Low Flow wird geprüft",
       high_flow_monitoring: "High Flow wird geprüft",
@@ -69,9 +79,56 @@ const I18N = {
       slow_leak: "Sehr kleiner Dauerverlust",
       low_flow: "Mäßiger Durchfluss über lange Zeit",
       high_flow: "Anhaltend hoher Verbrauch",
-      burst_leak: "Rohrbruch – immer aktiv",
+      burst_leak: "Rohrbruch",
     },
-    phase: { idle: "Bereit", monitoring: "Prüft", active: "Alarm", off: "Aus", bypass: "Bypass" },
+    phase: { idle: "Bereit", monitoring: "Prüft", active: "Alarm", off: "Aus", bypass: "Bypass", paused: "Pausiert" },
+    paused_hint: "Ohne gültige Messung wird nicht ausgewertet. Laufender Fortschritt bleibt erhalten.",
+    monitoring: {
+      label: "Hydraulische Überwachung",
+      active: "Aktiv",
+      waiting_for_measurement: "Warte auf Messung",
+      blocked: "Gesperrt",
+      unavailable: "Nicht verfügbar",
+      missing: "Unbekannt",
+    },
+    monitoring_hint: {
+      active: "Der Durchfluss wird ausgewertet.",
+      waiting_for_measurement: "Seit dem Start liegt noch keine gültige Messung vor. Die Leckerkennung wertet noch nichts aus.",
+      blocked: "Messwerte werden zurzeit nicht ausgewertet. Bestehende Alarme bleiben bestehen.",
+      unavailable: "Die Entität ist nicht verfügbar. Der Überwachungszustand ist unbekannt.",
+      missing: "Diese Version der Integration meldet ihren Überwachungszustand nicht (ab 1.2.0-beta.3). Ob ausgewertet wird, ist unbekannt.",
+    },
+    monitoring_details: "Grund und Messherkunft",
+    detail: {
+      reason: "Grund",
+      source: "Messquelle",
+      provenance: "MQTT-Messherkunft",
+      last_measurement: "Letzte gültige Messung",
+      age: "Alter",
+    },
+    reason: {
+      verified_measurement: "Gültige Messung",
+      waiting_for_measurement: "Noch keine Messung seit dem Start",
+      source_unavailable: "Messquelle meldet keinen gültigen Zustand",
+      source_missing: "Messquellen-Entität fehlt",
+      source_timeout: "Zu lange keine neue Messung (Expertengrenze überschritten)",
+      invalid_flow_measurement: "Ungültiger Messwert",
+      provenance_persistence_failed: "Messherkunft konnte nicht gespeichert werden",
+      awaiting_original_measurement: "Warte auf originale Messzeit des Zählers",
+      startup_not_initialized: "Start noch nicht abgeschlossen",
+      unsupported_mqtt_adapter: "MQTT-Quelle wird nicht unterstützt",
+      original_measurement_missing: "Originale Messzeit fehlt im MQTT-Telegramm (Feld timestamp)",
+      retained_or_unbound_message: "Gespeicherte (retained) oder nicht zuordenbare MQTT-Nachricht",
+      out_of_order_original_message: "MQTT-Nachricht in falscher Reihenfolge",
+      pre_startup_measurement: "Messung stammt von vor dem Start",
+      unbound_rendered_state: "Zustand ohne zugehörige MQTT-Messung",
+      invalid_original_identity: "Ungültige Messkennung",
+      replayed_or_out_of_order_measurement: "Wiederholte oder veraltete Messung",
+      future_measurement: "Messzeit liegt in der Zukunft",
+      stale_measurement: "Messung ist zu alt",
+      verified_original_measurement: "Originale Messzeit geprüft",
+      not_mqtt: "Keine MQTT-Quelle",
+    },
     alarm: "Leckalarm",
     shutoff: "Absperrung angefordert",
     no_shutoff: "Keine Absperrung",
@@ -82,19 +139,26 @@ const I18N = {
     acknowledged_by: "Quittiert von {who}",
     not_acknowledged: "Nicht quittiert",
     acknowledge: "Quittieren",
-    acknowledge_hint: "Stoppt Benachrichtigungen. Alarm und Absperranforderung bleiben bestehen.",
+    acknowledge_hint: "Quittieren stoppt nur Benachrichtigungen. Erkennung, Alarm und Absperranforderung bleiben bestehen.",
+    muted_count: "Auf {n} Gerät(en) stummgeschaltet",
+    how_mute: "Stummschalten: über die Benachrichtigung auf dem eigenen Gerät – auch unterwegs, gilt nur für dieses Gerät.",
+    how_global_ack: "Global quittieren: nur zuhause – über die Benachrichtigung oder unter Konfigurieren → Quittierung.",
+    how_external_reset: "Zurücksetzen: über die Benachrichtigung eines dafür berechtigten Geräts, das zuhause ist, sobald der Sensor wieder trocken meldet.",
+    open_integration: "Zur Integration",
     clear_alarm: "Alarm löschen",
     clear_requires_home: "Nur von zuhause möglich",
     clear_presence_unknown: "Deinem Benutzer ist keine Person zugeordnet – Anwesenheit unbekannt",
-    hydraulic_clears_itself: "Endet automatisch, sobald der Durchfluss die Ruhebedingung erfüllt.",
-    fallback_opened: "Diese Aktion ist im Backend noch nicht verfügbar – der Konfigurationsdialog wurde geöffnet.",
+    hydraulic_clears_itself: "Endet nur physisch: sobald der Durchfluss die Ruhebedingung erfüllt.",
+    action_unavailable: "Diese Aktion wird vom Backend noch nicht angeboten.",
     action_failed: "Aktion abgelehnt: {msg}",
+    integration_unavailable: "Die Integration liefert keinen Status. Die Anzeige ist nicht aktuell.",
+    sensor_unavailable: "Nicht verfügbar",
     flow: "Durchfluss",
     flow_unavailable: "Kein Messwert",
     high: "High",
     burst: "Burst",
     detectors: "Erkennung",
-    always_on: "immer aktiv",
+    always_on: "nicht abschaltbar",
     bypass: "High-Flow-Bypass",
     bypass_off: "Aus – High Flow wird überwacht",
     bypass_on: "Aktiv – noch {left}",
@@ -126,14 +190,17 @@ const I18N = {
       show_external: "Externe Sensoren",
       show_learning: "Lernmodell",
       show_background: "Hintergrundmotiv",
+      title_hint: "Ohne Titel wird der Gerätename aus Home Assistant verwendet.",
     },
   },
   en: {
     title: "Water Leak Guard",
     not_found: "No Water Leak Guard instance found. Pick the status entity in the card editor.",
     status: {
+      unavailable: "Status unavailable",
       source_unavailable: "Source unavailable",
-      idle: "All quiet",
+      idle: "No alarm",
+      all_quiet: "All quiet",
       slow_leak_monitoring: "Checking Slow Leak",
       low_flow_monitoring: "Checking Low Flow",
       high_flow_monitoring: "Checking High Flow",
@@ -155,9 +222,56 @@ const I18N = {
       slow_leak: "Very small continuous loss",
       low_flow: "Moderate flow lasting too long",
       high_flow: "Sustained high consumption",
-      burst_leak: "Pipe failure – always on",
+      burst_leak: "Pipe failure",
     },
-    phase: { idle: "Ready", monitoring: "Checking", active: "Alarm", off: "Off", bypass: "Bypass" },
+    phase: { idle: "Ready", monitoring: "Checking", active: "Alarm", off: "Off", bypass: "Bypass", paused: "Paused" },
+    paused_hint: "Nothing is evaluated without a valid measurement. Existing progress is kept.",
+    monitoring: {
+      label: "Hydraulic monitoring",
+      active: "Active",
+      waiting_for_measurement: "Waiting for measurement",
+      blocked: "Blocked",
+      unavailable: "Unavailable",
+      missing: "Unknown",
+    },
+    monitoring_hint: {
+      active: "Flow is being evaluated.",
+      waiting_for_measurement: "No valid measurement since startup yet. Leak detection is not evaluating anything yet.",
+      blocked: "Measurements are currently not evaluated. Existing alarms stay active.",
+      unavailable: "The entity is unavailable. The monitoring state is unknown.",
+      missing: "This integration version does not report its monitoring state (available from 1.2.0-beta.3). Whether it is evaluating is unknown.",
+    },
+    monitoring_details: "Reason and measurement provenance",
+    detail: {
+      reason: "Reason",
+      source: "Source",
+      provenance: "MQTT provenance",
+      last_measurement: "Last valid measurement",
+      age: "Age",
+    },
+    reason: {
+      verified_measurement: "Valid measurement",
+      waiting_for_measurement: "No measurement since startup yet",
+      source_unavailable: "Source reports no valid state",
+      source_missing: "Source entity is missing",
+      source_timeout: "No new measurement for too long (expert limit exceeded)",
+      invalid_flow_measurement: "Invalid measurement",
+      provenance_persistence_failed: "Measurement provenance could not be saved",
+      awaiting_original_measurement: "Waiting for the meter's original measurement time",
+      startup_not_initialized: "Startup not finished yet",
+      unsupported_mqtt_adapter: "Unsupported MQTT source",
+      original_measurement_missing: "Original measurement time missing in MQTT message (timestamp field)",
+      retained_or_unbound_message: "Retained or unbound MQTT message",
+      out_of_order_original_message: "MQTT message out of order",
+      pre_startup_measurement: "Measurement predates startup",
+      unbound_rendered_state: "State without a matching MQTT measurement",
+      invalid_original_identity: "Invalid measurement identity",
+      replayed_or_out_of_order_measurement: "Replayed or outdated measurement",
+      future_measurement: "Measurement time lies in the future",
+      stale_measurement: "Measurement is too old",
+      verified_original_measurement: "Original measurement time verified",
+      not_mqtt: "Not an MQTT source",
+    },
     alarm: "Leak alarm",
     shutoff: "Shutoff requested",
     no_shutoff: "No shutoff",
@@ -168,19 +282,26 @@ const I18N = {
     acknowledged_by: "Acknowledged by {who}",
     not_acknowledged: "Not acknowledged",
     acknowledge: "Acknowledge",
-    acknowledge_hint: "Stops notifications. Alarm and shutoff request stay active.",
+    acknowledge_hint: "Acknowledging only stops notifications. Detection, alarm and shutoff request stay active.",
+    muted_count: "Muted on {n} device(s)",
+    how_mute: "Mute: from the notification on your own device – also away, only for that device.",
+    how_global_ack: "Acknowledge globally: only at home – from the notification or via Configure → Acknowledgements.",
+    how_external_reset: "Reset: from the notification of an authorized device at home, once the sensor reports dry again.",
+    open_integration: "Open integration",
     clear_alarm: "Clear alarm",
     clear_requires_home: "Only possible from home",
     clear_presence_unknown: "No person is linked to your user – presence unknown",
-    hydraulic_clears_itself: "Ends automatically once the flow meets its quiet condition.",
-    fallback_opened: "This action is not available in the backend yet – the configuration dialog was opened.",
+    hydraulic_clears_itself: "Ends only physically: once the flow meets its quiet condition.",
+    action_unavailable: "The backend does not offer this action yet.",
     action_failed: "Action rejected: {msg}",
+    integration_unavailable: "The integration reports no status. The display is not current.",
+    sensor_unavailable: "Unavailable",
     flow: "Flow",
     flow_unavailable: "No reading",
     high: "High",
     burst: "Burst",
     detectors: "Detection",
-    always_on: "always on",
+    always_on: "cannot be disabled",
     bypass: "High Flow bypass",
     bypass_off: "Off – High Flow is monitored",
     bypass_on: "Active – {left} left",
@@ -212,6 +333,7 @@ const I18N = {
       show_external: "External sensors",
       show_learning: "Learning",
       show_background: "Background motif",
+      title_hint: "Without a title the Home Assistant device name is used.",
     },
   },
 };
@@ -301,6 +423,13 @@ function resolveEntities(hass, statusEntityId) {
   return map;
 }
 
+/** Device name as configured in Home Assistant (respects a user rename). */
+function deviceName(hass, statusEntityId) {
+  const deviceId = hass?.entities?.[statusEntityId]?.device_id;
+  const device = deviceId ? hass?.devices?.[deviceId] : undefined;
+  return device?.name_by_user || device?.name || undefined;
+}
+
 /** Presence of the logged-in viewer, derived from the person linked to the HA user. */
 function viewerPresence(hass) {
   const userId = hass?.user?.id;
@@ -387,7 +516,12 @@ class WaterLeakGuardCard extends HTMLElement {
       return s ? `${id}:${s.state}:${s.last_updated}` : `${id}:-`;
     });
     const presence = viewerPresence(this._hass);
-    parts.push(`p:${presence.known}:${presence.home}`, `l:${lang(this._hass)}`, `a:${this._hass.user?.is_admin}`);
+    parts.push(
+      `p:${presence.known}:${presence.home}`,
+      `l:${lang(this._hass)}`,
+      `a:${this._hass.user?.is_admin}`,
+      `d:${deviceName(this._hass, this._statusEntity) || ""}`
+    );
     return parts.join("|");
   }
 
@@ -429,14 +563,14 @@ class WaterLeakGuardCard extends HTMLElement {
     }
   }
 
-  /** Call a proposed backend command; fall back to the Configure dialog if unknown. */
+  /** Call a backend alarm command. Only reachable when INTERFACE.enabled is true. */
   async _proposed(command, payload) {
     try {
       await this._hass.callWS({ type: command, ...payload });
     } catch (err) {
       if (err && (err.code === "unknown_command" || err.code === "not_found")) {
-        fire(this, "hass-notification", { message: translator(this._hass)("fallback_opened") });
-        navigate(INTERFACE.fallbackPath);
+        // Never pretend: an unknown command is reported, nothing else is opened.
+        fire(this, "hass-notification", { message: translator(this._hass)("action_unavailable") });
         return;
       }
       throw err;
@@ -452,6 +586,9 @@ class WaterLeakGuardCard extends HTMLElement {
     switch (action) {
       case "more-info":
         fire(this, "hass-more-info", { entityId: target.dataset.entity });
+        break;
+      case "open-integration":
+        navigate(INTERFACE.integrationPath);
         break;
       case "toggle": {
         const entityId = target.dataset.entity;
@@ -484,11 +621,13 @@ class WaterLeakGuardCard extends HTMLElement {
         );
         break;
       case "acknowledge":
+        if (!INTERFACE.enabled) return;
         this._run(`ack:${target.dataset.event}`, async () =>
           this._proposed(INTERFACE.acknowledge, await this._serviceData({ event_id: target.dataset.event }))
         );
         break;
       case "clear": {
+        if (!INTERFACE.enabled) return;
         const payload = { event_id: target.dataset.event };
         if (target.dataset.source) payload.source_id = target.dataset.source;
         if (target.dataset.generation) payload.source_generation = target.dataset.generation;
@@ -521,22 +660,42 @@ class WaterLeakGuardCard extends HTMLElement {
     }
 
     const attrs = status.attributes || {};
-    const alarm = attrs.aggregate_alarm_active ?? this._state(map, "leak_alarm")?.state === "on";
-    const shutoff = attrs.aggregate_shutoff_request ?? this._state(map, "shutoff_request")?.state === "on";
+    const statusUnavailable = status.state === "unavailable" || status.state === "unknown";
+    const alarmEntity = this._state(map, "leak_alarm");
+    const shutoffEntity = this._state(map, "shutoff_request");
+    const alarm = Boolean(attrs.aggregate_alarm_active ?? alarmEntity?.state === "on");
+    const shutoff = Boolean(attrs.aggregate_shutoff_request ?? shutoffEntity?.state === "on");
+    const monitoring = this._monitoring(map, status);
+    // Alarm state and operating state are independent: "no alarm" never hides a
+    // blocked monitoring, and green is reserved for a confirmed active monitoring.
     const tone = alarm
       ? "alarm"
-      : status.state === "source_unavailable"
-        ? "warn"
-        : String(status.state).endsWith("_monitoring")
-          ? "watch"
-          : "ok";
+      : statusUnavailable
+        ? "neutral"
+        : monitoring.state === "blocked" || (monitoring.state === "missing" && status.state === "source_unavailable")
+          ? "warn"
+          : monitoring.state !== "active"
+            ? "neutral"
+            : String(status.state).endsWith("_monitoring")
+              ? "watch"
+              : "ok";
+
+    const header = this._renderHeader(t, status, tone, alarm, shutoff, monitoring, statusUnavailable);
+    if (statusUnavailable) {
+      this.shadowRoot.innerHTML = `<style>${STYLES}</style>
+        <ha-card class="tone-${tone}">${header}
+          <div class="banner banner-warn"><ha-icon icon="mdi:alert-circle-outline"></ha-icon><span>${esc(t("integration_unavailable"))}</span></div>
+        </ha-card>`;
+      return;
+    }
 
     const sections = [
-      this._renderHeader(t, status, tone, alarm, shutoff),
-      this._renderBanners(t, status),
+      header,
+      this._renderBanners(t, status, monitoring),
+      this._renderMonitoring(t, map, monitoring),
       alarm ? this._renderAlarm(t, map, status) : "",
       this._config.show_flow ? this._renderFlow(t, map) : "",
-      this._config.show_detectors ? this._renderDetectors(t, map, status) : "",
+      this._config.show_detectors ? this._renderDetectors(t, map, status, monitoring) : "",
       this._config.show_bypass ? this._renderBypass(t, map) : "",
       this._config.show_external ? this._renderExternal(t, status) : "",
       this._config.show_learning ? this._renderLearning(t, map) : "",
@@ -546,12 +705,48 @@ class WaterLeakGuardCard extends HTMLElement {
       <ha-card class="tone-${tone}">${sections.join("")}</ha-card>`;
   }
 
-  _renderHeader(t, status, tone, alarm, shutoff) {
-    const title = this._config.title || t("title");
+  /** Operating state of the hydraulic monitoring, independent of any alarm. */
+  _monitoring(map, status) {
+    const entity = this._state(map, "hydraulic_monitoring_status");
+    if (!entity) {
+      // Older backend without the entity: never guess "active".
+      return { state: "missing", entity: undefined, attrs: {}, fallbackBlocked: status.attributes?.source_available === false };
+    }
+    const state = MONITORING_STATES.includes(entity.state) ? entity.state : "unavailable";
+    return { state, entity, attrs: entity.attributes || {} };
+  }
+
+  /**
+   * The headline reports the alarm state only. The backend status reads
+   * `source_unavailable` during an outage even while an alarm is ACTIVE, so the
+   * alarm kind comes from the attributes and is never hidden by a source problem.
+   */
+  _headline(t, status, monitoring, statusUnavailable, alarm) {
+    const label = (key) => {
+      const text = t(`status.${key}`);
+      return text === `status.${key}` ? key : text;
+    };
+    if (statusUnavailable) return t("status.unavailable");
+    const a = status.attributes || {};
+    if (alarm) {
+      const kind = a.active_detector || (status.state !== "source_unavailable" ? status.state : null);
+      return kind ? label(kind) : t("alarm");
+    }
+    if (status.state === "source_unavailable") {
+      // With the monitoring entity, its own row explains the source problem.
+      return monitoring.state === "missing" ? label("source_unavailable") : t("status.idle");
+    }
+    if (status.state === "idle") return monitoring.state === "active" ? t("status.all_quiet") : t("status.idle");
+    return label(status.state);
+  }
+
+  _renderHeader(t, status, tone, alarm, shutoff, monitoring, statusUnavailable) {
+    const title = this._config.title || deviceName(this._hass, status.entity_id) || t("title");
     const icon = {
       alarm: "mdi:water-alert",
       warn: "mdi:water-off",
       watch: "mdi:water-sync",
+      neutral: "mdi:water-outline",
       ok: "mdi:water-check",
     }[tone];
     return `
@@ -562,7 +757,7 @@ class WaterLeakGuardCard extends HTMLElement {
         </button>
         <div class="head-text">
           <div class="eyebrow">${esc(title)}</div>
-          <div class="headline">${esc(t(`status.${status.state}`) || status.state)}</div>
+          <div class="headline">${esc(this._headline(t, status, monitoring, statusUnavailable, alarm))}</div>
         </div>
         <div class="flags">
           ${alarm ? `<span class="flag flag-alarm"><ha-icon icon="mdi:pipe-leak"></ha-icon>${esc(t("alarm"))}</span>` : ""}
@@ -571,16 +766,60 @@ class WaterLeakGuardCard extends HTMLElement {
       </header>`;
   }
 
-  _renderBanners(t, status) {
+  _renderBanners(t, status, monitoring) {
     const a = status.attributes || {};
     const out = [];
     if (a.storage_recovery_required) {
       out.push(`<div class="banner banner-alarm"><ha-icon icon="mdi:database-alert"></ha-icon><span>${esc(t("storage_recovery"))}</span></div>`);
     }
-    if (status.state === "source_unavailable" || a.source_available === false) {
+    // With the monitoring entity, its own row explains source problems in detail.
+    if (monitoring.state === "missing" && (status.state === "source_unavailable" || a.source_available === false)) {
       out.push(`<div class="banner banner-warn"><ha-icon icon="mdi:access-point-network-off"></ha-icon><span>${esc(t("source_unavailable_banner"))}</span></div>`);
     }
     return out.join("");
+  }
+
+  _renderMonitoring(t, map, monitoring) {
+    const state = monitoring.state;
+    const pillClass = { active: "ok", waiting_for_measurement: "monitoring", blocked: "warn" }[state] || "unknown";
+    const a = monitoring.attrs;
+    const reasonText = (code) => {
+      if (!code) return "–";
+      const text = t(`reason.${code}`);
+      return text === `reason.${code}` ? code : text;
+    };
+    let details = "";
+    if (state === "blocked" || state === "waiting_for_measurement") {
+      const rows = [
+        [t("detail.reason"), `${esc(reasonText(a.reason))}${a.reason ? ` <code>${esc(a.reason)}</code>` : ""}`],
+        [t("detail.source"), a.source_entity_id
+          ? `<button class="link-plain linkish" data-action="more-info" data-entity="${esc(a.source_entity_id)}">${esc(a.source_entity_id)}</button>`
+          : "–"],
+      ];
+      if (a.mqtt_provenance_status && a.mqtt_provenance_status !== "not_mqtt" && a.mqtt_provenance_status !== a.reason) {
+        rows.push([t("detail.provenance"), `${esc(reasonText(a.mqtt_provenance_status))} <code>${esc(a.mqtt_provenance_status)}</code>`]);
+      }
+      rows.push([t("detail.last_measurement"), a.last_valid_measurement ? esc(formatClock(this._hass, a.last_valid_measurement)) : "–"]);
+      if (num(a.observation_age_seconds) != null) rows.push([t("detail.age"), esc(formatSeconds(a.observation_age_seconds))]);
+      details = `
+        <details class="details" ${state === "blocked" ? "open" : ""}>
+          <summary>${esc(t("monitoring_details"))}</summary>
+          <dl>${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}</dl>
+        </details>`;
+    }
+    return `
+      <section class="monitor monitor-${pillClass}">
+        <div class="row">
+          <div class="row-text">
+            ${monitoring.entity
+              ? `<button class="row-title link-plain" data-action="more-info" data-entity="${esc(monitoring.entity.entity_id)}">${esc(t("monitoring.label"))}</button>`
+              : `<div class="row-title">${esc(t("monitoring.label"))}</div>`}
+            <div class="row-sub">${esc(t(`monitoring_hint.${state}`))}</div>
+          </div>
+          <span class="pill pill-${pillClass}">${esc(t(`monitoring.${state}`))}</span>
+        </div>
+        ${details}
+      </section>`;
   }
 
   /** One row per active physical event: hydraulic detectors and external sources. */
@@ -641,8 +880,15 @@ class WaterLeakGuardCard extends HTMLElement {
         const ackKey = `ack:${ev.event_id}`;
         const clearKey = `clear:${ev.event_id}`;
 
-        let clearHtml;
-        if (ev.external) {
+        const muted = Array.isArray(ack.muted_recipients) ? ack.muted_recipients.length : 0;
+        const how = [];
+        if (!acked) how.push(t("how_mute"), t("how_global_ack"));
+        how.push(ev.external ? t("how_external_reset") : t("hydraulic_clears_itself"));
+
+        let clearHtml = "";
+        if (!INTERFACE.enabled) {
+          clearHtml = "";
+        } else if (ev.external) {
           const blocked = !presence.home;
           const reason = !presence.known ? t("clear_presence_unknown") : t("clear_requires_home");
           clearHtml = `
@@ -653,8 +899,6 @@ class WaterLeakGuardCard extends HTMLElement {
               <ha-icon icon="${blocked ? "mdi:home-lock" : "mdi:broom"}"></ha-icon>${esc(t("clear_alarm"))}
             </button>
             ${blocked ? `<div class="note">${esc(reason)}</div>` : ""}`;
-        } else {
-          clearHtml = `<div class="note">${esc(t("hydraulic_clears_itself"))}</div>`;
         }
 
         return `
@@ -673,19 +917,26 @@ class WaterLeakGuardCard extends HTMLElement {
                 ${esc(acked ? t("acknowledged") : t("not_acknowledged"))}
               </span>
             </div>
-            <div class="event-actions">
+            ${muted && !acked ? `<div class="note">${esc(t("muted_count", { n: muted }))}</div>` : ""}
+            <ul class="how">${how.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>
+            ${INTERFACE.enabled ? `<div class="event-actions">
               ${acked ? "" : `
                 <button class="btn btn-primary" data-action="acknowledge" data-event="${esc(ev.event_id)}"
                   ${this._busy.has(ackKey) ? "disabled" : ""} title="${esc(t("acknowledge_hint"))}">
                   <ha-icon icon="mdi:bell-check"></ha-icon>${esc(t("acknowledge"))}
                 </button>`}
               ${clearHtml}
-            </div>
+            </div>` : ""}
           </div>`;
       })
       .join("");
 
-    return `<section class="alarm">${rows}<div class="note subtle">${esc(t("acknowledge_hint"))}</div></section>`;
+    const anyOpen = events.some((ev) => !ackStates[ev.event_id]?.globally_acknowledged);
+    const adminLink = this._hass.user?.is_admin && anyOpen && !INTERFACE.enabled
+      ? `<div class="event-actions"><button class="btn btn-ghost" data-action="open-integration">
+           <ha-icon icon="mdi:cog-outline"></ha-icon>${esc(t("open_integration"))}</button></div>`
+      : "";
+    return `<section class="alarm">${rows}${adminLink}<div class="note subtle">${esc(t("acknowledge_hint"))}</div></section>`;
   }
 
   _renderFlow(t, map) {
@@ -718,7 +969,7 @@ class WaterLeakGuardCard extends HTMLElement {
       </section>`;
   }
 
-  _renderDetectors(t, map, status) {
+  _renderDetectors(t, map, status, monitoring) {
     const a = status.attributes || {};
     const phases = a.detectors || {};
     const bypass = this._state(map, "high_flow_bypass")?.state === "on";
@@ -728,8 +979,18 @@ class WaterLeakGuardCard extends HTMLElement {
       const switchId = switches[kind];
       const enabled = switchId ? this._hass.states[switchId]?.state === "on" : true;
       let phase = phases[kind] || "idle";
+      let pillClass = null;
       if (!enabled) phase = "off";
       else if (kind === "high_flow" && bypass && phase !== "active") phase = "bypass";
+      // Without an evaluated measurement no detector is "ready"; ACTIVE alarms stay visible.
+      if (phase === "idle" || phase === "monitoring") {
+        if (monitoring.state === "missing") {
+          if (monitoring.fallbackBlocked) phase = "paused";
+          else pillClass = "unknown";
+        } else if (monitoring.state !== "active") {
+          phase = "paused";
+        }
+      }
       const busy = switchId && this._busy.has(`toggle:${switchId}`);
       const control = switchId
         ? `<button class="switch ${enabled ? "on" : ""}" role="switch" aria-checked="${enabled}"
@@ -744,7 +1005,7 @@ class WaterLeakGuardCard extends HTMLElement {
             <div class="row-title">${esc(t(`detector.${kind}`))}</div>
             <div class="row-sub">${esc(t(`detector_hint.${kind}`))}</div>
           </div>
-          <span class="pill pill-${phase}">${esc(t(`phase.${phase}`))}</span>
+          <span class="pill pill-${pillClass || phase}" ${phase === "paused" ? `title="${esc(t("paused_hint"))}"` : ""}>${esc(t(`phase.${phase}`))}</span>
           ${control}
         </div>`;
     }).join("");
@@ -793,8 +1054,15 @@ class WaterLeakGuardCard extends HTMLElement {
     if (sources.length === 0) return "";
     const rows = sources
       .map((s) => {
-        const phaseClass = s.identity_conflict ? "warn" : s.phase === "ACTIVE" ? "active" : s.phase === "ARMED" ? "idle" : "monitoring";
-        const label = s.identity_conflict ? t("external_conflict") : t(`external_phase.${s.phase}`);
+        const live = this._hass.states[s.source_entity];
+        const offline = !live || live.state === "unavailable" || live.state === "unknown";
+        let phaseClass = s.identity_conflict ? "warn" : s.phase === "ACTIVE" ? "active" : s.phase === "ARMED" ? "idle" : "monitoring";
+        let label = s.identity_conflict ? t("external_conflict") : t(`external_phase.${s.phase}`);
+        // A dry reading needs a reachable sensor; an ACTIVE leak always stays visible.
+        if (offline && s.phase !== "ACTIVE" && !s.identity_conflict) {
+          phaseClass = "unknown";
+          label = t("sensor_unavailable");
+        }
         return `
           <div class="row">
             <div class="row-text">
@@ -912,6 +1180,9 @@ const STYLES = `
   .motif .wave-front { opacity: .2; animation: wlg-drift 6s linear infinite reverse; }
   .motif .drop { fill: var(--wlg-alarm); opacity: 0; transform-box: fill-box; transform-origin: center; }
   .tone-alarm .motif .wave { fill: var(--wlg-alarm); }
+  /* No reassuring blue water while monitoring is not confirmed active. */
+  .tone-neutral .motif .wave { fill: var(--wlg-muted); }
+  .tone-warn .motif .wave { fill: var(--wlg-warn); }
   .tone-alarm .motif .shield-line { opacity: .35; }
   /* Alarm: the water runs to the right wall, hits it with spray, and falls back. */
   .tone-alarm .motif .slosh {
@@ -955,6 +1226,7 @@ const STYLES = `
   .tone-watch { --tone: var(--wlg-watch); }
   .tone-warn { --tone: var(--wlg-warn); }
   .tone-alarm { --tone: var(--wlg-alarm); }
+  .tone-neutral { --tone: var(--wlg-muted); }
   .tone-alarm .orb { animation: pulse 1.6s ease-in-out infinite; }
   @keyframes pulse { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--wlg-alarm) 0%, transparent), 0 0 0 4px color-mix(in srgb, var(--wlg-alarm) 25%, transparent); } }
   @media (prefers-reduced-motion: reduce) { .tone-alarm .orb { animation: none; } }
@@ -1025,7 +1297,22 @@ const STYLES = `
   .pill-monitoring { background: color-mix(in srgb, var(--wlg-watch) 16%, transparent); color: var(--wlg-watch); }
   .pill-active, .pill-alarm { background: var(--wlg-alarm); color: var(--text-primary-color, #fff); }
   .pill-bypass, .pill-warn { background: color-mix(in srgb, var(--wlg-warn) 18%, transparent); color: var(--wlg-warn); }
-  .pill-off { background: var(--wlg-soft); color: var(--wlg-muted); }
+  .pill-off, .pill-paused, .pill-unknown { background: var(--wlg-soft); color: var(--wlg-muted); }
+  .pill-unknown { border: 1px dashed var(--wlg-line); }
+
+  .monitor { margin: 0 16px 10px; padding: 2px 12px; border-radius: 12px; background: var(--wlg-soft); }
+  .monitor-warn { background: color-mix(in srgb, var(--wlg-warn) 14%, transparent); }
+  .monitor-monitoring { background: color-mix(in srgb, var(--wlg-watch) 10%, transparent); }
+  .monitor .row-title { font-weight: 500; }
+  .details { padding: 0 0 10px; font-size: 13px; }
+  .details summary { cursor: pointer; color: var(--wlg-muted); font-size: 12px; padding: 2px 0 6px; }
+  .details dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; }
+  .details dt { color: var(--wlg-muted); }
+  .details dd { margin: 0; overflow-wrap: anywhere; }
+  .details code { font-size: 11px; color: var(--wlg-muted); background: none; }
+  .linkish { color: var(--primary-color, #03a9f4); font-size: inherit; }
+  .how { margin: 8px 0 0; padding-left: 18px; font-size: 12px; color: var(--wlg-muted); line-height: 1.45; }
+  .how li + li { margin-top: 2px; }
 
   .switch {
     position: relative; width: 40px; height: 22px; border-radius: 999px; border: 0; cursor: pointer; flex: none;
@@ -1104,6 +1391,7 @@ class WaterLeakGuardCardEditor extends HTMLElement {
     if (!this._form) {
       this._form = document.createElement("ha-form");
       this._form.computeLabel = (s) => t(`editor.${s.name}`);
+      this._form.computeHelper = (s) => (s.name === "title" ? t("editor.title_hint") : undefined);
       this._form.addEventListener("value-changed", (ev) => {
         this._config = { ...this._config, ...ev.detail.value };
         fire(this, "config-changed", { config: this._config });

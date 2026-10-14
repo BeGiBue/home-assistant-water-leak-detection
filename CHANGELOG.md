@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Dashboard card 0.2.0: shows the new hydraulic monitoring state (active, waiting for
+  measurement, blocked) separately from the alarm state, with reason and MQTT provenance.
+  Green only for confirmed active monitoring; detectors show "paused" otherwise. An ACTIVE
+  alarm stays in the headline even while the status reports `source_unavailable`.
+- Card no longer offers acknowledge/clear buttons that the backend cannot serve; it explains
+  personal mute, Home-only global acknowledgement, external reset and physical hydraulic reset.
+- Card uses the Home Assistant device name as title; unavailable external sensors are no
+  longer shown as dry. Frontend only, no backend change.
+
 ## 1.2.0-beta.3
 
 - Add a regular, always-available hydraulic monitoring status sensor with active,
@@ -10,7 +21,7 @@
 
 All notable changes to Water Leak Guard are documented here.
 
-## Unreleased
+## Dashboard card 0.1.0 (merged before 1.2.0-beta.3)
 
 - Prepared the `water-leak-guard-card` Lovelace card (frontend only, no backend change):
   status, flow, detectors, bypass, external sensors and learning, DE/EN, light/dark.
