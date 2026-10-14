@@ -213,7 +213,8 @@
           "add_recipient": "Add recipient",
           "edit_recipient": "Edit recipient",
           "remove_recipient": "Remove recipient",
-          "back_to_main": "Back to configuration"
+          "back_to_main": "Back to configuration",
+          "pair_device": "Pair device for the dashboard card"
         }
       },
       "sources": {
@@ -278,6 +279,16 @@
           "recipient_id": "Authorized recipient",
           "go_back": "Back"
         }
+      },
+      "pair_device": {
+        "title": "Pair device",
+        "description": "Assign the Home Assistant login of this device (Companion app or browser) to a recipient. The dashboard card then identifies the device on the server: muting applies to this device only; global acknowledgement and external reset need the permission and its device tracker at home.\n\nA paired recipient is marked with 🔗. “—” removes the pairing. If the device logs in again or the login is deleted under Profile → Security, pair it again.",
+        "data": {
+          "id": "Recipient",
+          "session_token_id": "Login (user · app/browser · last used)",
+          "go_back": "Back without saving"
+        },
+        "submit": "Save and return"
       }
     },
     "error": {
@@ -301,7 +312,9 @@
       "external_manager_unavailable": "Load the integration first so the safe source state can be verified.",
       "external_persistence_failed": "Saving failed. The previous alarm state is retained.",
       "acknowledgement_rejected": "Acknowledgement rejected: current event, permitted recipient and Home required.",
-      "acknowledgement_persistence_failed": "Acknowledgement could not be saved."
+      "acknowledgement_persistence_failed": "Acknowledgement could not be saved.",
+      "session_not_found": "This login no longer exists. Please reload the list.",
+      "session_already_paired": "This login is already paired with another recipient. Remove that pairing first."
     },
     "abort": {
       "no_mobile_app_notify_services": "No mobile_app notification services were found. Set up the Home Assistant Companion App first.",

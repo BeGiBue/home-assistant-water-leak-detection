@@ -104,28 +104,64 @@ bypass_presets: [60, 120, 240]        # Minuten, 1–1440
 Das Hintergrundmotiv übernimmt die Kartenfarbe (grün, grau, gelb, rot). Im Alarm schwappt das Wasser
 an die rechte Wand. Bei `prefers-reduced-motion` steht es still.
 
+## Backend-Vertrag für Kartenaktionen (Etappe B)
+
+Im Backend umgesetzt und getestet. Die Karte nutzt ihn erst ab Etappe C (`INTERFACE.enabled` bleibt
+bis dahin `false`).
+
+### Identität: das Gerät, nicht der Benutzer
+
+Ein Gerät ist fest mit seinem HA-Benutzer angemeldet. Jede Anmeldung (Companion App oder Browser) hat
+in Home Assistant eine eigene Login-ID (Refresh-Token-ID), die die WebSocket-Verbindung serverseitig
+mitführt und die das Gerät nicht fälschen kann. Unter **Konfigurieren → Benachrichtigungsempfänger →
+Gerät koppeln** ordnet ein Admin genau eine solche Anmeldung einem Empfänger zu (Auswahl aus der Liste:
+Benutzer · App/Browser · zuletzt genutzt · IP).
+
+- Gespeichert wird nur die Login-ID (`session_token_id` am Empfänger). Sie ist kein Geheimnis und
+  erlaubt allein keine Anmeldung.
+- Eine Anmeldung kann nur mit **einem** Empfänger gekoppelt sein.
+- Akzeptiert werden nur normale App-/Browser-Anmeldungen aktiver, nicht systemeigener Benutzer, die zum
+  Benutzer der Verbindung gehören. Long-Lived-Tokens (Skripte) zählen nie als gekoppeltes Gerät.
+- Wird die Anmeldung in HA gelöscht oder meldet sich das Gerät neu an, verliert die Kopplung sofort
+  ihre Wirkung. Das Gerät muss dann neu gekoppelt werden.
+- Nicht gekoppelte Sitzungen, etwa ein Desktop-Browser, können nur anzeigen.
+
+Damit hat zum Beispiel ein iPad zuhause (stationär, globale Quittierung erlaubt) mehr Rechte als das
+Telefon desselben Benutzers unterwegs.
+
+### Befehle
+
+Alle Befehle nehmen optional `config_entry_id` (nötig bei mehreren Instanzen). Kein Befehl nimmt oder
+liefert ein Empfänger-Token oder eine Reset-Nonce. Diese liest das Backend selbst und übergibt sie an die
+vorhandenen Prüffunktionen.
+
+| Befehl | Felder | Wirkung | Prüfung im Backend beim Ausführen |
+|---|---|---|---|
+| `water_leak_detection/session` | – | Auskunft: `paired`, `recipient_id`, `recipient_name`, `home`, `trusted_stationary`, `can_global_ack`, `can_external_reset` | nur Anzeige; jede Aktion prüft erneut |
+| `water_leak_detection/mute` | `event_id` | stummschalten **nur für dieses Gerät** | gekoppelt, Ereignis aktiv; überall erlaubt |
+| `water_leak_detection/acknowledge` | `event_id` | globale Quittierung | über `async_acknowledge_event`: Berechtigung, Device Tracker `home`, Ereignis aktiv, dauerhaft gespeichert vor Bestätigung |
+| `water_leak_detection/external_reset` | `event_id`, `source_id`, `source_generation` | externes Leck zurücksetzen | über `async_external_reset`: Berechtigung, `home`, exakte Ereignisbindung, dauerhaft gespeichert |
+
+Für hydraulische Alarme gibt es keinen Befehl: Sie enden nur physisch. Quittieren und Stummschalten
+beenden weder Erkennung noch Alarm noch Absperranforderung.
+
+### Fehlercodes
+
+| Code | Bedeutung für die Karte |
+|---|---|
+| `not_paired` | Dieses Gerät ist nicht gekoppelt (oder die Kopplung ist ungültig geworden) |
+| `not_home` | Dieses Gerät ist laut Device Tracker nicht zuhause |
+| `not_allowed` | Dem Empfänger fehlt die Berechtigung (globale Quittierung bzw. externer Reset) |
+| `event_not_active` | Ereignis ist nicht mehr aktiv oder gehört nicht zu dieser Quelle/Generation |
+| `not_committed` | Konnte nicht dauerhaft gespeichert werden; nichts wurde veröffentlicht |
+| `rejected` | Sonstige Ablehnung durch die Prüffunktion |
+| `instance_not_found` | Instanz unbekannt oder mehrdeutig (`config_entry_id` angeben) |
+
 ## Nächste Etappen
 
-**Etappe B – Backend-Vertrag (offen, Entscheidungen nötig).** Vor jeder Implementierung festlegen:
-
-- **Identität:** Zuordnung des angemeldeten HA-Benutzers (`connection.user`) zu Person und
-  Empfänger(n) serverseitig. Kein Token aus dem Frontend.
-- **Getrennte Aktionen:** persönliches Stummschalten (überall, nur eigene Empfänger), globale
-  Quittierung (Home-Prüfung beim Ausführen) und externes Zurücksetzen (Home, Berechtigung, Sensor
-  trocken). Hydraulische Alarme bleiben ausgeschlossen.
-- **Ereignisbindung:** jede Aktion mit exakter `event_id` (bei extern zusätzlich `source_id` und
-  `source_generation`), damit nie der falsche Alarm quittiert wird.
-- **Fehlercodes** für verständliche Meldungen, z. B. `not_home`, `not_active`, `not_authorized`,
-  `no_recipient`.
-- Vorher prüfen, ob vorhandene Backend-Funktionen (`async_acknowledge_event`, Mute-Pfad,
-  `async_external_reset`) wiederverwendet werden können.
-
-Platzhalter in der Karte (`INTERFACE`, derzeit `enabled: false`):
-`water_leak_detection/acknowledge` und `water_leak_detection/clear_alarm`. Namen und Felder
-richten sich nach dem Vertrag aus Etappe B.
-
-**Etappe C – Frontend-Anbindung** an den geprüften Vertrag, mit Tests für Berechtigung, mehrere
-Ereignisse und zuhause/unterwegs.
+**Etappe C – Frontend-Anbindung:** Die Karte fragt `session` ab und zeigt nur die Aktionen, die dieses
+Gerät gerade darf. Abgelehnte Aktionen erscheinen mit verständlichem Text zum Fehlercode. Tests für
+mehrere Ereignisse und zuhause/unterwegs.
 
 **Etappe D – Automatische Registrierung** (z. B. `StaticPathConfig` und
 `frontend.add_extra_js_url`) mit Versionsparameter, Migrationsanleitung für manuell eingetragene
