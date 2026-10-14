@@ -7,7 +7,9 @@
  * (authorization, Home presence, allowed alarm actions) stays in the backend.
  *
  * Alarm actions (stage C): the card asks `water_leak_detection/session` what this
- * device may do and shows only those actions. The device is identified by the
+ * device may do and shows only those actions. It asks on connect, when the page
+ * becomes visible, when an alarm starts, after each command, when the paired
+ * recipient's tracker changes and every 60 s during an alarm – never per render. The device is identified by the
  * backend through the HA login of the connection, paired with one notification
  * recipient; "home" comes only from that recipient's device tracker in the
  * backend. Every action is re-checked by the backend when it is executed.
@@ -24,7 +26,7 @@
  * License: AGPL-3.0-only (same as the integration).
  */
 
-const CARD_VERSION = "0.4.0";
+const CARD_VERSION = "0.4.1";
 const DOMAIN = "water_leak_detection";
 const CARD_TAG = "water-leak-guard-card";
 const EDITOR_TAG = "water-leak-guard-card-editor";
@@ -50,7 +52,7 @@ const ERROR_CODES = [
   "unknown_command",
 ];
 const SESSION_MIN_INTERVAL_MS = 5000;
-const SESSION_ALARM_INTERVAL_MS = 30000;
+const SESSION_ALARM_INTERVAL_MS = 60000;
 
 const MONITORING_STATES = ["active", "waiting_for_measurement", "blocked"];
 
@@ -540,23 +542,38 @@ class WaterLeakGuardCard extends HTMLElement {
     this._sessionLastAt = -Infinity;
     this._sessionTimer = undefined;
     this._sessionInterval = undefined;
+    // Session triggers that are independent of the render signature.
+    this._lastAlarm = undefined;
+    this._trackerSig = undefined;
+    this._onVisibility = () => {
+      // A burst of visibility events needs one answer, not a deferred second one.
+      if (document.visibilityState === "visible") this._requestSession({ defer: false });
+    };
     this.shadowRoot.addEventListener("click", (ev) => this._onClick(ev));
   }
 
   connectedCallback() {
+    document.addEventListener("visibilitychange", this._onVisibility);
     if (!this._sessionInterval) {
+      // Poll only while an alarm is active; without an alarm no buttons are shown.
       this._sessionInterval = setInterval(() => {
-        if (this._alarmActive()) this._requestSession({ defer: false });
+        if (this.isConnected && this._alarmActive()) this._requestSession({ defer: false });
       }, SESSION_ALARM_INTERVAL_MS);
     }
+    // hass may have been set while disconnected: render now.
+    this._signature = "";
+    this._update();
+    this._lastAlarm = this._alarmActive();
     this._requestSession({ defer: false });
   }
 
   disconnectedCallback() {
+    document.removeEventListener("visibilitychange", this._onVisibility);
     clearInterval(this._sessionInterval);
     clearTimeout(this._sessionTimer);
     this._sessionInterval = undefined;
     this._sessionTimer = undefined;
+    this._sessionSeq += 1; // answers still in flight are ignored
   }
 
   static get cardVersion() {
@@ -582,6 +599,10 @@ class WaterLeakGuardCard extends HTMLElement {
       this._configEntryLookup = undefined;
       this._session = { state: "pending" };
       this._sessionSeq += 1;
+      this._sessionLastAt = -Infinity;
+      this._trackerSig = undefined;
+      this._config = { ...DEFAULT_CONFIG, ...config };
+      if (this.isConnected) this._requestSession({ defer: false });
     }
     this._config = { ...DEFAULT_CONFIG, ...config };
     this._signature = "";
@@ -590,12 +611,35 @@ class WaterLeakGuardCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    // A detached card neither renders nor talks to the backend.
+    if (!this.isConnected) return;
+    this._update();
+    // Session triggers (not the render signature): alarm start and tracker change.
+    const alarm = this._alarmActive();
+    if (alarm && this._lastAlarm === false) this._requestSession();
+    this._lastAlarm = alarm;
+    const trackerSig = this._trackerState()?.state;
+    if (this._trackerSig !== undefined && trackerSig !== this._trackerSig) this._requestSession();
+    if (this._sessionTrackerId()) this._trackerSig = trackerSig;
+  }
+
+  _update() {
     const signature = this._computeSignature();
     if (signature !== this._signature) {
       this._signature = signature;
       this._render();
-      this._requestSession();
     }
+  }
+
+  /** The paired recipient's tracker, named by the session (refresh trigger and UI hint only). */
+  _sessionTrackerId() {
+    const d = this._session.state === "ok" ? this._session.data : {};
+    return d.paired === true && typeof d.tracker_entity === "string" ? d.tracker_entity : undefined;
+  }
+
+  _trackerState() {
+    const id = this._sessionTrackerId();
+    return id ? this._hass?.states?.[id] : undefined;
   }
 
   get hass() {
@@ -629,7 +673,10 @@ class WaterLeakGuardCard extends HTMLElement {
       const s = this._hass.states[id];
       return s ? `${id}:${s.state}:${s.last_updated}` : `${id}:-`;
     });
+    // The tracker only re-renders (home-only buttons); it never grants anything.
+    const tracker = this._trackerState();
     parts.push(
+      `t:${tracker ? tracker.state : "-"}`,
       `l:${lang(this._hass)}`,
       `a:${this._hass.user?.is_admin}`,
       `d:${deviceName(this._hass, this._statusEntity) || ""}`
@@ -720,6 +767,7 @@ class WaterLeakGuardCard extends HTMLElement {
    * used (out-of-order answers are dropped).
    */
   _requestSession({ defer = true } = {}) {
+    if (!this.isConnected) return;
     if (!this._hass || !this._config || typeof this._hass.callWS !== "function") return;
     if (!this._resolvedStatusId) return;
     const wait = this._sessionLastAt + SESSION_MIN_INTERVAL_MS - Date.now();
@@ -743,9 +791,11 @@ class WaterLeakGuardCard extends HTMLElement {
         // Older backend (unknown_command) or any error: view only.
         next = { state: "error", code: err?.code || "unknown", data: {} };
       }
-      if (seq !== this._sessionSeq) return;
+      if (seq !== this._sessionSeq || !this.isConnected) return;
       this._session = next;
-      this._render();
+      this._trackerSig = this._trackerState()?.state;
+      this._signature = "";
+      this._update();
     })();
   }
 
@@ -758,7 +808,9 @@ class WaterLeakGuardCard extends HTMLElement {
       resolved: s.state !== "pending",
       paired,
       recipientId: paired ? d.recipient_id : undefined,
-      home: paired && d.home === true,
+      // Home-only buttons need the session's `home` AND, when the tracker state is
+      // visible here, a live `home`: a stale session never keeps them enabled.
+      home: paired && d.home === true && (!this._trackerState() || this._trackerState().state === "home"),
       canAck: paired && d.can_global_ack === true,
       canReset: paired && d.can_external_reset === true,
       error: s.state === "error" ? s.code : undefined,

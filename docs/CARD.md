@@ -1,6 +1,6 @@
 # Dashboard-Karte (Lovelace)
 
-**Status:** Version 0.4.0 (Etappen A, B, C und D umgesetzt). Die Karte ist eine Ansicht auf die vorhandenen
+**Status:** Version 0.4.1 (Etappen A, B, C und D umgesetzt). Die Karte ist eine Ansicht auf die vorhandenen
 Entitäten, Dienste und Kartenbefehle und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
 Reset-Nonce, und Berechtigung, Anwesenheit und erlaubte Alarmaktionen prüft ausschließlich das
 Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).
@@ -68,12 +68,25 @@ steht immer in der eigenen Zeile **Hydraulische Überwachung**.
 
 ## Alarmbedienung in der Karte (Etappe C)
 
-Die Karte fragt beim Verbinden, bei jeder Änderung der angezeigten Zustände und während eines Alarms
-etwa alle 30 s den Befehl `water_leak_detection/session` ab – höchstens einmal je 5 s, nur die Antwort
-der neuesten Anfrage zählt. Sie zeigt pro aktivem Ereignis nur die Aktionen, die **dieses Gerät** gerade
+Die Karte fragt den Befehl `water_leak_detection/session` nur in diesen Fällen ab:
+
+- beim Verbinden der Karte und wenn die konfigurierte Entität (Instanz) wechselt,
+- wenn die Seite wieder sichtbar wird (`visibilitychange`),
+- beim Übergang „kein Alarm → Alarm“,
+- nach jeder Aktion der Karte,
+- wenn sich der Zustand des Device Trackers des gekoppelten Empfängers ändert (`tracker_entity` aus
+  der Session-Antwort),
+- alle 60 s, solange ein Alarm aktiv ist. Ohne Alarm fragt sie nicht regelmäßig.
+
+Normale Zustandsänderungen (Durchfluss, Dauer, Status) lösen keine Abfrage aus. Höchstens eine Abfrage
+je 5 s; nur die Antwort der neuesten Anfrage zählt. Eine abgehängte Karte fragt nichts ab und hält keine
+Timer. Sie zeigt pro aktivem Ereignis nur die Aktionen, die **dieses Gerät** gerade
 darf. „Zuhause“ kommt ausschließlich aus der Session-Antwort (Device Tracker des gekoppelten
-Empfängers), nicht aus einer Person-Entität im Browser. Das Backend prüft jede Aktion beim Ausführen
-erneut; die Karte entscheidet nichts.
+Empfängers), nicht aus einer Person-Entität im Browser. Den Tracker selbst nutzt die Karte nur als
+Anlass für eine neue Abfrage und als Anzeigehinweis: Ist sein Zustand sichtbar und nicht `home`, sperrt
+sie die nur-zuhause-Buttons sofort („Nur zuhause möglich“), auch wenn die letzte Session-Antwort noch
+„zuhause“ sagte. Freigeben kann nur eine neue Session-Antwort. Das Backend prüft jede Aktion beim
+Ausführen erneut; die Karte entscheidet nichts.
 
 | Aktion | Wirkung | Angezeigt, wenn | Gesperrt (mit Grund) |
 |---|---|---|---|
@@ -217,7 +230,7 @@ vorhandenen Prüffunktionen.
 
 | Befehl | Felder | Wirkung | Prüfung im Backend beim Ausführen |
 |---|---|---|---|
-| `water_leak_detection/session` | – | Auskunft: `paired`, `recipient_id`, `recipient_name`, `home`, `trusted_stationary`, `can_global_ack`, `can_external_reset` | nur Anzeige; jede Aktion prüft erneut |
+| `water_leak_detection/session` | – | Auskunft: `paired`, `recipient_id`, `recipient_name`, `home`, `tracker_entity`, `trusted_stationary`, `can_global_ack`, `can_external_reset` | nur Anzeige; jede Aktion prüft erneut |
 | `water_leak_detection/mute` | `event_id` | stummschalten **nur für dieses Gerät** | gekoppelt, Ereignis aktiv; überall erlaubt |
 | `water_leak_detection/acknowledge` | `event_id` | globale Quittierung | über `async_acknowledge_event`: Berechtigung, Device Tracker `home`, Ereignis aktiv, dauerhaft gespeichert vor Bestätigung |
 | `water_leak_detection/external_reset` | `event_id`, `source_id`, `source_generation` | externes Leck zurücksetzen | über `async_external_reset`: Berechtigung, `home`, exakte Ereignisbindung, dauerhaft gespeichert |

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Dashboard card 0.4.1: `session` is requested only on connect/instance change, page visible again,
+  alarm start, after a card command, on a change of the paired recipient's tracker and every 60 s
+  during an alarm (no polling without an alarm; never per render); a detached card makes no requests.
+  Home-only buttons are disabled at once when the visible tracker state is not `home`. The session
+  answer now includes the recipient's `tracker_entity` (additive, not a secret).
 - Dashboard card 0.4.0 (stage C): the card asks the backend (`session`) what this device may do and
   offers only those alarm actions – device mute, global acknowledgement (Home only) and external reset
   (Home, permission, with confirmation) – with the exact event/source binding and `config_entry_id`.

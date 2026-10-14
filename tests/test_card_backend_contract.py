@@ -176,8 +176,13 @@ async def test_same_user_ipad_home_has_more_rights_than_phone_away(
     runtime_hass.states.async_set("device_tracker.ipad", "home")
     phone, ipad_conn = Connection(user, tokens["phone"].id), Connection(user, tokens["ipad"].id)
 
-    assert (await call(handle_session, runtime_hass, phone))[0]["home"] is False
-    assert (await call(handle_session, runtime_hass, ipad_conn))[0]["home"] is True
+    phone_session = (await call(handle_session, runtime_hass, phone))[0]
+    ipad_session = (await call(handle_session, runtime_hass, ipad_conn))[0]
+    assert phone_session["home"] is False
+    assert ipad_session["home"] is True
+    # The paired recipient's own tracker, so the card can refresh on its changes.
+    assert phone_session["tracker_entity"] == "device_tracker.phone"
+    assert ipad_session["tracker_entity"] == "device_tracker.ipad"
     assert (await call(handle_acknowledge, runtime_hass, phone, event_id=event_id))[1] == "not_home"
     assert not manager.notifications.state_for(event_id).globally_acknowledged
     assert (await call(handle_mute, runtime_hass, phone, event_id=event_id))[1] is None
@@ -267,6 +272,8 @@ async def test_responses_never_contain_secrets(runtime_hass, runtime_entry, meas
     result, _ = await call(handle_session, runtime_hass, Connection(user, tokens["phone"].id))
     text = json.dumps(result)
     assert result["paired"] and result["recipient_id"] == "phone"
+    # The tracker entity id is not a secret and is allowed in the answer.
+    assert result["tracker_entity"] == "device_tracker.phone"
     assert "token_phone" not in text and tokens["phone"].id not in text
     assert tokens["phone"].token not in text
 
