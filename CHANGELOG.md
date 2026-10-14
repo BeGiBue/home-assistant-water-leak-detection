@@ -26,7 +26,8 @@
   let the card collapse in a content-sized container).
 - Card (also on main before): with monitoring reported active but the runtime store damaged or the source
   impaired (`source_unavailable`, `source_available: false`) the card was green "All quiet"; it is now
-  yellow "Monitoring impaired". An alarm headline keeps priority.
+  yellow "Monitoring impaired", the monitoring row shows a yellow "Impaired" instead of a green "Active"
+  and the detector tiles show "Paused" instead of "Ready". An alarm (headline and tile) keeps priority.
 - Card: the mute button names the paired recipient ("Mute for Bea" / "Für Bea stummschalten", from the
   session's `recipient_name`, escaped; old text without a name), because with a user pairing a laptop
   mutes the paired phone's recipient.

@@ -157,7 +157,10 @@ steht immer in der eigenen Zeile **Hydraulische Überwachung**.
 - Ist der Laufzeitspeicher beschädigt (`storage_recovery_required`), zeigen die Detektoren „Pausiert“
   statt „Bereit“; ein ACTIVE-Detektor bleibt „Alarm“. Meldet die Überwachung „aktiv“, ist aber der
   Speicher beschädigt oder die Messquelle gestört (`source_unavailable`, `source_available: false`), ist
-  die Karte ohne Alarm gelb mit „Überwachung eingeschränkt“ statt grün „Alles ruhig“. Ist der Alarm aktiv, ohne dass eine Alarmart
+  die Karte ohne Alarm gelb mit „Überwachung eingeschränkt“ statt grün „Alles ruhig“. Die Zeile
+  „Hydraulische Überwachung“ zeigt dann gelb „Eingeschränkt“ statt grün „Aktiv“, und die Detektoren zeigen
+  „Pausiert“ statt „Bereit“ – dasselbe wie ohne gültige Messung, denn es wird nicht verlässlich
+  ausgewertet; der Tooltip nennt den Grund. Ein ACTIVE-Detektor bleibt „Alarm“. Ist der Alarm aktiv, ohne dass eine Alarmart
   bekannt ist, lautet die Überschrift „Leckalarm“.
 - Ein **ACTIVE**-Alarm bleibt in jedem Betriebszustand sichtbar: Kopf rot, Detektor „Alarm“,
   Ereignis im Alarmkasten. Das Backend meldet als Status bei Quellenausfall `source_unavailable`,

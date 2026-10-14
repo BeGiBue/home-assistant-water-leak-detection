@@ -114,8 +114,10 @@ const I18N = {
       blocked: "Gesperrt",
       unavailable: "Nicht verfügbar",
       missing: "Unbekannt",
+      impaired: "Eingeschränkt",
     },
     monitoring_hint: {
+      impaired: "Die Überwachung meldet „aktiv“, aber Messquelle oder Laufzeitspeicher sind gestört. Der Zustand der Erkennung ist nicht gesichert; bestehende Alarme bleiben bestehen.",
       active: "Der Durchfluss wird ausgewertet.",
       waiting_for_measurement: "Seit dem Start liegt noch keine gültige Messung vor. Die Leckerkennung wertet noch nichts aus.",
       blocked: "Messwerte werden zurzeit nicht ausgewertet. Bestehende Alarme bleiben bestehen.",
@@ -296,8 +298,10 @@ const I18N = {
       blocked: "Blocked",
       unavailable: "Unavailable",
       missing: "Unknown",
+      impaired: "Impaired",
     },
     monitoring_hint: {
+      impaired: "Monitoring reports “active”, but the measurement source or the runtime store is impaired. The detection state is not reliable; existing alarms stay active.",
       active: "Flow is being evaluated.",
       waiting_for_measurement: "No valid measurement since startup yet. Leak detection is not evaluating anything yet.",
       blocked: "Measurements are currently not evaluated. Existing alarms stay active.",
@@ -1053,7 +1057,7 @@ class WaterLeakGuardCard extends HTMLElement {
       header,
       alarm ? this._renderAlarm(t, map, status) : "",
       this._renderBanners(t, status, monitoring, extOffline),
-      compactMonitoring ? "" : this._renderMonitoring(t, map, monitoring),
+      compactMonitoring ? "" : this._renderMonitoring(t, map, monitoring, status),
       this._config.show_flow ? this._renderFlow(t, map, compactMonitoring ? this._monitoringPill(t) : "") : "",
     ];
     const side = [
@@ -1214,9 +1218,11 @@ class WaterLeakGuardCard extends HTMLElement {
     return out.join("");
   }
 
-  _renderMonitoring(t, map, monitoring) {
-    const state = monitoring.state;
-    const pillClass = { active: "ok", waiting_for_measurement: "monitoring", blocked: "warn" }[state] || "unknown";
+  _renderMonitoring(t, map, monitoring, status) {
+    // "Active" with a source or runtime-store problem is not confirmed active:
+    // warning pill "Impaired" instead of green.
+    const state = monitoring.state === "active" && this._impaired(status) ? "impaired" : monitoring.state;
+    const pillClass = { active: "ok", waiting_for_measurement: "monitoring", blocked: "warn", impaired: "warn" }[state] || "unknown";
     const a = monitoring.attrs;
     const reasonText = (code) => {
       if (!code) return "–";
@@ -1487,7 +1493,9 @@ class WaterLeakGuardCard extends HTMLElement {
         } else if (monitoring.state === "missing") {
           if (monitoring.fallbackBlocked) phase = "paused";
           else pillClass = "unknown";
-        } else if (monitoring.state !== "active") {
+        } else if (monitoring.state !== "active" || this._impaired(status)) {
+          // Not evaluating reliably (no confirmed active monitoring, or the
+          // source is impaired): "Paused", the existing state for that, never green.
           phase = "paused";
         }
       }

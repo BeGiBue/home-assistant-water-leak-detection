@@ -210,6 +210,41 @@ test("_monitoringOk guards each input on its own (defense in depth)", async () =
   card.disconnectedCallback();
 });
 
+const section = (h, cls) => h.split(`class="${cls}`)[1]?.split("</section>")[0] ?? "";
+const tilePills = (h) => [...section(h, "block detectors").matchAll(/class="pill pill-(\w+)">([^<]*)</g)].map((m) => `${m[1]}:${m[2]}`);
+
+for (const [name, opts] of Object.entries({ storage_recovery_required: { storage: true }, source_unavailable: { statusState: "source_unavailable" }, "source_available false": { sourceAvailable: false } })) {
+  test(`impaired (${name}): row shows warning "Eingeschränkt", tiles paused, never green`, async () => {
+    let card = await mount(opts);
+    const row = section(html(card), "monitor ");
+    assert.ok(row, "full monitoring row rendered");
+    assert.match(row, /class="pill pill-warn">Eingeschränkt</);
+    assert.ok(!row.includes("pill-ok"), "row not green");
+    assert.deepEqual(tilePills(html(card)), ["paused:Pausiert", "paused:Pausiert", "paused:Pausiert", "paused:Pausiert"]);
+    // The tooltip names the reason: damaged store vs. no valid measurement.
+    const tips = [...section(html(card), "block detectors").matchAll(/class="tile [^"]*" title="([^"]*)"/g)].map((m) => m[1]);
+    const expected = opts.storage ? "Laufzeitspeicher beschädigt" : "Ohne gültige Messung wird nicht ausgewertet";
+    assert.ok(tips.length === 4 && tips.every((tip) => tip.includes(expected)), tips.join(" | "));
+    card.disconnectedCallback();
+    card = await mount({ ...opts, lang: "en" });
+    assert.match(section(html(card), "monitor "), /class="pill pill-warn">Impaired</);
+    card.disconnectedCallback();
+    // An active alarm stays an alarm on its tile.
+    card = await mount({ ...opts, alarm: "low_flow" });
+    const pills = tilePills(html(card));
+    assert.equal(pills[1], "active:Alarm");
+    assert.ok(pills.every((p) => !p.startsWith("idle") && !p.startsWith("ok")), pills.join(","));
+    card.disconnectedCallback();
+  });
+}
+
+test("healthy active monitoring with the full row (external sensor offline): green Aktiv, tiles Bereit", async () => {
+  const card = await mount({ externalOffline: true });
+  assert.match(section(html(card), "monitor "), /class="pill pill-ok">Aktiv</);
+  assert.deepEqual(tilePills(html(card)), ["idle:Bereit", "idle:Bereit", "idle:Bereit", "idle:Bereit"]);
+  card.disconnectedCallback();
+});
+
 test("full monitoring row whenever the pill is not shown", async () => {
   for (const monitoring of ["blocked", "waiting_for_measurement"]) {
     const card = await mount({ monitoring });
