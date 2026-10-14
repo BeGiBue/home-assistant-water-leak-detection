@@ -205,8 +205,12 @@ neu starten. Die Karte wird danach automatisch geladen: *Karte hinzufügen → W
 früher manuell eingetragene Ressource `/local/water-leak-guard-card.js` und die Datei in `<config>/www/`
 entfernen.
 
-Für Alarmaktionen in der Karte beim Empfänger des jeweiligen Geräts die Anmeldung wählen:
-*Konfigurieren → Benachrichtigungsempfänger → Empfänger bearbeiten → Gekoppelte Anmeldung für die
-Dashboard-Karte*. Das Feld ändert keine andere Einstellung des Empfängers.
+Für Alarmaktionen in der Karte beim Empfänger des jeweiligen Geräts die Kopplung wählen:
+*Konfigurieren → Benachrichtigungsempfänger → Empfänger bearbeiten → Kopplung für die Dashboard-Karte*.
+Standard ist **„Benutzer: Name“** (jede App-/Browser-Anmeldung dieses HA-Benutzers, übersteht eine
+Neuanmeldung; auch ein Laptop-Browser dieses Benutzers erhält die Rechte, „zuhause“ kommt vom Tracker
+des Empfängers). **„Anmeldung: …“** koppelt genau eine Anmeldung und hat Vorrang, z. B. für ein iPad mit
+anderen Rechten als das Telefon desselben Benutzers. Das Feld ändert keine andere Einstellung des
+Empfängers; bestehende Kopplungen an eine Anmeldung gelten weiter.
 Der Beta-Umfang bleibt ohne externe Lecksensoren.
 [Dashboard-Karte](Dashboard-Karte) · [Beta 2.0.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_2.0.0.md).

@@ -149,8 +149,8 @@ blocked, with reason), flow, detectors, High Flow bypass, external leak sensors 
 and controls only the existing switches and actions. For a device paired with a notification
 recipient it offers exactly the alarm actions the backend allows right now (device mute, global
 acknowledgement at home, external reset at home with permission); other devices are view only.
-Pair a device under **Configure → Notification recipients → Edit recipient → Paired login for
-the dashboard card**. Details, permissions and migration: [docs/CARD.md](docs/CARD.md). Tested with
+Pair a device under **Configure → Notification recipients → Edit recipient → Pairing for the
+dashboard card** (a Home Assistant user or a single login). Details, permissions and migration: [docs/CARD.md](docs/CARD.md). Tested with
 a simulated Home Assistant and the full CI suite; not yet tested on a live installation.
 
 ## Language and later configuration

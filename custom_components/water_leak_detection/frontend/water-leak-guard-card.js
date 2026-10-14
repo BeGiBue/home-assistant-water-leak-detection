@@ -21,12 +21,18 @@
  *     starting the High Flow bypass, also ends that detector's ACTIVE alarm at
  *     once (incl. its share of the shutoff request) without fixing the cause; the
  *     card asks for confirmation first. Burst Leak can be neither disabled nor bypassed.
+ *   - Since 0.5.0 the card has no detector switches. "Disable detection" exists
+ *     only inside the alarm box while that detector's alarm is ACTIVE, and both
+ *     alarm-ending actions (disable, bypass start during a High Flow alarm) are
+ *     offered only to a paired device at home – the same rule as every other
+ *     action that ends an alarm ("acknowledge from anywhere, clear only from
+ *     home"). This is a card rule only: HA entities and services stay unrestricted.
  * Acknowledging and muting never end detection, the alarm or the shutoff request.
  *
  * License: AGPL-3.0-only (same as the integration).
  */
 
-const CARD_VERSION = "0.4.1";
+const CARD_VERSION = "0.5.0";
 const DOMAIN = "water_leak_detection";
 const CARD_TAG = "water-leak-guard-card";
 const EDITOR_TAG = "water-leak-guard-card-editor";
@@ -166,7 +172,7 @@ const I18N = {
     external_reset_confirm: "Externes Leck „{name}“ zurücksetzen?\n\nDer Alarm dieses Sensors und sein Beitrag zur Absperranforderung enden sofort. Das Wasser am Sensor wird dadurch nicht beseitigt. Der Sensor wird erst wieder scharf, wenn er trocken meldet.",
     how_external_reset: "Endet durch „Externes Leck zurücksetzen“ – nur zuhause und mit Berechtigung, hier oder in der Benachrichtigung. Der Sensor wird erst wieder scharf, wenn er trocken meldet.",
     session_unpaired: "Dieses Gerät ist nicht gekoppelt – nur Anzeige.",
-    session_pair_hint: "Koppeln: Konfigurieren → Benachrichtigungsempfänger → Empfänger bearbeiten → Gekoppelte Anmeldung.",
+    session_pair_hint: "Koppeln: Konfigurieren → Benachrichtigungsempfänger → Empfänger bearbeiten → Kopplung für die Dashboard-Karte (Benutzer oder einzelne Anmeldung).",
     session_no_backend: "Dieses Backend bietet keine Kartenaktionen an.",
     session_failed: "Kartenaktionen sind gerade nicht verfügbar.",
     success: {
@@ -187,7 +193,7 @@ const I18N = {
     },
     open_integration: "Zur Integration",
     hydraulic_clears_itself: "Endet, sobald der Durchfluss die Ruhe-/Rücksetzbedingung erfüllt. Slow Leak und Low Flow enden auch beim Ausschalten ihres Detektors, High Flow beim Start des Bypass – die Ursache wird dadurch nicht behoben. Burst Leak endet nur physisch.",
-    ends_slow_low: "Endet, sobald der Durchfluss die Ruhe-/Rücksetzbedingung erfüllt. Ausschalten dieses Detektors beendet den Alarm ebenfalls sofort – die Ursache (z. B. ein offener Hahn oder ein Leck) wird dadurch nicht behoben.",
+    ends_slow_low: "Endet, sobald der Durchfluss die Ruhe-/Rücksetzbedingung erfüllt. „Erkennung abschalten“ beendet den Alarm ebenfalls sofort – die Ursache (z. B. ein offener Hahn oder ein Leck) wird dadurch nicht behoben.",
     ends_high: "Endet, sobald der Durchfluss die Ruhe-/Rücksetzbedingung erfüllt. Der Start des High-Flow-Bypass beendet den Alarm ebenfalls sofort – die Ursache (z. B. ein offener Hahn oder ein Leck) wird dadurch nicht behoben.",
     ends_burst: "Endet nur physisch: sobald der Durchfluss die Ruhe-/Rücksetzbedingung erfüllt. Burst Leak lässt sich weder ausschalten noch per Bypass überbrücken.",
     confirm_disable: "Ein Alarm „{kind}“ läuft. Ausschalten des Detektors beendet diesen Alarm und seinen Beitrag zur Absperranforderung sofort. Die Ursache (z. B. ein offener Hahn oder ein Leck) wird dadurch nicht behoben. Der Burst-Leak-Schutz bleibt aktiv.\n\nDetektor trotzdem ausschalten?",
@@ -202,11 +208,14 @@ const I18N = {
     high: "High",
     burst: "Burst",
     detectors: "Erkennung",
-    always_on: "nicht abschaltbar",
+    disable_detection: "Erkennung abschalten",
+    disable_detection_hint: "Schaltet diesen Detektor aus und beendet damit seinen Alarm. Wieder einschalten über die Geräteseite der Integration.",
+    bypass_start_alarm: "Bypass starten",
     bypass: "High-Flow-Bypass",
     bypass_off: "Aus – High Flow wird überwacht",
     bypass_on: "Aktiv – noch {left}",
     bypass_until: "bis {time}",
+    bypass_presets: "Dauer wählen",
     bypass_stop: "Beenden",
     bypass_default: "Standard",
     bypass_note: "Burst-Leak-Schutz bleibt immer aktiv.",
@@ -215,11 +224,14 @@ const I18N = {
     external_conflict: "Identitätskonflikt",
     contributes_shutoff: "Löst Absperrung aus",
     learning: "Lernmodell",
-    confidence: { insufficient: "Unzureichend", learning: "Lernt", reliable: "Zuverlässig" },
+    confidence: { insufficient: "Unzureichend", learning: "Lernt", reliable: "Zuverlässig", unknown: "Unbekannt" },
     coverage: "Abdeckung",
+    coverage_short: "{n}/{w} Tage",
     days: "{n} von {w} Tagen",
+    days_unit: "Tage",
     learned_max: "Normalspitze",
-    long_term_max: "Langzeitmaximum",
+    long_term_max: "Langzeit-Max.",
+    long_term_max_long: "Langzeitmaximum",
     samples: "Lernwerte",
     reset_learning: "Lernmodell zurücksetzen",
     reset_learning_confirm: "Alle gelernten Werte löschen? Detektoreinstellungen und aktive Alarme bleiben unverändert.",
@@ -336,7 +348,7 @@ const I18N = {
     external_reset_confirm: "Reset external leak “{name}”?\n\nThis sensor's alarm and its contribution to the shutoff request end immediately. The water at the sensor is not removed. The sensor re-arms only after it reports dry.",
     how_external_reset: "Ends with “Reset external leak” – only at home and with permission, here or from the notification. The sensor re-arms only after it reports dry.",
     session_unpaired: "This device is not paired – view only.",
-    session_pair_hint: "To pair: Configure → Notification recipients → Edit recipient → Paired login.",
+    session_pair_hint: "To pair: Configure → Notification recipients → Edit recipient → Pairing for the dashboard card (user or single login).",
     session_no_backend: "This backend does not offer card actions.",
     session_failed: "Card actions are currently unavailable.",
     success: {
@@ -357,7 +369,7 @@ const I18N = {
     },
     open_integration: "Open integration",
     hydraulic_clears_itself: "Ends once the flow meets its quiet/reset condition. Slow Leak and Low Flow also end when their detector is switched off, High Flow when the bypass is started – without fixing the cause. Burst Leak ends only physically.",
-    ends_slow_low: "Ends once the flow meets its quiet/reset condition. Switching this detector off also ends the alarm at once – without fixing the cause (e.g. an open tap or a leak).",
+    ends_slow_low: "Ends once the flow meets its quiet/reset condition. “Disable detection” also ends the alarm at once – without fixing the cause (e.g. an open tap or a leak).",
     ends_high: "Ends once the flow meets its quiet/reset condition. Starting the High Flow bypass also ends the alarm at once – without fixing the cause (e.g. an open tap or a leak).",
     ends_burst: "Ends only physically: once the flow meets its quiet/reset condition. Burst Leak can be neither switched off nor bypassed.",
     confirm_disable: "A {kind} alarm is running. Switching the detector off ends this alarm and its contribution to the shutoff request immediately. The cause (e.g. an open tap or a leak) is not fixed. Burst Leak protection stays active.\n\nSwitch the detector off anyway?",
@@ -372,11 +384,14 @@ const I18N = {
     high: "High",
     burst: "Burst",
     detectors: "Detection",
-    always_on: "cannot be disabled",
+    disable_detection: "Disable detection",
+    disable_detection_hint: "Switches this detector off and so ends its alarm. Switch it back on from the integration's device page.",
+    bypass_start_alarm: "Start bypass",
     bypass: "High Flow bypass",
     bypass_off: "Off – High Flow is monitored",
     bypass_on: "Active – {left} left",
     bypass_until: "until {time}",
+    bypass_presets: "Choose duration",
     bypass_stop: "Stop",
     bypass_default: "Default",
     bypass_note: "Burst Leak protection always stays active.",
@@ -385,11 +400,14 @@ const I18N = {
     external_conflict: "Identity conflict",
     contributes_shutoff: "Triggers shutoff",
     learning: "Learning",
-    confidence: { insufficient: "Insufficient", learning: "Learning", reliable: "Reliable" },
+    confidence: { insufficient: "Insufficient", learning: "Learning", reliable: "Reliable", unknown: "Unknown" },
     coverage: "Coverage",
+    coverage_short: "{n}/{w} days",
     days: "{n} of {w} days",
+    days_unit: "days",
     learned_max: "Normal peak",
-    long_term_max: "Long-term maximum",
+    long_term_max: "Long-term max",
+    long_term_max_long: "Long-term maximum",
     samples: "Samples",
     reset_learning: "Reset learning",
     reset_learning_confirm: "Delete all learned values? Detector settings and active alarms stay unchanged.",
@@ -545,6 +563,8 @@ class WaterLeakGuardCard extends HTMLElement {
     // Session triggers that are independent of the render signature.
     this._lastAlarm = undefined;
     this._trackerSig = undefined;
+    // Collapsible sections: per card instance, survives every re-render.
+    this._expanded = { bypass: false, learning: false };
     this._onVisibility = () => {
       // A burst of visibility events needs one answer, not a deferred second one.
       if (document.visibilityState === "visible") this._requestSession({ defer: false });
@@ -646,10 +666,21 @@ class WaterLeakGuardCard extends HTMLElement {
     return this._hass;
   }
 
+  /**
+   * Masonry height hint in 50 px units. The idle card is about 8 units tall in
+   * one column (sections collapsed) and about 5 in two columns; an alarm adds
+   * the alarm box. Masonry only uses it to balance columns.
+   */
   getCardSize() {
-    return 9;
+    const alarm = this._hass && this._config ? this._alarmActive() : false;
+    return alarm ? 12 : 8;
   }
 
+  /**
+   * Sections view: full section width by default (two columns inside the card
+   * once it is about 600 px wide), never narrower than half a section; the
+   * height follows the content.
+   */
   getGridOptions() {
     return { columns: 12, min_columns: 6, rows: "auto" };
   }
@@ -724,19 +755,20 @@ class WaterLeakGuardCard extends HTMLElement {
   }
 
   /**
-   * True if opening this entity's more-info dialog would offer a control that
-   * ends an ACTIVE alarm without the card's confirmation (bypass switch/duration
-   * during High Flow, Slow/Low detector switch during its own alarm).
+   * True if opening this entity's more-info dialog would offer a control the
+   * card must not offer: the Slow Leak/Low Flow detector switches never (the
+   * card has no switches since 0.5.0; disabling exists only as a confirmed alarm
+   * action), the bypass switch/duration during an ACTIVE High Flow alarm.
+   * Rendering never links these entities; this is defense in depth.
    */
   _guardedEntity(entityId) {
     if (!entityId) return false;
     const map = resolveEntities(this._hass, this._statusEntity);
-    const guards = [
-      ["high_flow", [map.high_flow_bypass, map.high_flow_bypass_duration]],
-      ["slow_leak", [map.slow_leak_detection]],
-      ["low_flow", [map.low_flow_detection]],
-    ];
-    return guards.some(([kind, ids]) => ids.includes(entityId) && this._detectorPhase(kind) === "active");
+    if ([map.slow_leak_detection, map.low_flow_detection].includes(entityId)) return true;
+    return (
+      [map.high_flow_bypass, map.high_flow_bypass_duration].includes(entityId) &&
+      this._detectorPhase("high_flow") === "active"
+    );
   }
 
   async _run(key, job) {
@@ -813,6 +845,9 @@ class WaterLeakGuardCard extends HTMLElement {
       home: paired && d.home === true && (!this._trackerState() || this._trackerState().state === "home"),
       canAck: paired && d.can_global_ack === true,
       canReset: paired && d.can_external_reset === true,
+      // Ending an alarm (disable detection, bypass start during High Flow) needs
+      // the same as the external reset: a paired device at home right now.
+      canClear: paired && d.home === true && (!this._trackerState() || this._trackerState().state === "home"),
       error: s.state === "error" ? s.code : undefined,
     };
   }
@@ -856,30 +891,37 @@ class WaterLeakGuardCard extends HTMLElement {
       case "open-integration":
         navigate(INTERFACE.integrationPath);
         break;
-      case "toggle": {
-        const entityId = target.dataset.entity;
-        const on = this._hass.states[entityId]?.state === "on";
+      case "toggle-section": {
+        const key = target.dataset.section;
+        if (!(key in this._expanded)) return;
+        this._expanded[key] = !this._expanded[key];
+        this._render();
+        break;
+      }
+      case "disable-detection": {
+        // Only offered inside the alarm box while this detector's alarm is ACTIVE
+        // and this device may end alarms (paired, at home). Re-checked here.
         const kind = target.dataset.kind;
+        if (kind !== "slow_leak" && kind !== "low_flow") return;
+        const map = resolveEntities(this._hass, this._statusEntity);
+        const entityId = map[`${kind}_detection`];
+        if (!entityId || this._hass.states[entityId]?.state !== "on") return;
+        if (this._detectorPhase(kind) !== "active" || !this._perm.canClear) return;
         // Switching off ends this detector's ACTIVE alarm at once (backend:
-        // apply_controls -> IDLE). Ask first; switching on never asks.
-        if (
-          on &&
-          (kind === "slow_leak" || kind === "low_flow") &&
-          this._detectorPhase(kind) === "active" &&
-          !window.confirm(t("confirm_disable", { kind: t(`detector.${kind}`) }))
-        ) {
-          return;
-        }
+        // apply_controls -> IDLE). Ask first.
+        if (!window.confirm(t("confirm_disable", { kind: t(`detector.${kind}`) }))) return;
         this._run(`toggle:${entityId}`, () =>
-          this._hass.callService("switch", on ? "turn_off" : "turn_on", { entity_id: entityId })
+          this._hass.callService("switch", "turn_off", { entity_id: entityId })
         );
         break;
       }
       case "bypass-start": {
         const minutes = num(target.dataset.minutes);
-        // Starting the bypass ends an ACTIVE High Flow alarm at once. Ask first.
-        if (this._detectorPhase("high_flow") === "active" && !window.confirm(t("confirm_bypass"))) {
-          return;
+        // Starting the bypass ends an ACTIVE High Flow alarm at once: only a
+        // device that may end alarms, and only after confirmation.
+        if (this._detectorPhase("high_flow") === "active") {
+          if (!this._perm.canClear) return;
+          if (!window.confirm(t("confirm_bypass"))) return;
         }
         this._run("bypass", async () =>
           this._hass.callService(
@@ -981,20 +1023,57 @@ class WaterLeakGuardCard extends HTMLElement {
       return;
     }
 
-    const sections = [
+    // One column below ~600 px card width; two columns above (container query).
+    // The alarm box always comes right after the header, in both layouts.
+    const main = [
       header,
+      alarm ? this._renderAlarm(t, map, status) : "",
       this._renderBanners(t, status, monitoring, extOffline),
       this._renderMonitoring(t, map, monitoring),
-      alarm ? this._renderAlarm(t, map, status) : "",
       this._config.show_flow ? this._renderFlow(t, map) : "",
+    ];
+    const side = [
       this._config.show_detectors ? this._renderDetectors(t, map, status, monitoring) : "",
       this._config.show_bypass ? this._renderBypass(t, map, status) : "",
       this._config.show_external ? this._renderExternal(t, status) : "",
       this._config.show_learning ? this._renderLearning(t, map) : "",
-    ];
+    ].join("");
 
-    this.shadowRoot.innerHTML = `<style>${STYLES}</style>
-      <ha-card class="tone-${tone}">${sections.join("")}</ha-card>`;
+    this._paint(`<style>${STYLES}</style>
+      <ha-card class="tone-${tone}"><div class="wlg" lang="${lang(this._hass)}">
+        <div class="col col-main">${main.join("")}</div>
+        ${side.trim() ? `<div class="col col-side">${side}</div>` : ""}
+      </div></ha-card>`);
+  }
+
+  /** Replace the card content and keep keyboard focus on the same control. */
+  _paint(html) {
+    const focused = this.shadowRoot.activeElement?.dataset?.focus;
+    this.shadowRoot.innerHTML = html;
+    if (focused) {
+      const again = [...this.shadowRoot.querySelectorAll("[data-focus]")].find((el) => el.dataset.focus === focused);
+      if (again && !again.hasAttribute("disabled")) again.focus();
+    }
+  }
+
+  /**
+   * Summary row of a collapsible section: a real button with aria-expanded.
+   * `extra` (e.g. the bypass Stop button) sits next to it, never inside it.
+   */
+  _summary(key, title, status, extra = "") {
+    const open = Boolean(this._expanded[key]);
+    return `
+      <div class="sum">
+        <button class="sum-btn" data-action="toggle-section" data-section="${esc(key)}" data-focus="section:${esc(key)}"
+          aria-expanded="${open}" aria-controls="wlg-${esc(key)}">
+          <span class="sum-text">
+            <span class="sum-title">${esc(title)}</span>
+            <span class="sum-status">${status}</span>
+          </span>
+          <ha-icon class="chev" icon="mdi:chevron-down" aria-hidden="true"></ha-icon>
+        </button>
+        ${extra}
+      </div>`;
   }
 
   /** Operating state of the hydraulic monitoring, independent of any alarm. */
@@ -1049,7 +1128,7 @@ class WaterLeakGuardCard extends HTMLElement {
     return `
       <header class="head${this._config.show_background ? " has-motif" : ""}">
         ${this._config.show_background ? BACKGROUND_MOTIF : ""}
-        <button class="orb" data-action="more-info" data-entity="${esc(status.entity_id)}" aria-label="${esc(title)}">
+        <button class="orb" data-action="more-info" data-entity="${esc(status.entity_id)}" data-focus="orb" aria-label="${esc(title)}">
           <ha-icon icon="${icon}"></ha-icon>
         </button>
         <div class="head-text">
@@ -1216,6 +1295,32 @@ class WaterLeakGuardCard extends HTMLElement {
             </button>`);
           if (away) reasons.push(t("requires_home"));
         }
+        // Alarm-ending hydraulic actions: only a paired device, enabled only at home.
+        // Unpaired devices get none (the session note below explains why).
+        const clearAway = !perm.canClear;
+        if ((ev.kind === "slow_leak" || ev.kind === "low_flow") && !ev.external && perm.paired) {
+          const switchId = map[`${ev.kind}_detection`];
+          if (switchId && this._hass.states[switchId]?.state === "on") {
+            const busyKey = `toggle:${switchId}`;
+            buttons.push(`
+              <button class="btn btn-danger-ghost" data-action="disable-detection" data-kind="${esc(ev.kind)}"
+                data-focus="disable:${esc(ev.kind)}"
+                ${clearAway || this._busy.has(busyKey) ? "disabled" : ""}
+                title="${esc(clearAway ? t("requires_home") : t("disable_detection_hint"))}">
+                <ha-icon icon="${clearAway ? "mdi:home-lock" : "mdi:power"}"></ha-icon>${esc(t("disable_detection"))}
+              </button>`);
+            if (clearAway && !reasons.includes(t("requires_home"))) reasons.push(t("requires_home"));
+          }
+        }
+        if (ev.kind === "high_flow" && !ev.external && perm.paired && this._config.show_bypass !== false && map.high_flow_bypass) {
+          buttons.push(`
+            <button class="btn btn-danger-ghost" data-action="bypass-start" data-focus="bypass-alarm"
+              ${clearAway || this._busy.has("bypass") ? "disabled" : ""}
+              title="${esc(clearAway ? t("requires_home") : t("bypass_note"))}">
+              <ha-icon icon="${clearAway ? "mdi:home-lock" : "mdi:timer-play-outline"}"></ha-icon>${esc(t("bypass_start_alarm"))}
+            </button>`);
+          if (clearAway && !reasons.includes(t("requires_home"))) reasons.push(t("requires_home"));
+        }
         if (ev.external && ev.source_id && ev.source_generation != null && perm.canReset) {
           const away = !perm.home;
           buttons.push(`
@@ -1280,10 +1385,10 @@ class WaterLeakGuardCard extends HTMLElement {
     const level = flow == null ? "none" : burst && flow >= burst ? "alarm" : high && flow >= high ? "warn" : flow > 0 ? "flow" : "none";
 
     return `
-      <section class="block">
+      <section class="block flow">
         <div class="block-head">
           <span>${esc(t("flow"))}</span>
-          <button class="link" data-action="more-info" data-entity="${esc(map.current_flow || "")}" ${map.current_flow ? "" : "disabled"}>
+          <button class="link" data-action="more-info" data-entity="${esc(map.current_flow || "")}" data-focus="flow" ${map.current_flow ? "" : "disabled"}>
             ${flow == null ? esc(t("flow_unavailable")) : `<b class="big">${esc(formatNumber(this._hass, flow, flow < 10 ? 1 : 0))}</b> L/h`}
           </button>
         </div>
@@ -1299,13 +1404,17 @@ class WaterLeakGuardCard extends HTMLElement {
       </section>`;
   }
 
+  /**
+   * Compact 2×2 status grid. Status only: no switches and no links – disabling
+   * Slow Leak/Low Flow exists only as a confirmed action in the alarm box.
+   */
   _renderDetectors(t, map, status, monitoring) {
     const a = status.attributes || {};
     const phases = a.detectors || {};
     const bypass = this._state(map, "high_flow_bypass")?.state === "on";
     const switches = { slow_leak: map.slow_leak_detection, low_flow: map.low_flow_detection };
 
-    const rows = HYDRAULIC_KINDS.map((kind) => {
+    const tiles = HYDRAULIC_KINDS.map((kind) => {
       const switchId = switches[kind];
       const enabled = switchId ? this._hass.states[switchId]?.state === "on" : true;
       let phase = phases[kind] || "idle";
@@ -1326,35 +1435,27 @@ class WaterLeakGuardCard extends HTMLElement {
           phase = "paused";
         }
       }
-      const busy = switchId && this._busy.has(`toggle:${switchId}`);
-      const control = switchId
-        ? `<button class="switch ${enabled ? "on" : ""}" role="switch" aria-checked="${enabled}"
-             aria-label="${esc(t(`detector.${kind}`))}" data-action="toggle" data-kind="${esc(kind)}" data-entity="${esc(switchId)}" ${busy ? "disabled" : ""}>
-             <span class="knob"></span></button>`
-        : kind === "burst_leak"
-          ? `<span class="fixed">${esc(t("always_on"))}</span>`
-          : `<span class="fixed"></span>`;
+      const tip = [t(`detector_hint.${kind}`), phase === "paused" ? t(pausedHint) : ""].filter(Boolean).join(" – ");
       return `
-        <div class="row">
-          <div class="row-text">
-            <div class="row-title">${esc(t(`detector.${kind}`))}</div>
-            <div class="row-sub">${esc(t(`detector_hint.${kind}`))}</div>
-          </div>
-          <span class="pill pill-${pillClass || phase}" ${phase === "paused" ? `title="${esc(t(pausedHint))}"` : ""}>${esc(t(`phase.${phase}`))}</span>
-          ${control}
+        <div class="tile tile-${esc(pillClass || phase)}" title="${esc(tip)}">
+          <span class="tile-name">${esc(t(`detector.${kind}`))}</span>
+          <span class="pill pill-${esc(pillClass || phase)}">${esc(t(`phase.${phase}`))}</span>
         </div>`;
     }).join("");
 
-    return `<section class="block"><div class="block-head"><span>${esc(t("detectors"))}</span></div>${rows}</section>`;
+    return `<section class="block detectors"><div class="block-head"><span>${esc(t("detectors"))}</span></div>
+      <div class="tiles">${tiles}</div></section>`;
   }
 
   _renderBypass(t, map, status) {
     const sw = this._state(map, "high_flow_bypass");
     if (!sw) return "";
     const active = sw.state === "on";
-    // During an ACTIVE High Flow alarm the switch's more-info dialog would start the
-    // bypass (and end the alarm) without the card's confirmation: plain text only.
+    // Starting the bypass during an ACTIVE High Flow alarm ends that alarm: only
+    // a paired device at home may do that from the card (and only after confirmation).
     const highAlarm = status?.attributes?.detectors?.high_flow === "active";
+    const perm = this._perm;
+    const startBlocked = highAlarm && !perm.canClear;
     const remaining = num(this._state(map, "high_flow_bypass_remaining")?.state) ?? num(sw.attributes?.remaining_seconds) ?? 0;
     const finishes = sw.attributes?.finishes_at;
     const defaultMinutes = num(this._state(map, "high_flow_bypass_duration")?.state);
@@ -1363,30 +1464,34 @@ class WaterLeakGuardCard extends HTMLElement {
       .map(num)
       .filter((m) => m && m >= 1 && m <= 1440);
 
-    const presetButtons = presets
-      .map((m) => `<button class="btn btn-ghost" data-action="bypass-start" data-minutes="${m}" ${busy ? "disabled" : ""}>${m % 60 === 0 ? `${m / 60} h` : `${m} min`}</button>`)
-      .join("");
+    const statusText = active
+      ? `<span class="on">${esc(t("bypass_on", { left: formatSeconds(remaining) }))}${finishes ? ` (${esc(t("bypass_until", { time: formatClock(this._hass, finishes) }))})` : ""}</span>`
+      : esc(t("bypass_off"));
+    const stop = active
+      ? `<button class="btn btn-primary btn-small" data-action="bypass-stop" data-focus="bypass-stop" ${busy ? "disabled" : ""}>
+           <ha-icon icon="mdi:stop-circle-outline"></ha-icon>${esc(t("bypass_stop"))}</button>`
+      : "";
+    const open = this._expanded.bypass;
+    const disabled = busy || startBlocked ? "disabled" : "";
+    const reason = startBlocked
+      ? `<div class="note reason">${esc(perm.paired ? t("requires_home") : t("session_unpaired"))}</div>`
+      : "";
+    const body = open
+      ? `<div class="sec-body" id="wlg-bypass">
+          ${active ? "" : `<div class="actions" role="group" aria-label="${esc(t("bypass_presets"))}">
+            ${presets.map((m) => `<button class="btn btn-ghost" data-action="bypass-start" data-minutes="${m}" data-focus="preset:${m}" ${disabled}>${m % 60 === 0 ? `${m / 60} h` : `${m} min`}</button>`).join("")}
+            <button class="btn btn-ghost" data-action="bypass-start" data-focus="preset:default" ${disabled}>${esc(t("bypass_default"))}${defaultMinutes ? ` · ${esc(formatSeconds(defaultMinutes * 60))}` : ""}</button>
+          </div>${reason}`}
+          <div class="note subtle">${esc(t("bypass_note"))}</div>
+        </div>`
+      : `<div id="wlg-bypass" hidden></div>`;
 
     return `
-      <section class="block">
-        <div class="block-head">
-          <span>${esc(t("bypass"))}</span>
-          ${highAlarm ? `<span class="link">` : `<button class="link" data-action="more-info" data-entity="${esc(sw.entity_id)}">`}
-            ${active
-              ? `${esc(t("bypass_on", { left: formatSeconds(remaining) }))}${finishes ? ` <span class="muted">${esc(t("bypass_until", { time: formatClock(this._hass, finishes) }))}</span>` : ""}`
-              : `<span class="muted">${esc(t("bypass_off"))}</span>`}
-          ${highAlarm ? `</span>` : `</button>`}
-        </div>
-        <div class="actions">
-          ${active
-            ? `<button class="btn btn-primary" data-action="bypass-stop" ${busy ? "disabled" : ""}><ha-icon icon="mdi:stop-circle-outline"></ha-icon>${esc(t("bypass_stop"))}</button>`
-            : `${presetButtons}
-               <button class="btn btn-ghost" data-action="bypass-start" ${busy ? "disabled" : ""}>${esc(t("bypass_default"))}${defaultMinutes ? ` · ${esc(formatSeconds(defaultMinutes * 60))}` : ""}</button>`}
-        </div>
-        <div class="note subtle">${esc(t("bypass_note"))}</div>
+      <section class="block coll${active ? " bypass-on" : ""}">
+        ${this._summary("bypass", t("bypass"), statusText, stop)}
+        ${body}
       </section>`;
   }
-
   _renderExternal(t, status) {
     const sources = (status.attributes?.external_sources || []).filter((s) => !s.tombstone);
     if (sources.length === 0) return "";
@@ -1426,31 +1531,41 @@ class WaterLeakGuardCard extends HTMLElement {
     const learnedVal = num(learned?.state);
     const longVal = num(longTerm?.state);
     const isAdmin = Boolean(this._hass.user?.is_admin);
-    const tone = { reliable: "ok", learning: "monitoring", insufficient: "idle" }[conf.state] || "idle";
+    // Only a reliable model may look reassuring (green); everything else is neutral.
+    const known = ["insufficient", "learning", "reliable"].includes(conf.state);
+    const tone = { reliable: "ok", learning: "monitoring", insufficient: "off" }[conf.state] || "unknown";
+    const label = t(`confidence.${known ? conf.state : "unknown"}`);
+    const fmt = (v) => (v == null ? "–" : esc(formatNumber(this._hass, v)));
+    const stat = (entity, key, value, unit, longKey) => {
+      const inner = `<span class="stat-label">${esc(t(key))}</span><b>${value}</b><small>${esc(unit)}</small>`;
+      const tip = esc(t(longKey || key));
+      return entity
+        ? `<button class="stat" data-action="more-info" data-entity="${esc(entity)}" data-focus="stat:${esc(key)}" title="${tip}" aria-label="${tip}: ${value} ${esc(unit)}">${inner}</button>`
+        : `<div class="stat" title="${tip}">${inner}</div>`;
+    };
+
+    const status = `<span class="pill pill-${tone}">${esc(label)}</span><span class="sum-cov">${esc(t("coverage_short", { n: days, w: windowDays }))}</span>`;
+    const open = this._expanded.learning;
+    const body = open
+      ? `<div class="sec-body" id="wlg-learning">
+          <div class="progress"><div style="width:${pct.toFixed(1)}%"></div></div>
+          <div class="stats">
+            ${stat(cov?.entity_id || conf.entity_id, "coverage", `${esc(days)}/${esc(windowDays)}`, t("days_unit"))}
+            ${stat(learned?.entity_id || conf.entity_id, "learned_max", fmt(learnedVal), "L/h")}
+            ${stat(longTerm?.entity_id, "long_term_max", fmt(longVal), "L/h", "long_term_max_long")}
+            ${stat(undefined, "samples", samples == null ? "–" : esc(formatNumber(this._hass, samples)), "")}
+          </div>
+          ${isAdmin ? `<div class="actions end">
+            <button class="btn btn-quiet" data-action="reset-learning" data-focus="reset-learning" ${this._busy.has("learning") ? "disabled" : ""}>
+              <ha-icon icon="mdi:restore"></ha-icon>${esc(t("reset_learning"))}
+            </button></div>` : ""}
+        </div>`
+      : `<div id="wlg-learning" hidden></div>`;
 
     return `
-      <section class="block">
-        <div class="block-head">
-          <span>${esc(t("learning"))}</span>
-          <span class="pill pill-${tone}">${esc(t(`confidence.${conf.state}`))}</span>
-        </div>
-        <div class="progress"><div style="width:${pct.toFixed(1)}%"></div></div>
-        <div class="stats">
-          <button class="stat" data-action="more-info" data-entity="${esc(cov?.entity_id || conf.entity_id)}">
-            <span>${esc(t("coverage"))}</span><b>${esc(t("days", { n: days, w: windowDays }))}</b>
-          </button>
-          <button class="stat" data-action="more-info" data-entity="${esc(learned?.entity_id || conf.entity_id)}">
-            <span>${esc(t("learned_max"))}</span><b>${learnedVal == null ? "–" : `${esc(formatNumber(this._hass, learnedVal))} L/h`}</b>
-          </button>
-          ${longTerm ? `<button class="stat" data-action="more-info" data-entity="${esc(longTerm.entity_id)}">
-            <span>${esc(t("long_term_max"))}</span><b>${longVal == null ? "–" : `${esc(formatNumber(this._hass, longVal))} L/h`}</b>
-          </button>` : ""}
-          <div class="stat"><span>${esc(t("samples"))}</span><b>${samples ?? "–"}</b></div>
-        </div>
-        ${isAdmin ? `<div class="actions end">
-          <button class="btn btn-quiet" data-action="reset-learning" ${this._busy.has("learning") ? "disabled" : ""}>
-            <ha-icon icon="mdi:restore"></ha-icon>${esc(t("reset_learning"))}
-          </button></div>` : ""}
+      <section class="block coll learning">
+        ${this._summary("learning", t("learning"), status)}
+        ${body}
       </section>`;
   }
 }
@@ -1498,29 +1613,38 @@ const STYLES = `
     --wlg-soft: color-mix(in srgb, var(--primary-text-color, #212121) 6%, transparent);
     display: block;
   }
-  ha-card { overflow: hidden; padding-bottom: 8px; }
+  /* The card measures itself: two columns once the CARD (not the viewport) is wide enough. */
+  ha-card { overflow: hidden; container-type: inline-size; container-name: wlg; }
+  .wlg { padding-bottom: 6px; }
+  .col { min-width: 0; }
+  @container wlg (min-width: 600px) {
+    .wlg { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+    .col-side { border-left: 1px solid var(--wlg-line); align-self: stretch; }
+    .col-side > .block:first-child { border-top: 0; }
+    .col-main > .block:last-child { padding-bottom: 6px; }
+  }
 
-  /* Shield + water motif: sits in the header and is cut off at its lower edge,
-     so it never runs behind the readings below. */
+  /* Shield + water motif: a small badge at the right edge of the header. Text
+     never runs under it (padding-right reserves its width). */
   .head { position: relative; isolation: isolate; overflow: hidden; }
-  .head.has-motif { min-height: 140px; box-sizing: border-box; align-content: center; padding-right: 120px; }
+  .head.has-motif { min-height: 96px; box-sizing: border-box; align-content: center; padding-right: 84px; }
   .head > :not(.motif) { position: relative; z-index: 1; }
   .motif {
-    position: absolute; z-index: 0; top: 12px; right: 16px; width: 98px; height: 118px;
+    position: absolute; z-index: 0; top: 50%; right: 14px; width: 62px; height: 74px; margin-top: -37px;
     pointer-events: none; color: var(--tone);
   }
-  .motif .shield-fill { fill: currentColor; opacity: .06; }
-  .motif .shield-line { fill: none; stroke: currentColor; stroke-width: 3; opacity: .22; }
-  .motif .shield-line.inner { stroke-width: 1.5; opacity: .14; }
+  .motif .shield-fill { fill: currentColor; opacity: .07; }
+  .motif .shield-line { fill: none; stroke: currentColor; stroke-width: 4; opacity: .24; }
+  .motif .shield-line.inner { stroke-width: 2; opacity: .14; }
   .motif .wave { fill: var(--wlg-water); }
-  .motif .wave-back { opacity: .12; animation: wlg-drift 9s linear infinite; }
-  .motif .wave-front { opacity: .2; animation: wlg-drift 6s linear infinite reverse; }
+  .motif .wave-back { opacity: .14; animation: wlg-drift 9s linear infinite; }
+  .motif .wave-front { opacity: .24; animation: wlg-drift 6s linear infinite reverse; }
   .motif .drop { fill: var(--wlg-alarm); opacity: 0; transform-box: fill-box; transform-origin: center; }
   .tone-alarm .motif .wave { fill: var(--wlg-alarm); }
   /* No reassuring blue water while monitoring is not confirmed active. */
   .tone-neutral .motif .wave { fill: var(--wlg-muted); }
   .tone-warn .motif .wave { fill: var(--wlg-warn); }
-  .tone-alarm .motif .shield-line { opacity: .35; }
+  .tone-alarm .motif .shield-line { opacity: .38; }
   /* Alarm: the water runs to the right wall, hits it with spray, and falls back. */
   .tone-alarm .motif .slosh {
     transform-box: view-box; transform-origin: 100px 150px; animation: wlg-slosh 1.5s infinite;
@@ -1544,8 +1668,8 @@ const STYLES = `
   }
   @media (prefers-reduced-motion: reduce) {
     .motif .wave, .tone-alarm .motif .slosh, .tone-alarm .motif .drop { animation: none; }
+    .chev, .meter-fill { transition: none; }
   }
-  @media (max-width: 380px) { .motif { width: 80px; height: 96px; right: 10px; } .head.has-motif { min-height: 120px; padding-right: 96px; } }
 
   ha-card.tone-alarm { box-shadow: inset 0 3px 0 var(--wlg-alarm), var(--ha-card-box-shadow, none); }
   ha-card.tone-warn { box-shadow: inset 0 3px 0 var(--wlg-warn), var(--ha-card-box-shadow, none); }
@@ -1553,10 +1677,10 @@ const STYLES = `
   button { font: inherit; color: inherit; }
   .empty { padding: 16px; color: var(--wlg-muted); }
 
-  .head { display: flex; align-items: center; gap: 12px; padding: 16px 16px 12px; flex-wrap: wrap; }
+  .head { display: flex; align-items: center; gap: 6px 12px; padding: 12px 16px 10px; flex-wrap: wrap; }
   .orb {
-    width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer; flex: none;
-    display: grid; place-items: center; --mdc-icon-size: 24px;
+    width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer; flex: none;
+    display: grid; place-items: center; --mdc-icon-size: 22px;
     background: color-mix(in srgb, var(--tone) 18%, transparent); color: var(--tone);
   }
   .tone-ok { --tone: var(--wlg-ok); }
@@ -1567,19 +1691,20 @@ const STYLES = `
   .tone-alarm .orb { animation: pulse 1.6s ease-in-out infinite; }
   @keyframes pulse { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--wlg-alarm) 0%, transparent), 0 0 0 4px color-mix(in srgb, var(--wlg-alarm) 25%, transparent); } }
   @media (prefers-reduced-motion: reduce) { .tone-alarm .orb { animation: none; } }
-  .head-text { flex: 1; min-width: 140px; }
-  .eyebrow { font-size: 12px; color: var(--wlg-muted); letter-spacing: .02em; }
-  .headline { font-size: 20px; font-weight: 500; line-height: 1.25; }
-  .flags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .head-text { flex: 1; min-width: 0; }
+  .eyebrow { font-size: 12px; color: var(--wlg-muted); letter-spacing: .02em; overflow-wrap: anywhere; }
+  .headline { font-size: 19px; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
+  .flags { display: flex; gap: 6px; flex-wrap: wrap; flex-basis: 100%; }
+  .flags:empty { display: none; }
   .flag {
-    display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 8px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px 3px 8px; border-radius: 999px;
     font-size: 12px; font-weight: 500; --mdc-icon-size: 16px;
   }
   .flag-alarm { background: var(--wlg-alarm); color: var(--text-primary-color, #fff); }
   .flag-shutoff { background: color-mix(in srgb, var(--wlg-alarm) 16%, transparent); color: var(--wlg-alarm); }
 
   .banner {
-    display: flex; gap: 10px; align-items: flex-start; margin: 0 16px 12px; padding: 10px 12px;
+    display: flex; gap: 10px; align-items: flex-start; margin: 0 16px 10px; padding: 8px 12px;
     border-radius: 10px; font-size: 13px; line-height: 1.4;
   }
   .banner ha-icon { flex: none; margin-top: 1px; }
@@ -1589,31 +1714,32 @@ const STYLES = `
   .banner-warn ha-icon { color: var(--wlg-warn); }
 
   .alarm {
-    margin: 0 16px 8px; padding: 12px; border-radius: 12px;
+    margin: 0 16px 10px; padding: 12px; border-radius: 12px;
     background: color-mix(in srgb, var(--wlg-alarm) 9%, transparent);
     border: 1px solid color-mix(in srgb, var(--wlg-alarm) 30%, transparent);
   }
   .event + .event { margin-top: 12px; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--wlg-alarm) 22%, transparent); }
   .event-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
-  .event-kind { font-weight: 500; font-size: 15px; }
+  .event-kind { font-weight: 500; font-size: 15px; overflow-wrap: anywhere; }
   .event-meta { font-size: 13px; color: var(--wlg-muted); margin-top: 2px; }
   .event-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
 
-  .block { padding: 12px 16px 4px; border-top: 1px solid var(--wlg-line); }
+  .block { padding: 10px 16px 4px; border-top: 1px solid var(--wlg-line); }
   .block-head {
     display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap;
-    font-size: 13px; font-weight: 500; color: var(--wlg-muted); margin-bottom: 8px;
+    font-size: 13px; font-weight: 500; color: var(--wlg-muted); margin-bottom: 6px;
   }
   .big { font-size: 22px; font-weight: 500; color: var(--primary-text-color); font-variant-numeric: tabular-nums; }
   .muted { color: var(--wlg-muted); font-weight: 400; }
 
-  .meter { position: relative; height: 10px; border-radius: 999px; background: var(--wlg-soft); margin: 6px 0 8px; }
+  .flow .block-head { margin-bottom: 2px; }
+  .meter { position: relative; height: 10px; border-radius: 999px; background: var(--wlg-soft); margin: 4px 0 6px; }
   .meter-fill { height: 100%; border-radius: inherit; transition: width .6s ease; background: var(--wlg-water); }
   .meter-fill.level-warn { background: var(--wlg-warn); }
   .meter-fill.level-alarm { background: var(--wlg-alarm); }
   .tick { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--wlg-warn); transform: translateX(-1px); }
   .tick-burst { background: var(--wlg-alarm); }
-  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11px; color: var(--wlg-muted); margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+  .legend { display: flex; gap: 4px 14px; flex-wrap: wrap; font-size: 11px; color: var(--wlg-muted); margin-bottom: 6px; font-variant-numeric: tabular-nums; }
   .legend span { display: inline-flex; align-items: center; gap: 5px; }
   .key { width: 2px; height: 10px; background: var(--wlg-warn); display: inline-block; }
   .key-burst { background: var(--wlg-alarm); }
@@ -1621,10 +1747,19 @@ const STYLES = `
   .row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
   .row + .row { border-top: 1px dashed var(--wlg-line); }
   .row-text { flex: 1; min-width: 0; }
-  .row-title { font-size: 14px; }
-  .row-sub { font-size: 12px; color: var(--wlg-muted); display: flex; align-items: center; gap: 4px; }
+  .row-title { font-size: 14px; overflow-wrap: anywhere; }
+  .row-sub { font-size: 12px; color: var(--wlg-muted); display: flex; align-items: center; gap: 4px; overflow-wrap: anywhere; }
   .mini { --mdc-icon-size: 14px; }
-  .fixed { min-width: 40px; font-size: 11px; color: var(--wlg-muted); text-align: right; white-space: nowrap; }
+
+  /* Detectors: compact 2×2 status grid, status only (no switches, no links). */
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; }
+  .tile {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0;
+    padding: 6px 6px 6px 10px; border-radius: 10px; background: var(--wlg-soft);
+  }
+  .tile-active { background: color-mix(in srgb, var(--wlg-alarm) 12%, transparent); }
+  .tile-name { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile .pill { padding: 2px 8px; font-size: 11px; flex: none; }
 
   .pill {
     display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 12px;
@@ -1637,45 +1772,56 @@ const STYLES = `
   .pill-off, .pill-paused, .pill-unknown { background: var(--wlg-soft); color: var(--wlg-muted); }
   .pill-unknown { border: 1px dashed var(--wlg-line); }
 
-  .monitor { margin: 0 16px 10px; padding: 2px 12px; border-radius: 12px; background: var(--wlg-soft); }
+  .monitor { margin: 0 16px 10px; padding: 0 12px; border-radius: 12px; background: var(--wlg-soft); }
+  .monitor .row { padding: 6px 0; }
   .monitor-warn { background: color-mix(in srgb, var(--wlg-warn) 14%, transparent); }
   .monitor-monitoring { background: color-mix(in srgb, var(--wlg-watch) 10%, transparent); }
   .monitor .row-title { font-weight: 500; }
   .details { padding: 0 0 10px; font-size: 13px; }
   .details summary { cursor: pointer; color: var(--wlg-muted); font-size: 12px; padding: 2px 0 6px; }
-  .details dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; }
+  .details dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 0; }
   .details dt { color: var(--wlg-muted); }
   .details dd { margin: 0; overflow-wrap: anywhere; }
   .details code { font-size: 11px; color: var(--wlg-muted); background: none; }
-  .linkish { color: var(--primary-color, #03a9f4); font-size: inherit; }
+  .linkish { color: var(--primary-color, #03a9f4); font-size: inherit; overflow-wrap: anywhere; text-align: left; }
   .how { margin: 8px 0 0; padding-left: 18px; font-size: 12px; color: var(--wlg-muted); line-height: 1.45; }
   .how li + li { margin-top: 2px; }
 
-  .switch {
-    position: relative; width: 40px; height: 22px; border-radius: 999px; border: 0; cursor: pointer; flex: none;
-    background: color-mix(in srgb, var(--primary-text-color, #212121) 22%, transparent); transition: background .2s;
+  /* Collapsible sections: summary row = real button (aria-expanded) + chevron. */
+  .coll { padding-top: 4px; padding-bottom: 4px; }
+  .sum { display: flex; align-items: center; gap: 8px; }
+  .sum-btn {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 0;
+    background: none; border: 0; cursor: pointer; text-align: left; border-radius: 8px;
   }
-  .switch .knob {
-    position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
-    background: var(--card-background-color, #fff); transition: transform .2s; box-shadow: 0 1px 2px rgba(0,0,0,.3);
-  }
-  .switch.on { background: var(--switch-checked-track-color, var(--primary-color, #03a9f4)); }
-  .switch.on .knob { transform: translateX(18px); }
+  .sum-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .sum-title { font-size: 13px; font-weight: 500; color: var(--wlg-muted); }
+  .sum-status { font-size: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; overflow-wrap: anywhere; }
+  .sum-status .pill { padding: 1px 8px; font-size: 12px; }
+  .sum-cov { color: var(--wlg-muted); font-variant-numeric: tabular-nums; }
+  .bypass-on .sum-status .on { color: var(--wlg-warn); font-weight: 500; }
+  .chev { color: var(--wlg-muted); flex: none; transition: transform .2s; }
+  .sum-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .sec-body { padding: 2px 0 6px; }
 
-  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 6px; }
   .actions.end { justify-content: flex-end; }
   .btn {
     display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 999px;
     border: 1px solid transparent; cursor: pointer; font-size: 14px; font-weight: 500; --mdc-icon-size: 18px;
+    max-width: 100%; text-align: left;
   }
+  .btn-small { min-height: 32px; padding: 0 12px; font-size: 13px; flex: none; }
   .btn[disabled] { opacity: .5; cursor: not-allowed; }
   .btn-primary { background: var(--primary-color, #03a9f4); color: var(--text-primary-color, #fff); }
   .btn-danger { background: var(--wlg-alarm); color: var(--text-primary-color, #fff); }
+  .btn-danger-ghost { background: transparent; border-color: color-mix(in srgb, var(--wlg-alarm) 45%, transparent); color: var(--wlg-alarm); }
+  .btn-danger-ghost:hover:not([disabled]) { background: color-mix(in srgb, var(--wlg-alarm) 10%, transparent); }
   .btn-ghost { background: transparent; border-color: var(--wlg-line); }
   .btn-ghost:hover:not([disabled]) { background: var(--wlg-soft); }
   .btn-quiet { background: transparent; color: var(--wlg-muted); padding: 0 8px; }
   .btn-quiet:hover:not([disabled]) { color: var(--wlg-alarm); }
-  .btn:focus-visible, .switch:focus-visible, .link:focus-visible, .stat:focus-visible, .orb:focus-visible {
+  .btn:focus-visible, .link:focus-visible, .link-plain:focus-visible, .stat:focus-visible, .orb:focus-visible, .sum-btn:focus-visible {
     outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px;
   }
 
@@ -1684,15 +1830,21 @@ const STYLES = `
   span.link { cursor: default; }
   .link[disabled] { cursor: default; }
   .note { font-size: 12px; color: var(--wlg-muted); line-height: 1.4; }
-  .note.subtle { margin: 6px 0 4px; }
+  .note.subtle { margin: 4px 0 2px; }
   .alarm .note.subtle { margin-top: 10px; }
 
-  .progress { height: 6px; border-radius: 999px; background: var(--wlg-soft); overflow: hidden; }
+  .progress { height: 4px; border-radius: 999px; background: var(--wlg-soft); overflow: hidden; margin: 2px 0 8px; }
   .progress div { height: 100%; background: var(--primary-color, #03a9f4); border-radius: inherit; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 10px 0 4px; }
-  .stat { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--wlg-soft); }
-  .stat span { font-size: 11px; color: var(--wlg-muted); }
-  .stat b { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  /* Four equal columns that never wrap, down to a 320 px card. */
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0 0 4px; }
+  .stat {
+    display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: 6px 6px; border-radius: 10px;
+    background: var(--wlg-soft); text-align: left;
+  }
+  .stat { justify-content: space-between; }
+  .stat-label { font-size: 10.5px; line-height: 1.2; color: var(--wlg-muted); overflow-wrap: anywhere; hyphens: auto; }
+  .stat b { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat small { font-size: 10.5px; color: var(--wlg-muted); min-height: 1.2em; }
 `;
 
 /* ------------------------------------------------------------------- editor */

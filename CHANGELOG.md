@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+- Dashboard card 0.5.0 – compact, collapsible, responsive layout. The idle card now fits on one screen:
+  386 px card width 884 → 457 px high, 320 px 930 → 457 px, a 744/768 px card (iPad, Raspberry Pi 7″
+  800×480) 810 → 244 px in two columns. Flatter header (about 96 px) with a smaller shield that text
+  never overlaps; detectors as a 2×2 status grid; "High Flow bypass" and "Learning" are collapsible
+  (summary row is a button with `aria-expanded`, collapsed by default, state kept per card across
+  updates); the four learning values sit in one row. Two columns once the card itself is about 600 px
+  wide (CSS container query). The alarm box comes right after the header. An insufficient learning
+  state is no longer green; only "reliable" is.
+- Card: no on/off switches anymore (maintainer decision). Slow Leak/Low Flow can be disabled from the
+  card only inside the alarm box while that detector's alarm is ACTIVE ("Disable detection", same
+  confirmation and `switch.turn_off` call). This and "Start bypass" during a High Flow alarm end the
+  alarm and are therefore offered only to a paired device at home, like the external reset;
+  away they are shown disabled ("Only possible at home"). HA entities and services stay unrestricted.
+  The detector switches are never linked or opened from the card. `getCardSize()` 9 → 8 (12 during an
+  alarm); `getGridOptions()` unchanged.
+- Recipients can be paired with a Home Assistant **user** (new default, `session_user_id`, every normal
+  login of that user, survives a new login) or, as before, with a single **login**
+  (`session_token_id`). A login pairing wins over a user pairing. Existing login pairings keep working
+  without migration; editing a recipient keeps its pairing unless changed. A user and a login can each
+  be paired with one recipient only (new errors `session_user_already_paired`,
+  `session_user_not_found`). Mute, acknowledgement, the Home check (paired recipient's tracker) and the
+  external reset are unchanged. The options form field is now `session_pairing` with values
+  `user:<id>` / `token:<id>`.
+- New preview image `docs/assets/card-preview.png` (iPhone idle and Burst Leak alarm).
+
 ## 2.0.0-beta.1 — 2026-10-14
 
 Major release for the dashboard: the card ships with the integration, shows alarm and hydraulic
