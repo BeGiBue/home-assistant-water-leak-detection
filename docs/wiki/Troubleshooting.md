@@ -216,3 +216,47 @@ Hilfreiche Angaben:
 - reproduzierbare Schritte
 
 Keine Zugangstokens oder Geheimnisse posten.
+
+## Hydraulische Überwachung: Warten oder Gesperrt
+
+1. Installierte Version nach Download und HA-Neustart prüfen; ein Release allein
+   installiert nichts. Die neue Entität am Integrationsgerät auswählen.
+2. Bei **Warte auf Messung** Flow-Quelle prüfen und einen echten frischen gültigen
+   Report abwarten. Eine explizite Ablehnung/Unverfügbarkeit muss Gesperrt ergeben.
+3. Bei **Gesperrt** Zustand, `reason`, `source_entity_id`, `source_available`,
+   `mqtt_provenance_status`, `last_valid_measurement` und `observation_age_seconds`
+   sichern. Der Zeitstempel ist der letzte gültige HA-Report; Alter ist monoton.
+   Nullwerte sind keine Ersatzmessung. Der Sensor bleibt bei Sperre verfügbar.
+4. Im Gesamtstatus `measurement_diagnostics` lesen: tatsächlicher Timeout,
+   `mqtt_measurement_provenance.admission_since`, MQTT force_update/expire_after und
+   Low-Resetfortschritt. Fehlende Telegramme bedeuten nie Nullverbrauch.
+5. MQTT-Flow-Payload und originalen aware `timestamp` prüfen. `force_update: true`
+   erlaubt neue gleichbleibende Reports, macht aber alte Wiederholungen nicht neu.
+   Total-Attribute allein ersetzen Flow-Herkunft nicht.
+
+`original_measurement_missing` kann auch Entity-/Topic-/Adapter-Auflösung oder
+ungültiges JSON bedeuten; die allgemeine Repair-Meldung beweist keine einzelne
+Ursache. `pre_startup_measurement` verlangt Vergleich mit Startup-/Outage-Grenze,
+Replay/Retained-Gründe verlangen Prüfung originaler Nachrichten. Zukunft/Alter
+verlangen Prüfung der Zeitbasis. `provenance_persistence_failed` verlangt Logs und
+sichere Storage-Recovery, keinen Bypass. Auch bei `verified_original_measurement`
+aktuelle Anzeige und reason prüfen: ein späterer Ausfall kann die Quelle sperren.
+
+Ein blockierter oder quittierter Alarm ist keine physische Entwarnung. ACTIVE und
+Shutoff bleiben nach ihren eigenen Regeln bestehen. Event-IDs für Dauer und
+Benachrichtigungen getrennt prüfen. Bei Repair wegen beschädigter Daten Datei
+bewahren und geprüftes Backup nutzen; nicht löschen. [Vollständiger Diagnosepfad](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/TROUBLESHOOTING.md#hydraulic-monitoring-waiting-or-blocked).
+## Bestätigter Neustartbefund und Einordnung
+
+Am 14. Oktober 2026 bestätigte der Benutzer nach HA-Neustart mit installierter
+Beta.3 und realem Hydrus: kein Fehlalarm, keine Reparaturmeldung, zunächst
+11 Sekunden „Gesperrt“, dann automatisch „Aktiv“ und
+`verified_original_measurement`. Dieser konkrete Neustarttest ist bestanden;
+Codex hat den Hardwaretest nicht selbst durchgeführt.
+
+Die kurze Sperre ist mit der konservativen Quellenfreigabe vereinbar und
+allein kein Fehlalarm. Sie liefert keinen unbekannten technischen reason nach;
+es wurden keine zusätzlichen Logs oder Messwerte übergeben. 11 Sekunden sind
+keine garantierte Dauer, kein konfigurierter Timeout und kein Maßstab, nach dem
+jede Installation freigegeben sein muss. Nicht sämtliche MQTT-/Neustart- oder
+Ausfallszenarien sind damit geprüft. [Vollständiger Befund](Persistenz-und-Betrieb#vom-benutzer-bestätigter-hydrus-neustarttest).

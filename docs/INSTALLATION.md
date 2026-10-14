@@ -85,3 +85,24 @@ Notification recipients do not have to be configured only during initial install
 Each source, expert and recipient form now has a **Back without saving** switch.
 Enable it and submit to return to the preceding menu without saving or validating
 unfinished fields. Changing only recipients preserves running detection timers.
+
+## Upgrading to the published 1.2.0-beta.3
+
+A GitHub pre-release does **not** update an already running Home Assistant.
+Back up HA configuration and the integration runtime Store first. In HACS enable
+pre-release/beta versions and explicitly download `1.2.0-beta.3` (or copy that
+release's integration directory manually), then restart HA. Confirm the installed
+version and find **Hydraulic monitoring** / **Hydraulische Überwachung** on the
+existing integration device. Keep your existing config entry; do not delete it
+or its Store to resolve a blocked state. Check the
+[beta prerequisites and user-confirmed restart test](BETA_1.2.0.md).
+
+The bundled card 0.1.0 is not automatically registered as a Lovelace resource.
+Optional installation: copy
+`custom_components/water_leak_detection/frontend/water-leak-guard-card.js` to
+`<config>/www/`, add `/local/water-leak-guard-card.js` as a **JavaScript module**
+under Dashboard resources, and reload the browser. Use the real alarm/status entity
+ID from your installation in the card configuration. Its proposed WebSocket ACK
+and Clear commands remain absent from the backend; use the protected Configure
+fallback. The separate monitoring sensor can be shown in a standard HA entities
+card; custom card 0.1.0 does not yet render it. Full steps: [card guide](CARD.md).

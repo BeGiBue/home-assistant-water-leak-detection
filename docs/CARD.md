@@ -1,6 +1,6 @@
 # Dashboard-Karte (Lovelace)
 
-**Status:** Version 0.4.1 (Etappen A, B, C und D umgesetzt). Die Karte ist eine Ansicht auf die vorhandenen
+**Status:** Karte 0.4.1, ausgeliefert mit Water Leak Guard **2.0.0-beta.1** (Etappen A, B, C und D umgesetzt). Die Karte ist eine Ansicht auf die vorhandenen
 Entitäten, Dienste und Kartenbefehle und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
 Reset-Nonce, und Berechtigung, Anwesenheit und erlaubte Alarmaktionen prüft ausschließlich das
 Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).
@@ -65,6 +65,10 @@ steht immer in der eigenen Zeile **Hydraulische Überwachung**.
   verfügbar“ und keine veralteten Werte.
 - Externe Sensoren, deren Entität fehlt oder nicht verfügbar ist, zeigen „Nicht verfügbar“ statt
   „Trocken“. Ein aktives externes Leck bleibt sichtbar.
+
+Bedeutung der Zustände, Attribute und Zeitbasis:
+[Hydraulische Überwachung](CONFIGURATION.md#hydraulische-überwachung) ·
+[Diagnose bei „Warte auf Messung“ oder „Gesperrt“](TROUBLESHOOTING.md#hydraulic-monitoring-waiting-or-blocked).
 
 ## Alarmbedienung in der Karte (Etappe C)
 
@@ -252,9 +256,21 @@ beenden weder Erkennung noch Alarm noch Absperranforderung.
 | `rejected` | Sonstige Ablehnung durch die Prüffunktion |
 | `instance_not_found` | Instanz unbekannt oder mehrdeutig (`config_entry_id` angeben) |
 
-## Nächste Etappen
+## Entwicklungsstand
 
-**Etappe C – Frontend-Anbindung:** umgesetzt in 0.4.0 (siehe „Alarmbedienung in der Karte“). Getestet
-mit simuliertem Home Assistant; ein Test in einer echten Installation steht aus.
+Alle Etappen der Kartenübergabe sind umgesetzt: A (Überwachungszustand, ehrliche Anzeige), B (Backend-Vertrag
+mit Gerätekopplung), C (Alarmaktionen in der Karte) und D (Auslieferung mit der Integration). Jede Etappe
+wurde von einer unabhängigen Review-Instanz anhand des Codes geprüft. Getestet ist die Karte mit simuliertem
+Home Assistant und der vollständigen Python-Testsuite in der CI; ein Test in einer echten Installation steht
+aus.
 
-**Etappe D – Automatische Registrierung:** umgesetzt (siehe Installation).
+Bewusst offen (geringe Auswirkung, Entscheidung des Maintainers):
+
+- Stummschalten genau während eines Neuladens der Integration kann verloren gehen und trotzdem Erfolg melden;
+  das Gerät erhält dann weiter Meldungen.
+- Wird nur die Kopplung eines Empfängers geändert, während gerade eine Meldung an ihn übergeben wird, kann
+  diese eine Meldung entfallen.
+- Ist der Device Tracker für einen Benutzer nicht sichtbar, sperrt die Karte Zuhause-Knöpfe erst mit der
+  nächsten Berechtigungsabfrage; das Backend lehnt bis dahin mit `not_home` ab.
+- Schlägt beim externen Zurücksetzen das Speichern fehl, meldet die Karte „abgelehnt“ statt „nicht
+  gespeichert“; Alarm und Absperranforderung bleiben korrekt aktiv.
