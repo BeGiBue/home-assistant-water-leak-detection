@@ -1,8 +1,10 @@
 """WebSocket commands for the dashboard card.
 
 The card is not a trust boundary. Every command identifies the calling device
-only by the authenticated HA login of the connection (``refresh_token_id``),
-which an administrator paired with exactly one notification recipient. The
+only by the authenticated HA login of the connection (``refresh_token_id``) and
+its user. An administrator pairs a notification recipient either with one HA
+user (every normal login of that user) or with exactly one login; a login
+pairing wins over a user pairing (see ``session_recipient``). The
 card never sends or receives a recipient token or reset nonce; they are read
 server side and handed to the existing, tested validators:
 
@@ -79,11 +81,20 @@ def _manager(hass: HomeAssistant, msg: dict[str, Any]) -> WaterLeakManager:
 def session_recipient(
     hass: HomeAssistant, manager: WaterLeakManager, connection
 ) -> NotificationRecipient | None:
-    """Recipient paired with this connection's login, or None.
+    """Recipient paired with this connection's login or user, or None.
 
-    Only a still existing, normal (app/browser) login of an active,
-    non-system user that belongs to the connection's user is accepted.
-    Deleting the login in HA therefore removes the pairing's effect.
+    Only a still existing, normal (app/browser) login of an active, non-system
+    user that belongs to the connection's user is accepted; long-lived access
+    tokens never match. Then:
+
+    1. a recipient paired with exactly this login wins,
+    2. otherwise a recipient paired with the connection's user applies,
+    3. otherwise the session is not paired.
+
+    With a user pairing every login of that user (e.g. a laptop browser) gets
+    the paired recipient's rights; the Home check still uses that recipient's
+    device tracker. Deleting the login in HA, or deactivating the user, removes
+    the pairing's effect.
     """
     token_id = getattr(connection, "refresh_token_id", None)
     user = getattr(connection, "user", None)
@@ -99,7 +110,7 @@ def session_recipient(
         or token.user.system_generated
     ):
         return None
-    return manager.notifications.recipient_for_session(token_id)
+    return manager.notifications.recipient_for_session(token_id, token.user.id)
 
 
 def _require_recipient(hass, manager, connection) -> NotificationRecipient:
