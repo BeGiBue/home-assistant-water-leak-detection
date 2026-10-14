@@ -1,6 +1,6 @@
 # Dashboard-Karte (Lovelace)
 
-**Status:** Karte 0.5.0 (kompaktes Layout, noch unveröffentlicht; zuletzt veröffentlicht: 0.4.1 mit Water Leak Guard **2.0.0-beta.1**, Etappen A, B, C und D umgesetzt). Die Karte ist eine Ansicht auf die vorhandenen
+**Status:** Karte 0.5.0 mit Water Leak Guard **2.0.0-beta.2** (kompaktes Layout, Benutzerkopplung; vorher 0.4.1 mit 2.0.0-beta.1, Etappen A, B, C und D umgesetzt). Die Karte ist eine Ansicht auf die vorhandenen
 Entitäten, Dienste und Kartenbefehle und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
 Reset-Nonce, und Berechtigung, Anwesenheit und erlaubte Alarmaktionen prüft ausschließlich das
 Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).

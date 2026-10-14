@@ -6,7 +6,7 @@
 
 A backend-focused Home Assistant custom integration for detecting abnormal water consumption and possible water leaks from an existing water-meter flow sensor.
 
-**Current release:** 2.0.0-beta.1
+**Current release:** 2.0.0-beta.2
 **Release status:** pre-release; latest published stable: 1.1.0.
 **Beta scope:** hydraulic detection with notifications and the bundled dashboard card, without
 configured external leak sensors or persisted external records. See [the 2.0 beta notes](docs/BETA_2.0.0.md).
@@ -143,7 +143,9 @@ file copy and no dashboard resource are needed (remove an older manual
 `/local/water-leak-guard-card.js` resource). It shows the
 alarm state and the hydraulic monitoring state separately (active / waiting for measurement /
 blocked, with reason), flow, detectors, High Flow bypass, external leak sensors and learning,
-and controls only the existing switches and actions. For a device paired with a notification
+and has no on/off switches: disabling Slow Leak/Low Flow or starting the bypass during an alarm is offered
+only inside the alarm box, to a paired device at home. It is compact (about 335 px high when idle in
+one column) and fits an iPhone, an iPad column or a Raspberry Pi 7″ 800×480 display. For a device paired with a notification
 recipient it offers exactly the alarm actions the backend allows right now (device mute, global
 acknowledgement at home, external reset at home with permission); other devices are view only.
 Pair a device under **Configure → Notification recipients → Edit recipient → Pairing for the
@@ -455,7 +457,7 @@ See [configuration](docs/CONFIGURATION.md#hydraulische-überwachung).
 
 ### Dashboard card and beta verification status
 
-Since 2.0.0-beta.1 the card (0.4.1) is installed and loaded with the integration, shows the
+Since 2.0.0-beta.1 the card (now 0.5.0 in 2.0.0-beta.2) is installed and loaded with the integration, shows the
 hydraulic monitoring state separately from the alarm state and offers per-device alarm actions
 that the backend authorizes (see [Dashboard card](#dashboard-card) and [docs/CARD.md](docs/CARD.md)).
 Remove an older manual `/local/water-leak-guard-card.js` resource after upgrading.

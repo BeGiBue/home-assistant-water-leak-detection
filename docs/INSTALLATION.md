@@ -100,6 +100,15 @@ or its Store to resolve a blocked state. Check the
 Card 0.1.0 of this beta had to be registered manually; since 2.0.0-beta.1 the card is loaded
 automatically (see below).
 
+## Upgrading from 2.0.0-beta.1 to 2.0.0-beta.2
+
+Back up, download `2.0.0-beta.2` in HACS and restart Home Assistant, then reload the browser /
+Companion app (the card URL changes with its content, so card 0.5.0 loads automatically). Existing
+recipient pairings keep working without migration. Optionally switch a pairing from a single login
+to the Home Assistant user (*Configure → Notification recipients → Edit recipient*), so it survives a
+new login. The card no longer shows on/off switches; Slow Leak/Low Flow stay switchable on the device
+page.
+
 ## Upgrading to 2.0.0-beta.1
 
 A GitHub pre-release does **not** update a running Home Assistant. Back up the HA configuration

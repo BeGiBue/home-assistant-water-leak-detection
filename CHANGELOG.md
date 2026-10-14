@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.0.0-beta.2 — 2026-10-14
 
 - Dashboard card 0.5.0 – compact, collapsible, responsive layout. The idle single-column card
   (320–500 px wide, i.e. every masonry or sections column, which Home Assistant caps at about 500 px,

@@ -1,6 +1,6 @@
 # Dashboard-Karte
 
-Seit **2.0.0-beta.1** gehört die Dashboard-Karte **Water Leak Guard** zur Integration (veröffentlicht: Karte 0.4.1; in Arbeit: Karte 0.5.0 mit kompaktem Layout). Sie ist
+Seit **2.0.0-beta.1** gehört die Dashboard-Karte **Water Leak Guard** zur Integration (seit 2.0.0-beta.2: Karte 0.5.0 mit kompaktem Layout und Benutzerkopplung). Sie ist
 eine Ansicht und Bedienoberfläche, aber **keine Vertrauensgrenze**: Ob eine Aktion erlaubt ist,
 entscheidet ausschließlich das Backend. Die Integration funktioniert unverändert auch ohne Karte.
 

@@ -1,10 +1,20 @@
 # Beta 2.0.0: Dashboard-Karte, Gerätekopplung und Kartenaktionen
 
-**2.0.0-beta.1** ist eine Vorabversion (GitHub-Pre-release). Der zuletzt veröffentlichte stabile Stand bleibt
+**2.0.0-beta.2** ist eine Vorabversion (GitHub-Pre-release). Der zuletzt veröffentlichte stabile Stand bleibt
 1.1.0. Eine Veröffentlichung aktualisiert kein laufendes HA: Backup, Download über HACS mit aktivierten
 Beta-Versionen und Neustart sind erforderlich. [Upgrade-Schritte](INSTALLATION.md#upgrading-to-200-beta1).
 
-## Was neu ist
+## Neu in 2.0.0-beta.2
+
+| Bereich | Neu in 2.0.0-beta.2 |
+|---|---|
+| Layout | Karte 0.5.0: ruhig einspaltig ca. 335 px hoch (iPhone, iPad-Spalte, Raspberry Pi 7″ 800×480); Bypass und Lernmodell einklappbar; Erkennung als 2×2-Raster; zweispaltig ab ca. 600 px Kartenbreite (Panel-Ansicht). |
+| Bedienung | Keine Ein/Aus-Schalter mehr auf der Karte. Slow/Low abschalten nur im Alarmkasten während des eigenen Alarms; das und Bypass-Start im High-Flow-Alarm nur für ein gekoppeltes Gerät zuhause. |
+| Anzeige | Bei gestörter Messquelle oder beschädigtem Speicher nichts Grünes mehr: „Überwachung eingeschränkt“, Zeile „Eingeschränkt“, Kacheln „Pausiert“. „Unzureichend“ beim Lernmodell nicht mehr grün. Stummschalten nennt den Empfänger. |
+| Gerätekopplung | Empfänger koppelbar mit einem HA-**Benutzer** (Standard, übersteht Neuanmeldungen) oder wie bisher mit einer einzelnen **Anmeldung** (hat Vorrang). Bestehende Kopplungen bleiben ohne Migration. |
+| Tests | Logiktests der Karte (Node, ohne npm) im Validate-Workflow; weitere Backend-Tests zur Kopplung. |
+
+## Was neu ist in 2.0.0-beta.1
 
 | Bereich | Neu in 2.0.0-beta.1 |
 |---|---|
@@ -61,3 +71,4 @@ Empfohlene erste Prüfungen nach dem Upgrade:
 |---|---|
 | 1.2.0-beta.1 bis beta.3 | Siehe [Beta 1.2.0](BETA_1.2.0.md). |
 | 2.0.0-beta.1 | Karte 0.4.1 mit der Integration, Überwachungsanzeige, Gerätekopplung und Kartenaktionen. |
+| 2.0.0-beta.2 | Karte 0.5.0: kompaktes Layout ohne Schalter, Alarm beenden nur zuhause, Benutzerkopplung. |
