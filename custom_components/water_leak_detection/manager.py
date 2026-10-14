@@ -117,6 +117,8 @@ from .const import (
     EVENT_SHUTOFF_REQUESTED,
     RECIPIENT_ALLOW_EXTERNAL_RESET,
     RECIPIENT_ID,
+    RECIPIENT_KIND,
+    RECIPIENT_KIND_DISPLAY,
     RECIPIENT_TOKEN,
     RECIPIENT_TRACKER_ENTITY,
     STORAGE_KEY_PREFIX,
@@ -133,7 +135,7 @@ from .learning import AdaptiveFlowLearner, LearningConfidence, LearningSnapshot
 from .long_term_learning import LONG_TERM_MULTIPLIER, LongTermHighLearner
 from .low_flow_options import low_stability_minutes
 from .mqtt_provenance import MqttProvenance
-from .notifications import EventAcknowledgement, NotificationController
+from .notifications import EventAcknowledgement, NotificationController, recipient_is_home
 from .repairs import (
     reconcile_legacy_repair,
     reconcile_mqtt_provenance_repair,
@@ -1290,8 +1292,7 @@ class WaterLeakManager:
             or not recipient.allow_global_ack
         ):
             return False
-        tracker = self.hass.states.get(recipient.tracker_entity)
-        if tracker is None or tracker.state != "home":
+        if not recipient_is_home(self.hass, recipient):
             return False
         previous = self.notifications.state_for(event_id)
         if previous and previous.globally_acknowledged:
@@ -1318,6 +1319,7 @@ class WaterLeakManager:
                 "recipient_id": recipient_id,
                 "scope": "global",
                 "trusted_stationary": recipient.trusted_stationary,
+                "kind": recipient.kind,
             },
         )
         self._notify_listeners()
@@ -1591,18 +1593,21 @@ class WaterLeakManager:
         token = payload.get("recipient_token")
         current_token = recipient.get(RECIPIENT_TOKEN)
         tracker_id = recipient.get(RECIPIENT_TRACKER_ENTITY)
+        display = recipient.get(RECIPIENT_KIND) == RECIPIENT_KIND_DISPLAY
         if (
             not isinstance(token, str)
             or not token.strip()
             or not isinstance(current_token, str)
             or not current_token.strip()
             or not (compare_digest(token.encode(), current_token.encode()))
-            or not isinstance(tracker_id, str)
+            or (not display and not isinstance(tracker_id, str))
         ):
             return False
-        tracker = self.hass.states.get(tracker_id)
-        if tracker is None or tracker.state != "home":
-            return False
+        # A stationary display is always Home; a mobile recipient needs its tracker.
+        if not display:
+            tracker = self.hass.states.get(tracker_id)
+            if tracker is None or tracker.state != "home":
+                return False
         # No await after final authority check until this private transition.
         staged = self.external.copy()
         staged.reset(source.source_id, source.identity.generation, source.event_id)
@@ -1651,7 +1656,8 @@ class WaterLeakManager:
             and (event_id is None or s.event_id == event_id)
         ]
         source = deepcopy(candidates[0]) if len(candidates) == 1 else None
-        if source is None or recipient is None:
+        if source is None or recipient is None or recipient.is_display:
+            # This sends a notification; a display never receives one.
             return None
 
         def authorized():

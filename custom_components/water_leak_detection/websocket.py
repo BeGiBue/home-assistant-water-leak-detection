@@ -33,6 +33,7 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
 from .const import ACTION_EXTERNAL_RESET, ATTR_CONFIG_ENTRY_ID, DOMAIN
+from .notifications import recipient_is_home
 
 if TYPE_CHECKING:
     from .manager import WaterLeakManager
@@ -53,6 +54,7 @@ ERR_NOT_ALLOWED = "not_allowed"
 ERR_NOT_HOME = "not_home"
 ERR_REJECTED = "rejected"
 ERR_NOT_COMMITTED = "not_committed"
+ERR_MUTE_NOT_APPLICABLE = "mute_not_applicable"
 
 
 class CommandError(Exception):
@@ -121,8 +123,8 @@ def _require_recipient(hass, manager, connection) -> NotificationRecipient:
 
 
 def _is_home(hass: HomeAssistant, recipient: NotificationRecipient) -> bool:
-    tracker = hass.states.get(recipient.tracker_entity)
-    return tracker is not None and tracker.state == "home"
+    # A stationary display is always Home; a mobile recipient needs its tracker.
+    return recipient_is_home(hass, recipient)
 
 
 def _send(connection, msg, job_result: dict | None = None, error: CommandError | None = None):
@@ -150,10 +152,15 @@ async def handle_session(hass: HomeAssistant, connection, msg: dict[str, Any]) -
             "paired": True,
             "recipient_id": recipient.id,
             "recipient_name": recipient.name,
+            # "mobile" or "display" (stationary wall display: always Home, no mute).
+            "kind": recipient.kind,
             "home": _is_home(hass, recipient),
             # Not a secret: lets the card refresh this answer when the tracker changes.
-            "tracker_entity": recipient.tracker_entity,
+            # A display has no tracker.
+            "tracker_entity": None if recipient.is_display else recipient.tracker_entity,
             "trusted_stationary": recipient.trusted_stationary,
+            # A display receives no notifications, so muting does not apply.
+            "can_mute": not recipient.is_display,
             "can_global_ack": recipient.allow_global_ack,
             "can_external_reset": recipient.allow_external_reset,
         },
@@ -173,13 +180,16 @@ async def handle_mute(hass: HomeAssistant, connection, msg: dict[str, Any]) -> N
     """Device-scoped mute for this paired device only, from anywhere."""
     try:
         manager = _manager(hass, msg)
-        _require_recipient(hass, manager, connection)
+        if _require_recipient(hass, manager, connection).is_display:
+            raise CommandError(ERR_MUTE_NOT_APPLICABLE, "A display receives no notifications")
 
         async def action():
             recipient = _require_recipient(hass, manager, connection)
             return await manager.notifications.async_session_mute(msg["event_id"], recipient.id)
 
         reason = await _locked(manager, action)
+        if reason == "not_applicable":
+            raise CommandError(ERR_MUTE_NOT_APPLICABLE, "A display receives no notifications")
         if reason == "not_paired":
             raise CommandError(ERR_NOT_PAIRED, "Recipient no longer configured")
         if reason == "event_not_active":

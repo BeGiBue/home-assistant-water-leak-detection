@@ -219,6 +219,7 @@
         "description": "**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}\n\nVerwalte die Companion-App-Geräte, die Leckagealarme erhalten.",
         "menu_options": {
           "add_recipient": "Empfänger hinzufügen",
+          "add_display": "Wanddisplay hinzufügen (ohne Push, immer zuhause)",
           "edit_recipient": "Empfänger bearbeiten",
           "remove_recipient": "Empfänger entfernen",
           "back_to_main": "Zurück zur Konfiguration"
@@ -286,6 +287,40 @@
           "recipient_id": "Berechtigter Empfänger",
           "go_back": "Zurück"
         }
+      },
+      "add_display": {
+        "title": "Wanddisplay hinzufügen",
+        "description": "**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}\n\nEin fest montiertes Display (z. B. TouchKio auf einem Raspberry Pi) bekommt keine Benachrichtigungen, braucht keinen Device Tracker und gilt immer als zuhause. Die Dashboard-Karte darf dort, was du unten erlaubst – wer vor dem Display steht, hat diese Rechte. Empfohlen: ein eigener HA-Benutzer ohne Adminrechte für das Kiosk-Gerät und die Kopplung an diesen Benutzer.",
+        "data": {
+          "name": "Anzeigename",
+          "session_pairing": "Kopplung für die Dashboard-Karte (erforderlich)",
+          "allow_global_ack": "Globales Quittieren erlauben",
+          "allow_external_reset": "Externen Reset erlauben",
+          "go_back": "Zurück ohne Speichern"
+        },
+        "data_description": {
+          "session_pairing": "Pflicht: Nur über die Kopplung erkennt die Karte das Display. „👤 …“ (empfohlen) = jede Anmeldung dieses Benutzers, z. B. ein eigener Kiosk-Benutzer; „🔑 …“ = genau eine Anmeldung. Eine gekoppelte Anmeldung hat Vorrang vor einer Benutzer-Kopplung. Long-Lived-Tokens zählen nie.",
+          "allow_global_ack": "Darf die Karte auf diesem Display Alarme für alle quittieren? Das Display gilt immer als zuhause.",
+          "allow_external_reset": "Darf die Karte auf diesem Display externe Lecks zurücksetzen (beendet den Alarm des Sensors)? Das Display gilt immer als zuhause. Unabhängig davon bietet die Karte „Erkennung abschalten“ und „Bypass starten“ im Alarm jedem gekoppelten Gerät zuhause an."
+        },
+        "submit": "Hinzufügen und zurück"
+      },
+      "edit_display_details": {
+        "title": "Wanddisplay bearbeiten",
+        "description": "Die Art (Wanddisplay) lässt sich nicht ändern; für ein Handy den Eintrag entfernen und neu als Empfänger anlegen. Interne Kennung und Token bleiben erhalten.\n\n**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}",
+        "data": {
+          "name": "Anzeigename",
+          "session_pairing": "Kopplung für die Dashboard-Karte (erforderlich)",
+          "allow_global_ack": "Globales Quittieren erlauben",
+          "allow_external_reset": "Externen Reset erlauben",
+          "go_back": "Zurück ohne Speichern"
+        },
+        "data_description": {
+          "session_pairing": "Pflicht: Nur über die Kopplung erkennt die Karte das Display. „👤 …“ (empfohlen) = jede Anmeldung dieses Benutzers, z. B. ein eigener Kiosk-Benutzer; „🔑 …“ = genau eine Anmeldung. Eine gekoppelte Anmeldung hat Vorrang vor einer Benutzer-Kopplung. Long-Lived-Tokens zählen nie.",
+          "allow_global_ack": "Darf die Karte auf diesem Display Alarme für alle quittieren? Das Display gilt immer als zuhause.",
+          "allow_external_reset": "Darf die Karte auf diesem Display externe Lecks zurücksetzen (beendet den Alarm des Sensors)? Das Display gilt immer als zuhause. Unabhängig davon bietet die Karte „Erkennung abschalten“ und „Bypass starten“ im Alarm jedem gekoppelten Gerät zuhause an."
+        },
+        "submit": "Speichern und zurück"
       }
     },
     "error": {
@@ -313,7 +348,8 @@
       "session_not_found": "Diese Anmeldung existiert nicht mehr. Bitte die Liste neu laden.",
       "session_already_paired": "Diese Anmeldung ist bereits mit einem anderen Empfänger gekoppelt. Dort zuerst die Kopplung aufheben.",
       "session_user_not_found": "Dieser Benutzer existiert nicht mehr oder ist deaktiviert. Bitte die Liste neu laden.",
-      "session_user_already_paired": "Dieser Benutzer ist bereits mit einem anderen Empfänger gekoppelt. Dort zuerst die Kopplung aufheben oder hier eine einzelne Anmeldung wählen."
+      "session_user_already_paired": "Dieser Benutzer ist bereits mit einem anderen Empfänger gekoppelt. Dort zuerst die Kopplung aufheben oder hier eine einzelne Anmeldung wählen.",
+      "display_pairing_required": "Ein Wanddisplay braucht eine Kopplung (Benutzer oder Anmeldung), sonst kann die Karte es nicht erkennen."
     },
     "abort": {
       "no_mobile_app_notify_services": "Es wurden keine mobile_app-Benachrichtigungsdienste gefunden. Richte zuerst die Home Assistant Companion App ein.",

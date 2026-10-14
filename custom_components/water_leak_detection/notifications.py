@@ -37,6 +37,10 @@ from .const import (
     RECIPIENT_ALLOW_GLOBAL_ACK,
     RECIPIENT_CRITICAL_ENABLED,
     RECIPIENT_ID,
+    RECIPIENT_KIND,
+    RECIPIENT_KIND_DISPLAY,
+    RECIPIENT_KIND_MOBILE,
+    RECIPIENT_KINDS,
     RECIPIENT_NAME,
     RECIPIENT_NOTIFY_SERVICE,
     RECIPIENT_SESSION_TOKEN_ID,
@@ -82,15 +86,29 @@ class NotificationRecipient:
     allow_external_reset: bool = False
     session_token_id: str | None = None
     session_user_id: str | None = None
+    kind: str = RECIPIENT_KIND_MOBILE
+
+    @property
+    def is_display(self) -> bool:
+        """Stationary display: no notifications, no tracker, always Home."""
+        return self.kind == RECIPIENT_KIND_DISPLAY
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> NotificationRecipient | None:
-        """Create a recipient from config-entry options."""
+        """Create a recipient from config-entry options.
+
+        Entries without ``kind`` are mobile recipients (all entries before the
+        display kind existed); an unknown kind is ignored entirely.
+        """
+        kind = raw.get(RECIPIENT_KIND, RECIPIENT_KIND_MOBILE)
+        if kind not in RECIPIENT_KINDS:
+            return None
+        display = kind == RECIPIENT_KIND_DISPLAY
         try:
             recipient_id = str(raw[RECIPIENT_ID])
             name = str(raw[RECIPIENT_NAME])
-            notify_service = str(raw[RECIPIENT_NOTIFY_SERVICE])
-            tracker_entity = str(raw[RECIPIENT_TRACKER_ENTITY])
+            notify_service = "" if display else str(raw[RECIPIENT_NOTIFY_SERVICE])
+            tracker_entity = "" if display else str(raw[RECIPIENT_TRACKER_ENTITY])
             token = raw[RECIPIENT_TOKEN]
         except KeyError, TypeError, ValueError:
             return None
@@ -98,8 +116,8 @@ class NotificationRecipient:
         if (
             not recipient_id
             or not name
-            or not notify_service.startswith("notify.")
-            or not tracker_entity.startswith("device_tracker.")
+            or (not display and not notify_service.startswith("notify."))
+            or (not display and not tracker_entity.startswith("device_tracker."))
             or not isinstance(token, str)
             or not token.strip()
         ):
@@ -123,14 +141,27 @@ class NotificationRecipient:
             name=name,
             notify_service=notify_service,
             tracker_entity=tracker_entity,
-            critical_enabled=bool(raw.get(RECIPIENT_CRITICAL_ENABLED, True)),
+            critical_enabled=not display and bool(raw.get(RECIPIENT_CRITICAL_ENABLED, True)),
             allow_global_ack=raw.get(RECIPIENT_ALLOW_GLOBAL_ACK, True) is True,
-            trusted_stationary=bool(raw.get(RECIPIENT_TRUSTED_STATIONARY, False)),
+            trusted_stationary=not display and bool(raw.get(RECIPIENT_TRUSTED_STATIONARY, False)),
             token=token,
             allow_external_reset=raw.get(RECIPIENT_ALLOW_EXTERNAL_RESET) is True,
             session_token_id=session_token_id,
             session_user_id=session_user_id,
+            kind=kind,
         )
+
+
+def recipient_is_home(hass: HomeAssistant, recipient: NotificationRecipient) -> bool:
+    """Home authority for every Home-only action.
+
+    A stationary display has no tracker and is always Home (the admin chose it
+    for a fixed place); a mobile recipient is Home only while its tracker says so.
+    """
+    if recipient.is_display:
+        return True
+    tracker = hass.states.get(recipient.tracker_entity)
+    return tracker is not None and tracker.state == "home"
 
 
 class DispatchState(StrEnum):
@@ -314,7 +345,7 @@ class NotificationController:
             self._tracker_unsub()
             self._tracker_unsub = None
 
-        trackers = sorted({r.tracker_entity for r in recipients.values()})
+        trackers = sorted({r.tracker_entity for r in recipients.values() if not r.is_display})
         if trackers:
             self._tracker_unsub = async_track_state_change_event(
                 self.hass,
@@ -381,6 +412,9 @@ class NotificationController:
         self.reload_recipients()
         if recipient_id not in self.recipients:
             return "not_paired"
+        if self.recipients[recipient_id].is_display:
+            # A display receives no notifications, so there is nothing to mute.
+            return "not_applicable"
         if event_id not in self.manager.active_events():
             return "event_not_active"
         state = self.acknowledgements.setdefault(event_id, EventAcknowledgement())
@@ -455,6 +489,7 @@ class NotificationController:
         state = self.acknowledgements.get(event_id)
         return (
             not self._closed
+            and not recipient.is_display
             and event_id in self._events
             and self.recipients.get(recipient.id) == recipient
             and state is not None
@@ -468,6 +503,8 @@ class NotificationController:
             return
         for event_id, payload in tuple(self._events.items()):
             for recipient in tuple(self.recipients.values()):
+                if recipient.is_display:
+                    continue  # never part of notification dispatch
                 route = self._delivery_key(recipient)
                 identity = (event_id, route)
                 if identity in self._dispatch_tasks or not self._eligible(event_id, recipient):
@@ -631,6 +668,10 @@ class NotificationController:
         if recipient is None or recipient.token != token:
             self._fire_rejected(event_id, recipient_id, "invalid_recipient_or_token")
             return
+        if recipient.is_display:
+            # Displays never receive notifications, hence never notification actions.
+            self._fire_rejected(event_id, recipient_id, "display_recipient")
+            return
 
         snapshot = self.manager.engine.snapshot(self.manager.current_total_l)
         active_ids = {
@@ -700,6 +741,7 @@ class NotificationController:
                 "recipient_id": recipient_id,
                 "scope": "global",
                 "trusted_stationary": recipient.trusted_stationary,
+                "kind": recipient.kind,
             },
         )
 
@@ -726,7 +768,7 @@ class NotificationController:
             if state is None or state.globally_acknowledged:
                 continue
             for recipient in tuple(self.recipients.values()):
-                if recipient.tracker_entity != tracker_entity:
+                if recipient.is_display or recipient.tracker_entity != tracker_entity:
                     continue
                 state.muted_recipients.discard(recipient.id)
                 route = self._delivery_key(recipient)
@@ -761,6 +803,8 @@ class NotificationController:
         authorize: Callable[[], bool] | None = None,
         on_dispatch: Callable[[], None] | None = None,
     ) -> bool:
+        if recipient.is_display:
+            return False  # defense in depth: a display has no notify service
         domain, service = recipient.notify_service.split(".", 1)
         if not self.hass.services.has_service(domain, service):
             _LOGGER.warning(
@@ -910,6 +954,8 @@ class NotificationController:
         title_key: str,
         message_key: str,
     ) -> None:
+        if recipient.is_display:
+            return
         domain, service = recipient.notify_service.split(".", 1)
         if not self.hass.services.has_service(domain, service):
             return

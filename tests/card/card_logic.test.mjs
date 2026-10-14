@@ -120,15 +120,74 @@ test("idle: no switch controls, no links to switch entities", async () => {
   card.disconnectedCallback();
 });
 
-test("collapsible sections: collapsed by default, toggle survives hass updates", async () => {
+const expandedOf = (h, key) => h.match(new RegExp(`data-section="${key}"[^>]*aria-expanded="(true|false)"`))?.[1];
+
+test("sections: expanded by default; toggle survives hass updates", async () => {
   const card = await mount();
-  assert.equal((html(card).match(/aria-expanded="false"/g) || []).length, 2);
-  assert.ok(!html(card).includes('class="sec-body"'));
+  assert.equal(expandedOf(html(card), "bypass"), "true");
+  assert.equal(expandedOf(html(card), "learning"), "true");
+  assert.equal((html(card).match(/class="sec-body"/g) || []).length, 2);
   card._onClick({ target: target({ action: "toggle-section", section: "learning" }) });
-  assert.match(html(card), /data-section="learning"[^>]*aria-expanded="true"/);
+  assert.equal(expandedOf(html(card), "learning"), "false");
   card.hass = { ...hass(), states: { ...hass().states, [K.current_flow]: { entity_id: K.current_flow, state: "12", attributes: {}, last_updated: "y" } } };
-  assert.match(html(card), /data-section="learning"[^>]*aria-expanded="true"/);
-  assert.match(html(card), /data-section="bypass"[^>]*aria-expanded="false"/);
+  assert.equal(expandedOf(html(card), "learning"), "false", "toggle kept after hass update");
+  assert.equal(expandedOf(html(card), "bypass"), "true");
+  // Re-applying the same config (e.g. an unrelated editor change) keeps the toggles.
+  card.setConfig({ type: "custom:water-leak-guard-card", entity: K.status, title: "X" });
+  assert.equal(expandedOf(html(card), "learning"), "false");
+  card.disconnectedCallback();
+});
+
+test("sections: collapsed: true starts collapsed; changing the option resets to its default", async () => {
+  const card = await mount({}, { collapsed: true });
+  assert.equal(expandedOf(html(card), "bypass"), "false");
+  assert.equal(expandedOf(html(card), "learning"), "false");
+  assert.ok(!html(card).includes('class="sec-body"'));
+  card._onClick({ target: target({ action: "toggle-section", section: "bypass" }) });
+  assert.equal(expandedOf(html(card), "bypass"), "true");
+  card.hass = hass();
+  assert.equal(expandedOf(html(card), "bypass"), "true", "toggle kept after hass update");
+  card.setConfig({ type: "custom:water-leak-guard-card", entity: K.status, collapsed: false });
+  assert.equal(expandedOf(html(card), "bypass"), "true");
+  assert.equal(expandedOf(html(card), "learning"), "true");
+  card.setConfig({ type: "custom:water-leak-guard-card", entity: K.status, collapsed: true });
+  assert.equal(expandedOf(html(card), "bypass"), "false");
+  assert.equal(expandedOf(html(card), "learning"), "false");
+  card.disconnectedCallback();
+});
+
+test("editor offers the collapsed option with DE/EN labels", async () => {
+  const Editor = customElements.get("water-leak-guard-card-editor");
+  const editor = new Editor();
+  editor._hass = hass();
+  const grid = editor._schema().find((f) => f.type === "grid");
+  assert.ok(grid.schema.some((f) => f.name === "collapsed" && f.selector.boolean));
+});
+
+const DISPLAY = { paired: true, kind: "display", recipient_id: "wall", recipient_name: "Flur", home: true, tracker_entity: null, can_mute: false, can_global_ack: true, can_external_reset: true };
+
+test("display session: no mute, home actions available, never 'only at home'", async () => {
+  for (const alarm of ["burst_leak", "low_flow", "high_flow"]) {
+    // The phone tracker is away; a display has no tracker and is always home.
+    const card = await mount({ alarm, tracker: "not_home", session: DISPLAY });
+    const h = html(card);
+    assert.ok(!h.includes('data-action="mute"') && !h.includes("stummgeschaltet"), `${alarm}: no mute`);
+    assert.equal(tag(h, "acknowledge").includes(" disabled"), false, `${alarm}: ack enabled`);
+    assert.ok(!h.includes("Nur zuhause möglich"), `${alarm}: no home hint`);
+    if (alarm === "low_flow") assert.equal(tag(h, "disable-detection").includes(" disabled"), false);
+    if (alarm === "high_flow") assert.equal(tag(h, "bypass-start").includes(" disabled"), false);
+    card.disconnectedCallback();
+  }
+  // Without the acknowledge permission there is no acknowledge button.
+  const card = await mount({ alarm: "burst_leak", session: { ...DISPLAY, can_global_ack: false } });
+  assert.ok(!html(card).includes('data-action="acknowledge"'));
+  card.disconnectedCallback();
+});
+
+test("mute_not_applicable has a localized message", async () => {
+  const card = await mount();
+  const t = (k) => card._errorText((key) => ({ "error.mute_not_applicable": "X" })[key] ?? key, { code: k });
+  assert.equal(t("mute_not_applicable"), "X");
   card.disconnectedCallback();
 });
 
