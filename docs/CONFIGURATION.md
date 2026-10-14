@@ -307,6 +307,13 @@ Fehlende Messherkunft sperrt die Auswertung und erzeugt einen Repair-Hinweis;
 bestehende ACTIVE-Alarme bleiben erhalten. Die fremde Discovery wird nicht
 überschrieben. Details und Vertrauensgrenzen: [Low/ACK/Dauer](F04_LOW_ACK_DURATION.md).
 
+Die Startup-Grenze wird am tatsächlichen Setupbeginn erfasst und nach dem Restore
+an die Messherkunft gebunden; eine strengere gespeicherte Grenze bleibt erhalten.
+Ein neues Telegramm wird dadurch nicht allein wegen normaler MQTT-Zustelllatenz
+als Vor-Startup-Messung abgelehnt. Die erste gültige Messung liefert weiterhin
+0 Sekunden Evidenz. Messquellenwechsel setzen eine neue Grenze; Unterbrechungs-,
+Replay-, Retained- und Altersprüfungen bleiben wirksam.
+
 ACK wird erst nach erfolgreicher Persistenz veröffentlicht. Das Configure-ACK ist
 administrative Delegation anhand des ausgewählten Recipients und dessen Home-
 Tracker. Status und Dauer wählen dasselbe hydraulische oder externe Ereignis.

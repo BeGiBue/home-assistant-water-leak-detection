@@ -253,6 +253,7 @@ class WaterLeakManager:
     @serialized
     async def _async_setup_locked(self) -> None:
         """Restore persisted state and start tracking source entities."""
+        setup_started_at = self.timer_now
         existed = Path(self._store.path).is_file()
         self._store.recovered_data = None  # Recovery may only use this load attempt's valid body.
         try:
@@ -328,6 +329,8 @@ class WaterLeakManager:
                     duration = nonnegative_float(value)
                     if event_id in self.active_events() and duration is not None:
                         self._restored_elapsed[event_id] = (duration, monotonic())
+
+        self._mqtt_provenance.bind_startup(setup_started_at)
 
         # Every startup is an observation boundary. Reuse the learner's
         # configured physical quiet reset before admitting any new High episode.
@@ -1657,6 +1660,7 @@ class WaterLeakManager:
             return
         self.measurement_source = identity
         self._mqtt_provenance = MqttProvenance(identity.generation)
+        self._mqtt_provenance.bind_startup(self.timer_now)
         self._last_valid_received_at = None
         self._last_valid_reported_at = None
         self._last_valid_flow_lph = None
@@ -1683,6 +1687,7 @@ class WaterLeakManager:
         if old_flow != self.flow_entity_id:
             self.measurement_source = resolve_source(self.hass, self.flow_entity_id)
             self._mqtt_provenance = MqttProvenance(self.measurement_source.generation)
+            self._mqtt_provenance.bind_startup(self.timer_now)
             self.learner.reset()
             self.long_term_learner = LongTermHighLearner(
                 self.measurement_source.generation, self.measurement_source.learning_epoch

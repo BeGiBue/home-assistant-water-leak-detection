@@ -307,6 +307,7 @@ def test_provenance_binds_rendered_ha_units_not_native_units():
         }
     )
     proof = MqttProvenance("generation")
+    proof.bind_startup(now)
     assert proof.validate(hass, "sensor.flow", State("sensor.flow", "250.0"), now) == (now, None)
     assert proof.validate(hass, "sensor.flow", State("sensor.flow", "999"), now) is None
 
