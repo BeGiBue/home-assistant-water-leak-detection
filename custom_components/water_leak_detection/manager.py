@@ -209,6 +209,7 @@ class WaterLeakManager:
         self.current_flow_lph: float | None = None
         self.current_total_l: float | None = None
         self.source_available = False
+        self._hydraulic_monitoring_reason = "waiting_for_measurement"
         self._last_valid_received_at: float | None = None
         self._last_valid_reported_at = None
         self._last_valid_flow_lph: float | None = None
@@ -471,7 +472,7 @@ class WaterLeakManager:
             )
             return
         if entity_id == self.flow_entity_id and not self._usable_state(new_state):
-            await self._suspend_source()
+            await self._suspend_source("source_unavailable")
         elif entity_id == self.total_entity_id:
             try:
                 if not self._usable_source_state(new_state):
@@ -499,7 +500,14 @@ class WaterLeakManager:
         self._apply_controls()
         flow_state = self.hass.states.get(self.flow_entity_id)
         if not self._usable_source_state(flow_state):
-            await self._suspend_source()
+            reason = "source_unavailable"
+            if flow_state is None:
+                reason = (
+                    "waiting_for_measurement"
+                    if self._hydraulic_monitoring_reason == "waiting_for_measurement"
+                    else "source_missing"
+                )
+            await self._suspend_source(reason)
             return
         fresh = False
         observed_at = monotonic()
@@ -509,7 +517,7 @@ class WaterLeakManager:
             # and persist the old chain before observing that return report.
             if (
                 self._flow_evidence.expired(observed_at, self.source_max_age_seconds)
-                and not await self._suspend_source()
+                and not await self._suspend_source("source_timeout")
             ):
                 return
             fresh, _ = self._flow_evidence.observe(
@@ -517,7 +525,7 @@ class WaterLeakManager:
             )
         if not fresh:
             if self._flow_evidence.expired(monotonic(), self.source_max_age_seconds):
-                await self._suspend_source()
+                await self._suspend_source("source_timeout")
             return
 
         received_at = self._flow_evidence.received_at
@@ -540,7 +548,7 @@ class WaterLeakManager:
             )
             if stamp is None:
                 reconcile_mqtt_provenance_repair(self.hass, self.entry, True)
-                await self._suspend_source()
+                await self._suspend_source(self._mqtt_provenance.reason)
                 return
             previous_stamp = self._mqtt_provenance.timestamp
             if previous_stamp is not None and self._flow_evidence.credited_seconds > 0:
@@ -549,7 +557,7 @@ class WaterLeakManager:
                     self.source_max_age_seconds > 0
                     and physical_seconds > self.source_max_age_seconds
                 ):
-                    await self._suspend_source()
+                    await self._suspend_source("source_timeout")
                     return
                 # Only a continuous, admitted pair supplies physical evidence.
                 # Reception intervals remain authoritative for timeout/outage;
@@ -562,7 +570,7 @@ class WaterLeakManager:
             try:
                 await self._save_current_locked()
             except Exception:
-                await self._suspend_source()
+                await self._suspend_source("provenance_persistence_failed")
                 self._mqtt_provenance.reason = "provenance_persistence_failed"
                 _LOGGER.exception("MQTT provenance not committed; measurement rejected")
                 return
@@ -573,7 +581,7 @@ class WaterLeakManager:
             )
         except (TypeError, ValueError, UnsupportedUnitError) as err:
             _LOGGER.warning("Unable to normalize flow source %s: %s", self.flow_entity_id, err)
-            await self._suspend_source()
+            await self._suspend_source("invalid_flow_measurement")
             return
 
         total: float | None = None
@@ -600,6 +608,7 @@ class WaterLeakManager:
 
         reconcile_mqtt_provenance_repair(self.hass, self.entry, False)
         self.source_available = True
+        self._hydraulic_monitoring_reason = "verified_measurement"
         self.current_flow_lph = flow
         self.current_total_l = total
         self._last_valid_received_at = self._flow_evidence.received_at
@@ -745,8 +754,10 @@ class WaterLeakManager:
                 return max(0, (self.timer_now - runtime.started_at).total_seconds())
         return 0.0
 
-    async def _suspend_source(self) -> bool:
+    async def _suspend_source(self, reason: str = "source_unavailable") -> bool:
         """One exclusion boundary for outage, timeout, invalid and direct gaps."""
+        # Diagnostic mirror of this existing exclusion decision; never drives evidence.
+        self._hydraulic_monitoring_reason = reason
         interrupted = self.source_available or self._flow_evidence.received_at is not None
         if interrupted:
             self._mqtt_provenance.interrupt(self.timer_now)
@@ -1168,6 +1179,20 @@ class WaterLeakManager:
                 "detected_at": source.started_at,
             }
         return {"event_id": None, "type": None, "started_at": None, "detected_at": None}
+
+    @property
+    def hydraulic_monitoring_status(self) -> str:
+        """Display only: mirror source admission/exclusion, independent of alarms."""
+        if self._hydraulic_monitoring_reason == "waiting_for_measurement":
+            return "waiting_for_measurement"
+        if self.source_available and self._hydraulic_monitoring_reason == "verified_measurement":
+            return "active"
+        return "blocked"
+
+    @property
+    def hydraulic_monitoring_reason(self) -> str:
+        """Last authoritative admission or exclusion reason, never persisted."""
+        return self._hydraulic_monitoring_reason
 
     def source_diagnostics(self) -> dict:
         """Observation age is monotonic; UTC labels never determine evidence."""
@@ -1665,10 +1690,12 @@ class WaterLeakManager:
         self._last_valid_reported_at = None
         self._last_valid_flow_lph = None
         self.engine.rebind_sources()
+        self._hydraulic_monitoring_reason = "waiting_for_measurement"
         self._flow_evidence.interrupt()
         self.learner.reset()
         self.long_term_learner = LongTermHighLearner(identity.generation, identity.learning_epoch)
         await self._save_current_locked()
+        self._notify_listeners()
 
     @serialized
     async def async_update_sources(self, data: dict) -> bool:
@@ -1683,6 +1710,7 @@ class WaterLeakManager:
         self.flow_entity_id = data[CONF_FLOW_ENTITY]
         self.total_entity_id = data.get(CONF_TOTAL_ENTITY)
         self.engine.rebind_sources()
+        self._hydraulic_monitoring_reason = "waiting_for_measurement"
         self._flow_evidence.interrupt()
         if old_flow != self.flow_entity_id:
             self.measurement_source = resolve_source(self.hass, self.flow_entity_id)
@@ -1694,6 +1722,7 @@ class WaterLeakManager:
             )
         self._rebind_source_listeners()
         await self._save_current_locked()
+        self._notify_listeners()
         return True
 
     def _rebind_source_listeners(self) -> None:

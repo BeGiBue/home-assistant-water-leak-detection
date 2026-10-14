@@ -28,6 +28,7 @@ async def async_setup_entry(
     async_add_entities(
         [
             WaterLeakStatusSensor(manager),
+            HydraulicMonitoringStatusSensor(manager),
             CurrentFlowSensor(manager),
             ActiveEventDurationSensor(manager),
             ActiveEventVolumeSensor(manager),
@@ -115,6 +116,35 @@ class WaterLeakStatusSensor(WaterLeakEntity, SensorEntity):
             "detectors": {
                 kind.value: self.manager.engine.runtimes[kind].phase.value for kind in DetectorKind
             },
+        }
+
+
+class HydraulicMonitoringStatusSensor(WaterLeakEntity, SensorEntity):
+    """Always available visibility of hydraulic measurement admission."""
+
+    _attr_translation_key = "hydraulic_monitoring_status"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["active", "waiting_for_measurement", "blocked"]
+    _attr_icon = "mdi:water-check"
+    _attr_should_poll = False
+
+    def __init__(self, manager: WaterLeakManager) -> None:
+        super().__init__(manager, "hydraulic_monitoring_status")
+
+    @property
+    def native_value(self) -> str:
+        return self.manager.hydraulic_monitoring_status
+
+    @property
+    def extra_state_attributes(self):
+        diagnostics = self.manager.source_diagnostics()
+        return {
+            "reason": self.manager.hydraulic_monitoring_reason,
+            "source_entity_id": self.manager.flow_entity_id,
+            "source_available": self.manager.source_available,
+            "mqtt_provenance_status": diagnostics.get("mqtt_provenance_status"),
+            "last_valid_measurement": diagnostics.get("last_valid_ha_reported_at"),
+            "observation_age_seconds": diagnostics.get("last_valid_observation_age_seconds"),
         }
 
 
