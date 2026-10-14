@@ -16,8 +16,10 @@
 
 ### Home Assistant
 - [Entitäten, Aktionen & Events](Home-Assistant-Schnittstellen)
+- [Hydraulische Überwachung & Diagnose](Home-Assistant-Schnittstellen#hydraulische-überwachung)
 - [Persistenz & Betrieb](Persistenz-und-Betrieb)
 - [Troubleshooting](Troubleshooting)
+- [Dashboard-Karte](Dashboard-Karte)
 
 ### Entwicklung
 - [Entwicklung & Release](Entwicklung-und-Release)

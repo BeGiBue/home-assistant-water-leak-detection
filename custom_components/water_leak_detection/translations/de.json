@@ -174,7 +174,7 @@
         },
         "submit": "Hinzufügen und zurück",
         "data_description": {
-          "session_token_id": "Anmeldung, mit der genau dieses Gerät in Home Assistant angemeldet ist (Benutzer · App/Browser · zuletzt genutzt). Die Karte erkennt das Gerät daran: Stummschalten gilt nur für dieses Gerät; globales Quittieren und externes Zurücksetzen nur mit den Berechtigungen oben und wenn der Device Tracker zuhause ist. „—“ = nicht gekoppelt. Nach einer Neuanmeldung des Geräts neu auswählen."
+          "session_token_id": "Anmeldung, mit der genau dieses Gerät in Home Assistant angemeldet ist (Benutzer · App/Browser · zuletzt genutzt). Die Dashboard-Karte erkennt das Gerät daran (das Backend prüft jede Aktion): Stummschalten gilt nur für dieses Gerät; globales Quittieren (nur zuhause) und externes Zurücksetzen nur mit den Berechtigungen oben und wenn der Device Tracker zuhause ist. „—“ = nicht gekoppelt. Nach einer Neuanmeldung des Geräts neu auswählen."
         }
       },
       "remove_recipient": {
@@ -211,7 +211,7 @@
         },
         "submit": "Speichern und zurück",
         "data_description": {
-          "session_token_id": "Anmeldung, mit der genau dieses Gerät in Home Assistant angemeldet ist (Benutzer · App/Browser · zuletzt genutzt). Die Karte erkennt das Gerät daran: Stummschalten gilt nur für dieses Gerät; globales Quittieren und externes Zurücksetzen nur mit den Berechtigungen oben und wenn der Device Tracker zuhause ist. „—“ = nicht gekoppelt. Nach einer Neuanmeldung des Geräts neu auswählen."
+          "session_token_id": "Anmeldung, mit der genau dieses Gerät in Home Assistant angemeldet ist (Benutzer · App/Browser · zuletzt genutzt). Die Dashboard-Karte erkennt das Gerät daran (das Backend prüft jede Aktion): Stummschalten gilt nur für dieses Gerät; globales Quittieren (nur zuhause) und externes Zurücksetzen nur mit den Berechtigungen oben und wenn der Device Tracker zuhause ist. „—“ = nicht gekoppelt. Nach einer Neuanmeldung des Geräts neu auswählen."
         }
       },
       "notifications": {

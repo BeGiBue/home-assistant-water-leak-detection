@@ -85,3 +85,35 @@ Notification recipients do not have to be configured only during initial install
 Each source, expert and recipient form now has a **Back without saving** switch.
 Enable it and submit to return to the preceding menu without saving or validating
 unfinished fields. Changing only recipients preserves running detection timers.
+
+## Upgrading to the published 1.2.0-beta.3
+
+A GitHub pre-release does **not** update an already running Home Assistant.
+Back up HA configuration and the integration runtime Store first. In HACS enable
+pre-release/beta versions and explicitly download `1.2.0-beta.3` (or copy that
+release's integration directory manually), then restart HA. Confirm the installed
+version and find **Hydraulic monitoring** / **Hydraulische Überwachung** on the
+existing integration device. Keep your existing config entry; do not delete it
+or its Store to resolve a blocked state. Check the
+[beta prerequisites and user-confirmed restart test](BETA_1.2.0.md).
+
+Card 0.1.0 of this beta had to be registered manually; since 2.0.0-beta.1 the card is loaded
+automatically (see below).
+
+## Upgrading to 2.0.0-beta.1
+
+A GitHub pre-release does **not** update a running Home Assistant. Back up the HA configuration
+and the integration runtime Store. In HACS enable beta versions, download `2.0.0-beta.1` and restart
+Home Assistant. Then:
+
+1. Reload the browser / Companion app and add the card via **Add card → Water Leak Guard**. No file
+   copy and no dashboard resource are needed.
+2. If you added the card manually before, delete the resource `/local/water-leak-guard-card.js`
+   (*Settings → Dashboards → ⋮ → Resources*) and the file in `<config>/www/`. Existing card
+   configurations (`type: custom:water-leak-guard-card`) keep working.
+3. Optional: pair devices for alarm actions in the card under **Configure → Notification recipients →
+   Edit recipient → Paired login for the dashboard card**.
+
+The beta scope is unchanged: hydraulic detection with notifications, without configured external
+leak sensors or persisted external records. See [2.0 beta notes](BETA_2.0.0.md) and
+[card guide](CARD.md).

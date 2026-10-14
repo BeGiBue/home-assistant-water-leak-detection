@@ -12,9 +12,12 @@ server side and handed to the existing, tested validators:
 - external_reset:  external sources only, Home and permission required
                    (``WaterLeakManager.async_external_reset``)
 
-Hydraulic alarms have no command: they end only through their physical reset
-rules. No command ends detection, an alarm or the shutoff request except the
-explicit external reset, which the backend validates at commit time.
+There is no WebSocket command for hydraulic alarms. They end when the flow meets
+their quiet/reset condition, or through the existing controls outside this module
+(switching the Slow Leak/Low Flow detector off, starting the High Flow bypass);
+Burst Leak ends only physically. No command here ends detection, an alarm or the
+shutoff request except the explicit external reset, which the backend validates
+at commit time.
 """
 
 from __future__ import annotations
@@ -137,6 +140,8 @@ async def handle_session(hass: HomeAssistant, connection, msg: dict[str, Any]) -
             "recipient_id": recipient.id,
             "recipient_name": recipient.name,
             "home": _is_home(hass, recipient),
+            # Not a secret: lets the card refresh this answer when the tracker changes.
+            "tracker_entity": recipient.tracker_entity,
             "trusted_stationary": recipient.trusted_stationary,
             "can_global_ack": recipient.allow_global_ack,
             "can_external_reset": recipient.allow_external_reset,

@@ -58,6 +58,36 @@ Zusatzattribute enthalten unter anderem:
 - Slow-/Low-Aktivierung
 - interne Detektorzustände
 
+## Hydraulische Überwachung
+
+Regulärer, auch bei Sperre verfügbarer Sensor `hydraulic_monitoring_status` am
+bestehenden Integrationsgerät. Unique-ID:
+`<config-entry-id>_hydraulic_monitoring_status`; Entity-ID kann umbenannt werden.
+
+| Intern | Deutsch | Englisch | Bedeutung |
+|---|---|---|---|
+| `active` | Aktiv | Active | Messquelle ist vom Manager freigegeben. |
+| `waiting_for_measurement` | Warte auf Messung | Waiting for measurement | Erste Messung nach Start/Quellenwechsel fehlt, ohne festgestellte Sperre. |
+| `blocked` | Gesperrt | Blocked | Quelle/Auswertung ist ausgeschlossen; Grund steht in Attributen. |
+
+„Kein Alarm“ und „Aktiv“ sind verschiedene Aussagen. `blocked` ist kein ACK und
+beendet keinen ACTIVE-Alarm oder Shutoff-Beitrag. Die Entität selbst bleibt bei
+Sperre verfügbar, sofern die Integration funktionsfähig ist.
+
+| Attribut | Zeitbasis / Bedeutung |
+|---|---|
+| `reason` | Konkrete letzte Manager-Entscheidung. |
+| `source_entity_id` | Konfigurierte Flow-Entität. |
+| `source_available` | Vorhandener Manager-Freigabewert; bei Rebind kann er kurz die alte Quelle beschreiben, während die Anzeige korrekt wartet. |
+| `mqtt_provenance_status` | Herkunftsprüfung; gemeinsam mit aktuellem Zustand und reason lesen. |
+| `last_valid_measurement` | Zeitstempel des letzten gültigen **HA-Reports**, nicht der originale Funk-Timestamp. |
+| `observation_age_seconds` | Monotones Beobachtungsalter; fehlende Werte bleiben null. |
+
+Mehr Diagnosen liegen im Gesamtstatus unter `measurement_diagnostics`, darunter
+`mqtt_measurement_provenance.admission_since` und Low-Resetfortschritt.
+[Fehlersuche](Troubleshooting). Die Anzeige folgt nur der bestehenden Manager-
+Logik und ist unabhängig von persönlichem Mute/globalem ACK.
+
 ## Aktueller Durchfluss
 
 Normalisierter Durchfluss in:
@@ -319,3 +349,32 @@ Status/Alarm/Shutoff aggregieren alle Ereignisse; Attribute zeigen externe
 ACTIVE/WAITING-Quellen, hydraulische Alarme, Beiträge und Migrationsstatus.
 Ein diagnostischer Langzeitmaximum-Sensor zeigt den getrennt bestätigten Wert.
 Alle Sicherheits- und Persistenzregeln: [F04 V3](F04-V3.md).
+
+## Dashboard-Karte und Kartenbefehle
+
+Seit 2.0.0-beta.1 stellt die Integration die Karte selbst bereit
+(`/water_leak_detection/water-leak-guard-card.js`, als Frontend-Modul geladen). Bedienung und Kopplung:
+[Dashboard-Karte](Dashboard-Karte).
+
+Für die Karte registriert die Integration WebSocket-Befehle. Alle nehmen optional `config_entry_id`
+(nötig bei mehreren Instanzen). Die Identität ist ausschließlich die Anmeldung der Verbindung, die beim
+Empfänger als **Gekoppelte Anmeldung** hinterlegt ist; Long-Lived-Tokens zählen nie. Empfänger-Token und
+Reset-Nonce verlassen nie den Server.
+
+| Befehl | Felder | Wirkung | Prüfung beim Ausführen |
+|---|---|---|---|
+| `water_leak_detection/session` | – | Auskunft: `paired`, `recipient_id`, `recipient_name`, `home`, `tracker_entity`, `trusted_stationary`, `can_global_ack`, `can_external_reset` | nur Anzeige |
+| `water_leak_detection/mute` | `event_id` | stummschalten nur für dieses Gerät | gekoppelt, Ereignis aktiv; überall |
+| `water_leak_detection/acknowledge` | `event_id` | globale Quittierung | Berechtigung, Device Tracker `home`, Ereignis aktiv, gespeichert vor Bestätigung |
+| `water_leak_detection/external_reset` | `event_id`, `source_id`, `source_generation` | externes Leck zurücksetzen | Berechtigung, `home`, exakte Ereignisbindung, gespeichert |
+
+Fehlercodes: `not_paired`, `not_home`, `not_allowed`, `event_not_active`, `not_committed`, `rejected`,
+`instance_not_found`. Die Kopplung wird innerhalb der Schreibsperre des Managers erneut geprüft.
+
+Für hydraulische Alarme gibt es keinen Befehl. Sie enden, wenn der Durchfluss die Ruhebedingung
+erfüllt; Slow/Low außerdem beim Abschalten des Detektors und High Flow beim Start des Bypass (die Karte
+fragt dann nach). Burst endet nur physisch.
+
+Die bestehenden Dienste `water_leak_detection.acknowledge_event` und `water_leak_detection.external_reset`
+bleiben unverändert; sie verlangen ihre Token- bzw. Nonce-Bindungen und werden von der Karte nicht
+aufgerufen.

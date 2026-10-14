@@ -11,6 +11,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import translation
 
+from .card import async_register_card
 from .const import (
     ATTR_CONFIG_ENTRY_ID,
     ATTR_DURATION_MINUTES,
@@ -169,6 +170,7 @@ async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
         schema=probatio.Schema({probatio.Optional(ATTR_CONFIG_ENTRY_ID): str}),
     )
     async_register_websocket(hass)
+    await async_register_card(hass)
     return True
 
 
