@@ -865,8 +865,15 @@ const BACKGROUND_MOTIF = `
     </defs>
     <path class="shield-fill" d="M100 6 L186 38 V110 C186 168 150 210 100 234 C50 210 14 168 14 110 V38 Z"/>
     <g clip-path="url(#wlg-shield)">
+      <g class="slosh">
       <path class="wave wave-back" d="M-200 96 Q-175 85 -150 96 T-100 96 T-50 96 T0 96 T50 96 T100 96 T150 96 T200 96 T250 96 T300 96 T350 96 T400 96 V260 H-200 Z"/>
       <path class="wave wave-front" d="M-200 106 Q-175 117 -150 106 T-100 106 T-50 106 T0 106 T50 106 T100 106 T150 106 T200 106 T250 106 T300 106 T350 106 T400 106 V260 H-200 Z"/>
+      </g>
+      <circle class="drop" cx="164" cy="62" r="4.5" style="--dx:-14px;--dy:-26px"/>
+      <circle class="drop" cx="174" cy="74" r="3.5" style="--dx:-26px;--dy:-14px"/>
+      <circle class="drop" cx="156" cy="52" r="3" style="--dx:-6px;--dy:-34px"/>
+      <circle class="drop" cx="170" cy="90" r="2.5" style="--dx:-34px;--dy:-6px"/>
+      <circle class="drop" cx="178" cy="58" r="2.5" style="--dx:-18px;--dy:-32px"/>
     </g>
     <path class="shield-line" d="M100 6 L186 38 V110 C186 168 150 210 100 234 C50 210 14 168 14 110 V38 Z"/>
     <path class="shield-line inner" d="M100 22 L172 49 V110 C172 160 142 196 100 217 C58 196 28 160 28 110 V49 Z"/>
@@ -903,12 +910,33 @@ const STYLES = `
   .motif .wave { fill: var(--wlg-water); }
   .motif .wave-back { opacity: .12; animation: wlg-drift 9s linear infinite; }
   .motif .wave-front { opacity: .2; animation: wlg-drift 6s linear infinite reverse; }
+  .motif .drop { fill: var(--wlg-alarm); opacity: 0; transform-box: fill-box; transform-origin: center; }
   .tone-alarm .motif .wave { fill: var(--wlg-alarm); }
-  .tone-alarm .motif .wave-back { animation-duration: 3.5s; }
-  .tone-alarm .motif .wave-front { animation-duration: 2.4s; }
   .tone-alarm .motif .shield-line { opacity: .35; }
+  /* Alarm: the water runs to the right wall, hits it with spray, and falls back. */
+  .tone-alarm .motif .slosh {
+    transform-box: view-box; transform-origin: 100px 150px; animation: wlg-slosh 1.5s infinite;
+  }
+  .tone-alarm .motif .wave-back { animation-duration: 1.5s; }
+  .tone-alarm .motif .wave-front { animation-duration: .75s; animation-direction: normal; }
+  .tone-alarm .motif .drop { animation: wlg-splash 1.5s infinite; }
   @keyframes wlg-drift { to { transform: translateX(100px); } }
-  @media (prefers-reduced-motion: reduce) { .motif .wave { animation: none; } }
+  @keyframes wlg-slosh {
+    0% { transform: rotate(7deg); animation-timing-function: cubic-bezier(.55, 0, .9, .5); }
+    42% { transform: rotate(-19deg); animation-timing-function: ease-out; }
+    52% { transform: rotate(-13deg); animation-timing-function: ease-in-out; }
+    60% { transform: rotate(-16deg); animation-timing-function: cubic-bezier(.3, .1, .4, 1); }
+    100% { transform: rotate(7deg); }
+  }
+  @keyframes wlg-splash {
+    0%, 38% { opacity: 0; transform: translate(0, 0) scale(.4); }
+    44% { opacity: .45; transform: translate(0, 0) scale(1); }
+    70% { opacity: .3; }
+    80%, 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.6); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .motif .wave, .tone-alarm .motif .slosh, .tone-alarm .motif .drop { animation: none; }
+  }
   @media (max-width: 380px) { .motif { width: 80px; height: 96px; right: 10px; } .head.has-motif { min-height: 120px; padding-right: 96px; } }
 
   ha-card.tone-alarm { box-shadow: inset 0 3px 0 var(--wlg-alarm), var(--ha-card-box-shadow, none); }
