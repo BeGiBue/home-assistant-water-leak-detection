@@ -482,6 +482,14 @@
       },
       "long_term_normal_maximum": {
         "name": "Bestätigtes Langzeitmaximum"
+      },
+      "hydraulic_monitoring_status": {
+        "name": "Hydraulische Überwachung",
+        "state": {
+          "active": "Aktiv",
+          "waiting_for_measurement": "Warte auf Messung",
+          "blocked": "Gesperrt"
+        }
       }
     },
     "binary_sensor": {

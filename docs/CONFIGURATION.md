@@ -317,3 +317,30 @@ Replay-, Retained- und Altersprüfungen bleiben wirksam.
 ACK wird erst nach erfolgreicher Persistenz veröffentlicht. Das Configure-ACK ist
 administrative Delegation anhand des ausgewählten Recipients und dessen Home-
 Tracker. Status und Dauer wählen dasselbe hydraulische oder externe Ereignis.
+
+### Hydraulische Überwachung
+
+Ab 1.2.0-beta.3 besitzt das vorhandene Integrationsgerät einen regulären Sensor
+**Hydraulische Überwachung** (`hydraulic_monitoring_status`). Die stabile Unique-ID
+setzt sich aus Config-Entry-ID und diesem Schlüssel zusammen.
+
+| Zustand | Bedeutung |
+|---|---|
+| Aktiv (`active`) | Der Manager hat die Durchflussmessquelle freigegeben und verarbeitet ihre gültigen Messungen. |
+| Warte auf Messung (`waiting_for_measurement`) | Nach Start oder Quellenwechsel fehlt die erste gültige Messung, ohne bereits festgestellte ausdrückliche Sperre. |
+| Gesperrt (`blocked`) | Eine Messung wurde abgelehnt, die Quelle ist ungültig/nicht verfügbar oder ihr konfigurierter Timeout wurde erreicht. |
+
+„Kein Alarm“ bedeutet nicht automatisch „Überwachung aktiv“. Auch bei einer
+Sperre bleibt der neue Sensor verfügbar. Ein zuvor bestätigter ACTIVE-Alarm und
+sein Shutoff-Beitrag bleiben entsprechend den bestehenden Resetregeln erhalten.
+ACK und Mute ändern die hydraulische Freigabe nicht.
+
+Hilfreiche Attribute: `reason` nennt die tatsächliche letzte Annahme-/Sperrentscheidung
+des Managers; `source_entity_id` zeigt die Flowquelle, `source_available` den
+vorhandenen Manager-Freigabewert und `mqtt_provenance_status` die MQTT-Prüfung.
+`last_valid_measurement` ist der Zeitstempel des letzten gültigen **HA-Reports**
+(kein erfundener physischer Timestamp); `observation_age_seconds` ist dessen
+monotones Beobachtungsalter. Nicht vorhandene optionale Werte bleiben leer/null.
+Während eines Quellenwechsels wartet die Anzeige bis zur neuen Freigabe, auch wenn
+der vorhandene Manager-Freigabewert vorübergehend noch die alte Quelle beschreibt.
+Die Anzeige verändert weder diesen Wert noch Evidenz, Erkennung oder Persistenz.

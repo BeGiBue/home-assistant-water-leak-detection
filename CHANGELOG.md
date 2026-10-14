@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0-beta.3
+
+- Add a regular, always-available hydraulic monitoring status sensor with active,
+  waiting-for-measurement and blocked states, plus source diagnostics.
+- Translate entity and states in German and English; retain existing alarms,
+  evidence, MQTT protection, notification and shutoff behavior.
+
+
 All notable changes to Water Leak Guard are documented here.
 
 ## Unreleased

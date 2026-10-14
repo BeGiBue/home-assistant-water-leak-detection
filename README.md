@@ -11,8 +11,8 @@
 
 A backend-focused Home Assistant custom integration for detecting abnormal water consumption and possible water leaks from an existing water-meter flow sensor.
 
-**Current release:** 1.2.0-beta.1
-**Release status:** prepared beta candidate, not published; latest published stable: 1.1.0.
+**Current release:** 1.2.0-beta.3
+**Release status:** pre-release; latest published stable: 1.1.0.
 **Beta scope:** hydraulic detection with notifications only, without configured external leak
 sensors or persisted external records. See [the beta prerequisites](docs/BETA_1.2.0.md).
 **Minimum Home Assistant:** 2026.9.0
@@ -291,10 +291,9 @@ See [LICENSE](LICENSE) for the complete license text.
 Version **1.1.0** contains the seven reviewed technical correction rounds together with
 F02 static High Flow, F08 Low Flow stability, and the repeatedly confirmed seasonal
 learning of clean High Flow episodes. High remains static and learning can influence only
-the existing adaptive Burst context in that release. The unreleased F04 V3 feature
-on this branch replaces the shared High-learning channel and Rapid-Rise rule;
-see the current [V3 contract](docs/F04_V3.md). The prepared release candidate is
-1.2.0-beta.1; 1.1.0 remains the latest published stable version.
+the existing adaptive Burst context in that release. F04 V3 replaces the shared High-learning channel and Rapid-Rise rule;
+see the current [V3 contract](docs/F04_V3.md). The current beta version is
+1.2.0-beta.3; 1.1.0 remains the latest published stable version.
 
 Only actual flow reports supply detection/quiet evidence. Re-reading a cached HA
 state on an internal tick never matures a timer. Object identity and report
@@ -439,3 +438,14 @@ bestehende ACTIVE-Alarme bleiben erhalten. Die fremde Discovery wird nicht
 ACK wird erst nach erfolgreicher Persistenz veröffentlicht. Das Configure-ACK ist
 administrative Delegation anhand des ausgewählten Recipients und dessen Home-
 Tracker. Status und Dauer wählen dasselbe hydraulische oder externe Ereignis.
+
+### Hydraulic monitoring status
+
+The regular **Hydraulic monitoring** sensor is independent of the alarm sensor.
+`active` means measurements are admitted; `waiting_for_measurement` means startup
+or a source change is awaiting a measurement without an explicit exclusion;
+`blocked` means the manager has rejected or lost the source. A blocked source does
+not end an existing alarm or release its shutoff request. The sensor stays available
+and includes `reason`, `source_entity_id`, `source_available`,
+`mqtt_provenance_status`, `last_valid_measurement` and `observation_age_seconds`.
+See [configuration](docs/CONFIGURATION.md#hydraulische-überwachung).
