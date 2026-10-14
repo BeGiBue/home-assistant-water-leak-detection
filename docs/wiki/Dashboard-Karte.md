@@ -56,8 +56,7 @@ bypass_presets: [60, 120, 240]        # Minuten, 1–1440
 
 Ab Karte 0.5.0 ist die ruhige Karte einspaltig nur noch ca. 335 px hoch (gemessen, je nach Schrift
 ca. ±15 px). Spalten im Masonry-Layout und Abschnitte sind in Home Assistant höchstens ca. 500 px breit;
-dort – auch auf iPad und dem alten 7″-Display des Raspberry Pi (800×480) – ist die Karte einspaltig und
-passt unter die HA-Leiste. Zwei Spalten (links Kopf, Alarm, Überwachung, Durchfluss; rechts Erkennung,
+dort – auch auf iPad und dem alten 7″-Display des Raspberry Pi – ist die Karte einspaltig. Zwei Spalten (links Kopf, Alarm, Überwachung, Durchfluss; rechts Erkennung,
 Bypass, externe Sensoren, Lernmodell) zeigt sie nur, wenn sie selbst mindestens ca. 600 px breit ist: in
 der Panel-Ansicht oder in einem Abschnitt über mehrere Spalten (`column_span` ≥ 2) mit
 `grid_options: columns: full`. Beispiel für ein Wanddisplay:
@@ -80,12 +79,18 @@ gekoppelten Empfänger („Für Bea stummschalten“). Hell/dunkel und „Bewegu
 
 Ab Karte 0.6.0 starten „High-Flow-Bypass“ und „Lernmodell“ **aufgeklappt** (ruhige Karte einspaltig ca.
 550 px hoch, bei 320 px ca. 615 px). Mit `collapsed: true` (Editor: „Abschnitte eingeklappt starten“)
-starten sie zu; dann ist die ruhige Karte einspaltig ca. 335 px hoch. Das empfiehlt sich für kleine
-Wanddisplays wie das alte Raspberry-Pi-Display mit 800×480:
+starten sie zu; dann ist die ruhige Karte einspaltig ca. 335 px hoch (alle Werte gemessen, ±15 px).
+
+Altes Raspberry-Pi-Display 7″:
+
+- **hochkant (480×800):** Der Standard (offen) passt: ruhig ca. 550 px bei 448–464 px Kartenbreite,
+  Unterkante bei ca. 613 px unter einer 56-px-Leiste (Platz ca. 744 px). `collapsed` ist nicht nötig.
+  Ein Alarm braucht mehr Platz (ca. 850–900 px); der Alarmkasten steht oben.
+- **quer (800×480):** Nur eingeklappt passt die ruhige Karte unter die Leiste (ca. 420 px Platz):
 
 ```yaml
 type: custom:water-leak-guard-card
-collapsed: true
+collapsed: true   # nur für 800×480 quer oder andere niedrige Bildschirme
 ```
 
 Auf- und Zuklappen in der Karte bleibt bis zum Neuladen der Seite erhalten; eine Änderung der Option
@@ -110,7 +115,7 @@ Seit Karte 0.6.0 gibt es dafür den Empfängertyp **Wanddisplay**:
   freigeben, was für jeden im Haushalt (und Besuch) in Ordnung ist.
 - Die Art lässt sich nach dem Anlegen nicht ändern (Eintrag entfernen und neu anlegen).
 
-Für das 800×480-Display empfiehlt sich `collapsed: true` (siehe oben).
+Auf dem 7″-Display hochkant (480×800) reicht der Standard; quer (800×480) `collapsed: true` setzen (siehe oben).
 
 **Beispiel-Automation:** Bei einem Leckalarm das Display einschalten, volle Helligkeit und das Dashboard
 öffnen. Die Entity-IDs sind **Platzhalter** – die echten Namen stehen unter *Einstellungen → Geräte &

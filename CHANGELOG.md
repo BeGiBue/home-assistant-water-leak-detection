@@ -3,8 +3,9 @@
 ## Unreleased
 
 - Dashboard card 0.6.0: "High Flow bypass" and "Learning" start **expanded**. New option
-  `collapsed: true` (editor: "Start with sections collapsed") starts them collapsed, e.g. for an 800×480
-  wall display. In-card toggles stay in memory; changing the option resets to its default. Idle height
+  `collapsed: true` (editor: "Start with sections collapsed") starts them collapsed, needed only on short screens such
+  as a Raspberry Pi 7″ display in landscape (800×480); in portrait (480×800) the default open card fits
+  under the toolbar (idle about 550 px, card 448–464 px wide, measured ±15 px). In-card toggles stay in memory; changing the option resets to its default. Idle height
   (Chromium, ±15 px): expanded about 615/550/550 px at 320/386/500 px and about 465 px in two columns
   (744 px); collapsed unchanged at about 335 px (188 px in two columns).
 - New recipient kind **wall display** (`kind: display`, options: "Add wall display") for a fixed display

@@ -48,13 +48,22 @@ Assistant. Je nach Schrift weichen echte Geräte um **ca. ±15 px** ab. Ab 0.6.0
 |---|---|---|---|---|---|
 | schmales Telefon | 320 px | 1 | ca. 930 px | ca. 615 px | ca. 335 px |
 | iPhone 17 Pro (402×874) | ca. 386 px | 1 | ca. 884 px | ca. 550 px | ca. 335 px |
-| iPad / Raspberry Pi 7″ (800×480) in Masonry oder Sections | ca. 490–500 px | 1 | ca. 827 px | ca. 550 px | ca. 335 px |
+| iPad / Raspberry Pi 7″ quer (800×480) in Masonry oder Sections | ca. 490–500 px | 1 | ca. 827 px | ca. 550 px | ca. 335 px |
+| Raspberry Pi 7″ hochkant (480×800), Kiosk ohne Seitenleiste | ca. 448–464 px | 1 | – | ca. 550 px | ca. 335 px |
 | Panel-Ansicht oder Abschnitt über ganze Breite (Tablet, Pi im Panel) | ≥ ca. 600 px (z. B. 744/768 px) | 2 | ca. 810 px | ca. 465 px | ca. 190 px |
 
 Mit einem externen Sensor kommen ca. 80 px hinzu (ca. 415 px), mit aktivem Bypass bei schmaler Karte
-ca. 12 px (zweizeilige Zusammenfassung). Auf dem alten 7″-Display (800×480, ca. 420 px unter der
-HA-Leiste von 56 px) passt die ruhige einspaltige Karte mit `collapsed: true` ohne Scrollen; aufgeklappte
-Abschnitte oder ein Alarm brauchen mehr Platz. Für dieses Display deshalb `collapsed: true` setzen.
+ca. 12 px (zweizeilige Zusammenfassung).
+
+**Raspberry Pi 7″ (altes offizielles Display):**
+
+- **Hochkant (480×800,** ca. 744 px unter der HA-Leiste von 56 px): Die Karte ist ca. 448–464 px breit
+  und passt mit dem **Standard (Abschnitte offen)** ohne Scrollen: ruhig ca. 550 px, Unterkante bei ca.
+  613 px (gemessen bei 448 und 464 px, DE/EN, ±15 px). Ein Alarm braucht mehr Platz (Display-Sitzung:
+  Burst ca. 850–880 px, Low Flow ca. 870–900 px); der Alarmkasten steht oben, der Rest wird gescrollt.
+  `collapsed: true` ist hier nicht nötig.
+- **Quer (800×480,** ca. 420 px unter der Leiste): Nur mit `collapsed: true` (ca. 335 px) passt die ruhige
+  Karte ohne Scrollen. `collapsed: true` braucht man also nur quer oder auf anderen niedrigen Bildschirmen.
 
 Für ein Wanddisplay oder den Pi eignet sich eine eigene Ansicht im Panel-Modus (zwei Spalten):
 
@@ -291,7 +300,7 @@ show_external: true
 show_learning: true
 show_background: true                 # Schutzschild mit Wasser im Kopf der Karte
 bypass_presets: [60, 120, 240]        # Minuten, 1–1440
-collapsed: false                      # true: Bypass und Lernmodell starten eingeklappt (z. B. 800×480)
+collapsed: false                      # true: Bypass und Lernmodell starten eingeklappt (z. B. 800×480 quer)
 ```
 
 `collapsed` (Editor: „Abschnitte eingeklappt starten“) bestimmt nur den Anfangszustand. Auf- und
