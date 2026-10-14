@@ -156,4 +156,11 @@ externe Sensoren oder gespeicherte externe Alarmdatensätze beschränkt; H01 ble
 für externe Quellen offen. Softwaretests und der am 14. Oktober 2026
 vom Benutzer bestätigte erfolgreiche Hydrus-Neustart mit Beta.3 sind getrennte
 Nachweise; der Einzeltest belegt nicht sämtliche Ausfall-/Neustartszenarien. [Beta-Chronologie](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
-[Karteninstallation und fehlende Backend-Befehle](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/CARD.md).
+[Kartendokumentation](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/CARD.md).
+
+## Betriebsstand 2.0.0-beta.1
+
+Die [Dashboard-Karte](Dashboard-Karte) wird seit 2.0.0-beta.1 mit der Integration geladen. Sie zeigt Alarm und
+hydraulische Überwachung getrennt und bietet gekoppelten Geräten Stummschalten, globale Quittierung und
+externen Reset an, jeweils nur wenn das Backend es erlaubt. Erkennung, Alarm- und Absperrlogik sind
+unverändert. Der Beta-Umfang bleibt ohne externe Lecksensoren.

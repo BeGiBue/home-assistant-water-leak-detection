@@ -244,6 +244,17 @@ Persönlicher Mute und globales ACK ändern weder die Quellenfreigabe noch
 Benachrichtigungen quittiert sind. Persönlicher Mute unterwegs ist kein globales
 ACK; letzteres verlangt weiterhin aktuelle Recipient-Berechtigung und Home-Zone,
 serverseitig geprüft. Ein UI-Button ist keine Autorisierung.
-Hydraulische Alarme enden nur nach ihren physischen Resetregeln; der gesonderte
-berechtigte External Reset betrifft ausschließlich seine externe Quelle.
-[Sensor und vorbereitete Karte](Home-Assistant-Schnittstellen).
+Hydraulische Alarme haben keinen Lösch- oder Reset-Befehl. Sie enden nach ihren physischen
+Resetregeln; Slow/Low zusätzlich, wenn der Detektor abgeschaltet wird, High Flow, wenn der Bypass
+startet. Burst endet nur physisch. Der gesonderte berechtigte External Reset betrifft ausschließlich
+seine externe Quelle. [Sensor und Kartenbefehle](Home-Assistant-Schnittstellen).
+
+## Quittierung in der Dashboard-Karte
+
+Seit 2.0.0-beta.1 bietet die [Dashboard-Karte](Dashboard-Karte) einem **gekoppelten Gerät** genau die
+Aktionen an, die das Backend gerade erlaubt: persönliches Stummschalten für dieses Gerät (auch
+unterwegs), globale Quittierung (Berechtigung und Device Tracker `home`) und externen Reset
+(Berechtigung und `home`, mit Rückfrage). Die Rechte hängen am Gerät: Ein iPad zuhause kann global
+quittieren, das Telefon desselben Benutzers unterwegs nur sich selbst stummschalten. Nicht gekoppelte
+Geräte sehen nur die Anzeige. Auch in der Karte gilt: Quittierung beendet weder Erkennung noch Alarm
+noch Absperranforderung.

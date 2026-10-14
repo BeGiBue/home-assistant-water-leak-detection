@@ -8,6 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 import probatio
+from homeassistant.auth.models import TOKEN_TYPE_NORMAL, RefreshToken
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -32,6 +33,7 @@ from homeassistant.helpers.selector import (
     SelectSelectorConfig,
     TextSelector,
 )
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_BURST_DETECTION_SEC,
@@ -119,6 +121,7 @@ from .const import (
     RECIPIENT_ID,
     RECIPIENT_NAME,
     RECIPIENT_NOTIFY_SERVICE,
+    RECIPIENT_SESSION_TOKEN_ID,
     RECIPIENT_TOKEN,
     RECIPIENT_TRACKER_ENTITY,
     RECIPIENT_TRUSTED_STATIONARY,
@@ -142,6 +145,10 @@ def _number(minimum: float, maximum: float, step: float, unit: str):
             mode=NumberSelectorMode.BOX,
         )
     )
+
+
+# Select value for "no dashboard device pairing"; never a valid refresh token id.
+_NO_PAIRING = "__none__"
 
 
 def _recipient_description_placeholders(
@@ -620,8 +627,12 @@ class WaterLeakConfigFlow(_NavigationForms, ConfigFlow, domain=DOMAIN):
         notify_services: list[str],
         *,
         current: dict[str, Any] | None = None,
+        sessions: list[SelectOptionDict] | None = None,
     ) -> probatio.Schema:
-        """Build the recipient configuration form."""
+        """Build the recipient configuration form.
+
+        ``sessions`` adds the optional dashboard device pairing (options flow only).
+        """
         current = current or {}
         schema: dict[Any, Any] = {
             probatio.Required(
@@ -674,6 +685,15 @@ class WaterLeakConfigFlow(_NavigationForms, ConfigFlow, domain=DOMAIN):
                 multiple=False,
             )
         )
+        if sessions is not None:
+            paired = current.get(RECIPIENT_SESSION_TOKEN_ID)
+            values = {option["value"] for option in sessions}
+            schema[
+                probatio.Optional(
+                    RECIPIENT_SESSION_TOKEN_ID,
+                    default=paired if isinstance(paired, str) and paired in values else _NO_PAIRING,
+                )
+            ] = SelectSelector(SelectSelectorConfig(options=sessions))
         return probatio.Schema(schema)
 
     @staticmethod
@@ -1349,16 +1369,22 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
             return self.async_abort(reason="no_mobile_app_notify_services")
 
         existing = self._raw_recipients()
+        sessions, session_options = await self._session_choices(existing, None)
         errors: dict[str, str] = {}
         if user_input is not None:
             name = str(user_input[RECIPIENT_NAME]).strip()
             notify_service = str(user_input[RECIPIENT_NOTIFY_SERVICE])
             tracker_entity = str(user_input[RECIPIENT_TRACKER_ENTITY])
+            session_id = user_input.get(RECIPIENT_SESSION_TOKEN_ID)
 
             if not name:
                 errors["base"] = "recipient_name_required"
             elif any(raw.get(RECIPIENT_NOTIFY_SERVICE) == notify_service for raw in existing):
                 errors["base"] = "recipient_notify_service_exists"
+            elif session_id is not None and (
+                session_error := self._session_error(str(session_id), sessions, existing, None)
+            ):
+                errors["base"] = session_error
             else:
                 recipient = {
                     RECIPIENT_ID: uuid4().hex[:10],
@@ -1374,6 +1400,9 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                     RECIPIENT_TRUSTED_STATIONARY: bool(user_input[RECIPIENT_TRUSTED_STATIONARY]),
                     RECIPIENT_TOKEN: token_urlsafe(12),
                 }
+                recipient = self._apply_session(
+                    recipient, str(session_id) if session_id is not None else None
+                )
                 updated = dict(self.config_entry.options)
                 updated[CONF_NOTIFICATION_RECIPIENTS] = [*existing, recipient]
                 await self._persist_options(updated)
@@ -1382,7 +1411,9 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
         return self.async_show_form(
             step_id="add_recipient",
             last_step=False,
-            data_schema=WaterLeakConfigFlow._recipient_schema(notify_services),
+            data_schema=WaterLeakConfigFlow._recipient_schema(
+                notify_services, sessions=session_options
+            ),
             errors=errors,
             description_placeholders=_recipient_description_placeholders(existing),
         )
@@ -1447,10 +1478,12 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
             notify_services.append(current_service)
             notify_services.sort()
 
+        sessions, session_options = await self._session_choices(recipients, recipient_id)
         errors: dict[str, str] = {}
         if user_input is not None:
             name = str(user_input[RECIPIENT_NAME]).strip()
             notify_service = str(user_input[RECIPIENT_NOTIFY_SERVICE])
+            session_id = user_input.get(RECIPIENT_SESSION_TOKEN_ID)
             if not name:
                 errors["base"] = "recipient_name_required"
             elif any(
@@ -1459,6 +1492,16 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                 for raw in recipients
             ):
                 errors["base"] = "recipient_notify_service_exists"
+            elif (
+                session_id is not None
+                and session_id != current.get(RECIPIENT_SESSION_TOKEN_ID)
+                and (
+                    session_error := self._session_error(
+                        str(session_id), sessions, recipients, recipient_id
+                    )
+                )
+            ):
+                errors["base"] = session_error
             else:
                 replacement = {
                     RECIPIENT_ID: str(current[RECIPIENT_ID]),
@@ -1475,6 +1518,13 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                     RECIPIENT_TRUSTED_STATIONARY: bool(user_input[RECIPIENT_TRUSTED_STATIONARY]),
                     RECIPIENT_TOKEN: str(current[RECIPIENT_TOKEN]),
                 }
+                # Without a submitted choice an existing pairing is kept unchanged.
+                if isinstance(current.get(RECIPIENT_SESSION_TOKEN_ID), str):
+                    replacement[RECIPIENT_SESSION_TOKEN_ID] = current[RECIPIENT_SESSION_TOKEN_ID]
+                if session_id is not None and session_id != current.get(
+                    RECIPIENT_SESSION_TOKEN_ID
+                ):
+                    replacement = self._apply_session(replacement, str(session_id))
                 updated = dict(self.config_entry.options)
                 updated[CONF_NOTIFICATION_RECIPIENTS] = [
                     replacement if str(raw.get(RECIPIENT_ID, "")) == recipient_id else raw
@@ -1490,10 +1540,87 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
             data_schema=WaterLeakConfigFlow._recipient_schema(
                 notify_services,
                 current=current,
+                sessions=session_options,
             ),
             errors=errors,
             description_placeholders=_recipient_description_placeholders(recipients),
         )
+
+    async def _pairable_sessions(self) -> dict[str, RefreshToken]:
+        """Normal app/browser logins of active, non-system users."""
+        sessions: dict[str, RefreshToken] = {}
+        auth = getattr(self.hass, "auth", None)
+        if auth is None:
+            return sessions
+        for user in await auth.async_get_users():
+            if not user.is_active or user.system_generated:
+                continue
+            for token in user.refresh_tokens.values():
+                if token.token_type == TOKEN_TYPE_NORMAL:
+                    sessions[token.id] = token
+        return sessions
+
+    async def _session_choices(
+        self, recipients: list[dict[str, Any]], editing_id: str | None
+    ) -> tuple[dict[str, RefreshToken], list[SelectOptionDict]]:
+        """Selectable logins for the recipient form; "—" means not paired.
+
+        The dashboard card identifies a device only by this server-side pairing,
+        so one user's iPad at Home and phone away get their own recipient rights.
+        """
+        sessions = await self._pairable_sessions()
+        paired_by = {
+            raw[RECIPIENT_SESSION_TOKEN_ID]: str(raw.get(RECIPIENT_NAME, raw.get(RECIPIENT_ID)))
+            for raw in recipients
+            if isinstance(raw.get(RECIPIENT_SESSION_TOKEN_ID), str)
+            and str(raw.get(RECIPIENT_ID, "")) != (editing_id or "")
+        }
+        options = [SelectOptionDict(value=_NO_PAIRING, label="—")]
+        for token in sorted(
+            sessions.values(),
+            key=lambda t: t.last_used_at or t.created_at,
+            reverse=True,
+        ):
+            used = token.last_used_at or token.created_at
+            label = (
+                f"{token.user.name or '?'} · {token.client_name or token.client_id or 'Browser'}"
+                f" · {dt_util.as_local(used).strftime('%d.%m.%Y %H:%M') if used else '–'}"
+                + (f" · {token.last_used_ip}" if token.last_used_ip else "")
+                + (f" · 🔗 {paired_by[token.id]}" if token.id in paired_by else "")
+            )
+            options.append(SelectOptionDict(value=token.id, label=label))
+        return sessions, options
+
+    @staticmethod
+    def _session_error(
+        session_id: str,
+        sessions: dict[str, RefreshToken],
+        recipients: list[dict[str, Any]],
+        editing_id: str | None,
+    ) -> str | None:
+        if session_id == _NO_PAIRING:
+            return None
+        if session_id not in sessions:
+            return "session_not_found"
+        if any(
+            raw.get(RECIPIENT_SESSION_TOKEN_ID) == session_id
+            and str(raw.get(RECIPIENT_ID, "")) != (editing_id or "")
+            for raw in recipients
+        ):
+            return "session_already_paired"
+        return None
+
+    @staticmethod
+    def _apply_session(recipient: dict[str, Any], session_id: str | None) -> dict[str, Any]:
+        """Set or clear only the pairing; every alarm setting stays as given."""
+        if session_id is None:
+            return recipient
+        recipient = dict(recipient)
+        if session_id == _NO_PAIRING:
+            recipient.pop(RECIPIENT_SESSION_TOKEN_ID, None)
+        else:
+            recipient[RECIPIENT_SESSION_TOKEN_ID] = session_id
+        return recipient
 
     async def async_step_remove_recipient(
         self, user_input: dict[str, Any] | None = None

@@ -1,6 +1,10 @@
 {
   "domain": "water_leak_detection",
   "name": "Water Leak Guard",
+  "after_dependencies": [
+    "frontend",
+    "http"
+  ],
   "codeowners": [
     "@BeGiBue"
   ],
@@ -11,5 +15,5 @@
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/BeGiBue/homeassistant-water-leak-detection/issues",
   "requirements": [],
-  "version": "1.2.0-beta.3"
+  "version": "2.0.0-beta.1"
 }

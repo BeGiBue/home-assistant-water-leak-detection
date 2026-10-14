@@ -90,6 +90,27 @@ Unavailable/unknown source values are not interpreted as zero flow.
 
 The integration exposes source unavailability and suspends incomplete learning episodes instead of admitting them as normal data.
 
+## Dashboard card
+
+**Card is missing in "Add card".** Since 2.0.0-beta.1 the integration loads the card itself. Restart Home
+Assistant after installing/updating and reload the browser or Companion app. If it is still missing,
+check the log for `Dashboard card could not be registered`; leak detection keeps running in that case.
+
+**Console warning "version … is already loaded".** An older, manually added resource
+`/local/water-leak-guard-card.js` is still present. Remove it under *Settings → Dashboards → ⋮ →
+Resources* and delete the file from `<config>/www/`.
+
+**Card says "This device is not paired – view only".** Edit the recipient of this device and select
+its login under *Paired login for the dashboard card*. After the device logs in anew, select the new
+login.
+
+**"Global acknowledge" is disabled or rejected with "not at home".** The backend uses the paired
+recipient's `device_tracker.*`. Check that tracker; a trusted stationary flag does not replace it.
+
+**Card stays grey/yellow with "No alarm".** Monitoring is not confirmed active or an external sensor is
+offline; see the monitoring row and [Hydraulic monitoring: waiting or
+blocked](#hydraulic-monitoring-waiting-or-blocked).
+
 ## Debug logging
 
 Add temporary logger configuration in Home Assistant:

@@ -45,6 +45,7 @@ Diese Trennung ist eine der wichtigsten Sicherheitsentscheidungen des Projekts.
 ### Home Assistant
 
 - [Entitäten, Aktionen und Events – einschließlich hydraulischer Überwachung](Home-Assistant-Schnittstellen)
+- [Dashboard-Karte: Anzeige, Gerätekopplung und Alarmaktionen](Dashboard-Karte)
 - [Persistenz und Neustartverhalten](Persistenz-und-Betrieb)
 - [Fehlerbilder und Troubleshooting – Warten/Gesperrt](Troubleshooting)
 
@@ -89,8 +90,9 @@ Automatische physische Ventilsteuerung erfolgt derzeit nicht direkt durch die In
 **Hydraulische Überwachung** zeigt Aktiv, Warte auf Messung oder Gesperrt. „Kein
 Alarm“ beweist keine funktionierende Messfreigabe; Gesperrt beendet keinen bereits
 ACTIVE bestätigten Alarm. [Sensor und Attribute](Home-Assistant-Schnittstellen).
-Die optionale [Lovelace-Karte 0.1.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/CARD.md) ist vorbereitet und manuell
-zu registrieren; ihre vorgeschlagenen ACK-/Clear-WebSocket-Befehle fehlen im Backend.
+Seit 2.0.0-beta.1 wird die [Dashboard-Karte](Dashboard-Karte) mit der Integration geladen. Sie zeigt
+Alarm und Überwachung getrennt und bietet gekoppelten Geräten die Alarmaktionen an, die das Backend
+gerade erlaubt.
 Am 14. Oktober 2026 bestätigte der Benutzer einen erfolgreichen Hydrus-Neustart
 mit installierter Beta.3: kein Fehlalarm/Repair, 11 Sekunden Gesperrt, anschließend
 automatisch Aktiv und `verified_original_measurement`. Kein Codex-Hardwaretest

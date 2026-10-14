@@ -39,6 +39,7 @@ from .const import (
     RECIPIENT_ID,
     RECIPIENT_NAME,
     RECIPIENT_NOTIFY_SERVICE,
+    RECIPIENT_SESSION_TOKEN_ID,
     RECIPIENT_TOKEN,
     RECIPIENT_TRACKER_ENTITY,
     RECIPIENT_TRUSTED_STATIONARY,
@@ -78,6 +79,7 @@ class NotificationRecipient:
     trusted_stationary: bool
     token: str
     allow_external_reset: bool = False
+    session_token_id: str | None = None
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> NotificationRecipient | None:
@@ -111,6 +113,11 @@ class NotificationRecipient:
             trusted_stationary=bool(raw.get(RECIPIENT_TRUSTED_STATIONARY, False)),
             token=token,
             allow_external_reset=raw.get(RECIPIENT_ALLOW_EXTERNAL_RESET) is True,
+            session_token_id=(
+                session
+                if isinstance(session := raw.get(RECIPIENT_SESSION_TOKEN_ID), str) and session
+                else None
+            ),
         )
 
 
@@ -316,6 +323,55 @@ class NotificationController:
     def to_dict(self) -> dict[str, Any]:
         """Serialize acknowledgement state."""
         return {event_id: state.to_dict() for event_id, state in self.acknowledgements.items()}
+
+    def recipient_for_session(self, session_token_id: str | None) -> NotificationRecipient | None:
+        """Recipient paired with exactly this HA login; current options are authoritative.
+
+        Parses the saved options directly instead of reload_recipients(), so a
+        read-only query never re-subscribes the tracker listeners.
+        """
+        if not session_token_id:
+            return None
+        raw_recipients = self.entry.options.get(CONF_NOTIFICATION_RECIPIENTS, [])
+        if not isinstance(raw_recipients, list):
+            return None
+        matches = [
+            recipient
+            for raw in raw_recipients
+            if isinstance(raw, dict)
+            and (recipient := NotificationRecipient.from_dict(raw)) is not None
+            and recipient.session_token_id == session_token_id
+        ]
+        # An ambiguous pairing never authorizes anything.
+        return matches[0] if len(matches) == 1 else None
+
+    async def async_session_mute(self, event_id: str, recipient_id: str) -> str | None:
+        """Device-scoped mute from a paired dashboard session; None means accepted.
+
+        Same effect as the notification MUTE action: only this recipient stops
+        receiving notifications. Detection, alarm and shutoff are unaffected.
+        """
+        self.reload_recipients()
+        if recipient_id not in self.recipients:
+            return "not_paired"
+        if event_id not in self.manager.active_events():
+            return "event_not_active"
+        state = self.acknowledgements.setdefault(event_id, EventAcknowledgement())
+        if recipient_id in state.muted_recipients:
+            return None
+        state.muted_recipients.add(recipient_id)
+        self._persist_callback()
+        self.hass.bus.async_fire(
+            EVENT_ACKNOWLEDGED,
+            {
+                "config_entry_id": self.entry.entry_id,
+                "event_id": event_id,
+                "recipient_id": recipient_id,
+                "scope": "device",
+                "origin": "dashboard",
+            },
+        )
+        return None
 
     def state_for(self, event_id: str | None) -> EventAcknowledgement | None:
         """Return acknowledgement state for an event."""

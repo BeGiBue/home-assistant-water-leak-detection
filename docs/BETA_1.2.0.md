@@ -125,6 +125,9 @@ fehlende Telegramme niemals als Nullverbrauch interpretieren.
 
 ## Karte und Upgrade
 
+> Überholt durch **2.0.0-beta.1**: Die Karte wird seitdem mit der Integration geladen.
+> Siehe [Beta 2.0.0](BETA_2.0.0.md). Der folgende Absatz beschreibt den Stand von Beta.3.
+
 Karte 0.1.0 bleibt optional und manuell über `/local/water-leak-guard-card.js`
 einzubinden. Sie zeigt den neuen Überwachungssensor noch nicht separat an;
 verwende vorerst eine Standard-HA-Karte. Ihre ACK/Clear-WebSocket-Kommandos sind

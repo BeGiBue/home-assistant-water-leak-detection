@@ -146,7 +146,19 @@ Each recipient is configured independently with:
 - matching `device_tracker.*`,
 - critical-alert permission,
 - global acknowledgement permission while Home,
-- optional trusted stationary Home-device flag.
+- optional trusted stationary Home-device flag,
+- optional **paired login for the dashboard card** (since 2.0.0-beta.1).
+
+### Paired login for the dashboard card
+
+The recipient form offers the active Home Assistant logins (user · app/browser · last used · IP).
+Pairing one login lets the dashboard card on exactly that device act for this recipient: mute for
+this device anywhere, global acknowledgement and external reset only with the permissions above and
+while the recipient's tracker reports `home`. The backend checks this on every action; the card is
+not an authorization. One login can belong to one recipient only. Long-lived tokens are never
+offered. Deleting the login or a new login of the device ends the pairing; choose the new login.
+Choosing "—" removes the pairing. Pairing never changes any other recipient setting.
+Details: [dashboard card](CARD.md).
 
 ### Personal mute
 

@@ -198,8 +198,15 @@ Entität **Hydraulische Überwachung** am Integrationsgerät prüfen. Config Ent
 Runtime-Datei nicht löschen, um eine Sperre zu umgehen.
 [Beta-Voraussetzungen](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
 
-Karte 0.1.0: JS aus dem Integrationsordner nach `<config>/www/` kopieren und
-`/local/water-leak-guard-card.js` manuell als JavaScript-Modul in den Dashboard-
-Ressourcen registrieren; Browser neu laden. Keine automatische Registrierung.
-[Anleitung und vorgeschlagene, noch fehlende ACK/Clear-Kommandos](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/CARD.md).
-Den neuen Überwachungssensor vorerst separat in einer Standard-HA-Karte anzeigen.
+## Upgrade auf 2.0.0-beta.1 und Dashboard-Karte
+
+Konfiguration und Store sichern, in HACS Beta-Versionen aktivieren, 2.0.0-beta.1 herunterladen und HA
+neu starten. Die Karte wird danach automatisch geladen: *Karte hinzufügen → Water Leak Guard*. Eine
+früher manuell eingetragene Ressource `/local/water-leak-guard-card.js` und die Datei in `<config>/www/`
+entfernen.
+
+Für Alarmaktionen in der Karte beim Empfänger des jeweiligen Geräts die Anmeldung wählen:
+*Konfigurieren → Benachrichtigungsempfänger → Empfänger bearbeiten → Gekoppelte Anmeldung für die
+Dashboard-Karte*. Das Feld ändert keine andere Einstellung des Empfängers.
+Der Beta-Umfang bleibt ohne externe Lecksensoren.
+[Dashboard-Karte](Dashboard-Karte) · [Beta 2.0.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_2.0.0.md).

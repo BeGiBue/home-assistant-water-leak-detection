@@ -198,3 +198,15 @@ Release ist nicht nötig. Der manuelle Workflow **Publish Wiki** synchronisiert
 `docs/wiki/` aus main. Die tatsächliche Veröffentlichung muss separat bestätigt
 werden; allein ein Merge aktualisiert das öffentliche Wiki nicht.
 Die früheren Release-/Korrekturrunden auf dieser Seite sind historischer Kontext.
+
+## 2.0.0-beta.1 – 14. Oktober 2026
+
+Erste Version mit Dashboard-Karte als Bestandteil der Integration (Karte 0.4.1): getrennte Anzeige von
+Alarm und hydraulischer Überwachung, Rückfragen vor dem Beenden von Alarmen durch Bedienung,
+Gerätekopplung im Empfängereintrag und Kartenaktionen über WebSocket-Befehle mit Prüfung im Backend.
+Zusammengeführt aus PR #18 (Überwachungsanzeige), #19 (Backend-Vertrag und Kopplung), #22 (Auslieferung
+mit der Integration) und #23 (Kartenaktionen). Jede Etappe wurde von einer unabhängigen Review-Instanz
+anhand des Codes geprüft; Validate, Hassfest und HACS bestanden. Kein Test in einer echten Installation.
+Beta-Umfang weiterhin ohne externe Lecksensoren (H01 offen).
+[Release Notes](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0-beta.1.md) ·
+[Beta 2.0.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_2.0.0.md).
