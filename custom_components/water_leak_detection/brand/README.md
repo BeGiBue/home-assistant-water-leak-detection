@@ -11,4 +11,4 @@ Files:
 
 The icon is a guard shield filled with water: the protected household supply.
 It is the static normal-state version of the dashboard card motif.
-The vector master is `docs/assets/logo.svg`; further logo files live in `docs/assets/`.
+The vector master is `docs/assets/logo.svg` (BeGiBue petrol design); the PNG variants live in `docs/assets/`.
