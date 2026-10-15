@@ -87,25 +87,28 @@ def _github_slug(heading: str) -> str:
 
 
 def test_display_forms_link_to_the_wiki_automation_example() -> None:
+    """The link is a placeholder (hassfest forbids URLs in translations)."""
     import json
+
+    from custom_components.water_leak_detection.config_flow import DISPLAY_AUTOMATION_URL
 
     base = "https://github.com/BeGiBue/homeassistant-water-leak-detection/wiki/"
     page = (WIKI / "Dashboard-Karte.md").read_text(encoding="utf-8")
     anchors = {
         _github_slug(line.lstrip("#"))
         for line in page.splitlines()
-        if line.startswith("#")
+        if line.startswith("## ") or line.startswith("# ")
     }
     assert _github_slug("Wanddisplay / TouchKio") == "wanddisplay--touchkio"
+    target_page, _, anchor = DISPLAY_AUTOMATION_URL.removeprefix(base).partition("#")
+    assert DISPLAY_AUTOMATION_URL.startswith(base) and target_page == "Dashboard-Karte"
+    assert anchor == "wanddisplay--touchkio" and anchor in anchors
     translations = ROOT / "custom_components" / "water_leak_detection" / "translations"
     for lang in ("de", "en"):
         steps = json.loads((translations / f"{lang}.json").read_text(encoding="utf-8"))[
             "options"
         ]["step"]
         for step in ("add_display", "edit_display_details"):
-            links = re.findall(r"\]\((https://[^)]+)\)", steps[step]["description"])
-            wiki = [link for link in links if link.startswith(base)]
-            assert len(wiki) == 1, (lang, step)
-            target_page, _, anchor = wiki[0].removeprefix(base).partition("#")
-            assert target_page == "Dashboard-Karte", (lang, step)
-            assert anchor == "wanddisplay--touchkio" and anchor in anchors, (lang, step)
+            description = steps[step]["description"]
+            assert re.search(r"\[[^\]]+\]\(\{automation_url\}\)", description), (lang, step)
+            assert "://" not in description, (lang, step)
