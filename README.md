@@ -6,15 +6,15 @@
 
 A backend-focused Home Assistant custom integration for detecting abnormal water consumption and possible water leaks from an existing water-meter flow sensor.
 
-**Current release:** 2.0.0-beta.3
-**Release status:** pre-release; latest published stable: 1.1.0.
-**Beta scope:** hydraulic detection with notifications and the bundled dashboard card, without
-configured external leak sensors or persisted external records. See [the 2.0 beta notes](docs/BETA_2.0.0.md).
+**Current release:** 2.0.0
+**Release status:** stable. See the [2.0.0 release notes](RELEASE_NOTES_2.0.0.md).
+**External leak sensors:** supported. The former beta restriction (F04-FSR-H01, damaged persisted
+data of configured external sensors) is fixed in 2.0.0; see [F04-FSR-H01](docs/F04_FSR_H01.md).
 **Minimum Home Assistant:** 2026.9.0
 **Integration domain:** `water_leak_detection`
 
 > [!IMPORTANT]
-> This integration can detect suspicious water usage and expose a shutoff request. It does not guarantee prevention of water damage. Automatic valve closure is opt-in and should be tested carefully.
+> This integration can detect suspicious water usage and expose a shutoff request. It does not guarantee prevention of water damage. The integration itself never operates a valve; automatic valve closure is an opt-in automation of your own and should be tested carefully.
 
 ## Highlights
 
@@ -299,8 +299,7 @@ Version **1.1.0** contains the seven reviewed technical correction rounds togeth
 F02 static High Flow, F08 Low Flow stability, and the repeatedly confirmed seasonal
 learning of clean High Flow episodes. High remains static and learning can influence only
 the existing adaptive Burst context in that release. F04 V3 replaces the shared High-learning channel and Rapid-Rise rule;
-see the current [V3 contract](docs/F04_V3.md). The current beta version is
-1.2.0-beta.3; 1.1.0 remains the latest published stable version.
+see the current [V3 contract](docs/F04_V3.md). F04 V3 is part of the stable release 2.0.0.
 
 Only actual flow reports supply detection/quiet evidence. Re-reading a cached HA
 state on an internal tick never matures a timer. Object identity and report
@@ -457,17 +456,18 @@ and includes `reason`, `source_entity_id`, `source_available`,
 `mqtt_provenance_status`, `last_valid_measurement` and `observation_age_seconds`.
 See [configuration](docs/CONFIGURATION.md#hydraulische-überwachung).
 
-### Dashboard card and beta verification status
+### Dashboard card and verification status
 
-Since 2.0.0-beta.1 the card (now 0.6.1 in 2.0.0-beta.3) is installed and loaded with the integration, shows the
+Since 2.0.0 the card (0.6.2) is installed and loaded with the integration, shows the
 hydraulic monitoring state separately from the alarm state and offers per-device alarm actions
 that the backend authorizes (see [Dashboard card](#dashboard-card) and [docs/CARD.md](docs/CARD.md)).
 Remove an older manual `/local/water-leak-guard-card.js` resource after upgrading.
 
-[Beta.3 is published](https://github.com/BeGiBue/homeassistant-water-leak-detection/releases/tag/1.2.0-beta.3).
 Publishing a release does not update a running HA installation: download the chosen
 version and restart HA. Software/broker tests and the **user-confirmed physical Hydrus restart on
-14 October 2026** are separate evidence: no startup false alarm or Repair,
+14 October 2026** (with 1.2.0-beta.3) are separate evidence: no startup false alarm or Repair,
 11 seconds blocked then automatically active, `verified_original_measurement`.
 This observed duration is not guaranteed and does not cover all outage/restart
-scenarios. See [test details and limits](docs/BETA_1.2.0.md).
+scenarios. The integration was not tested on every real device or meter; the card was not verified
+in a real Companion app on iOS/iPadOS. See [test details and limits](docs/BETA_1.2.0.md) (historical
+beta notes).

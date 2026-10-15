@@ -1,5 +1,10 @@
 # Beta 2.0.0: Dashboard-Karte, Gerätekopplung und Kartenaktionen
 
+> **Historisch.** Water Leak Guard **2.0.0** ist veröffentlicht und ersetzt diese Beta-Notizen. Die
+> hier beschriebene Einschränkung auf Installationen ohne externe Lecksensoren gilt nicht mehr
+> (F04-FSR-H01 ist in 2.0.0 behoben). Aktuell: [Release Notes 2.0.0](../RELEASE_NOTES_2.0.0.md),
+> [Upgrade auf 2.0.0](INSTALLATION.md#upgrading-to-200). Der Inhalt unten ist unverändert.
+
 **2.0.0-beta.3** ist eine Vorabversion (GitHub-Pre-release). Der zuletzt veröffentlichte stabile Stand bleibt
 1.1.0. Eine Veröffentlichung aktualisiert kein laufendes HA: Backup, Download über HACS mit aktivierten
 Beta-Versionen und Neustart sind erforderlich. [Upgrade-Schritte](INSTALLATION.md#upgrading-to-200-beta1).
@@ -42,7 +47,8 @@ Entitäts-IDs, Dienste und Events.
 
 Der Beta-Umfang bleibt wie bei 1.2.0: hydraulische Erkennung mit Benachrichtigung, **ohne
 konfigurierte externe Lecksensoren und ohne gespeicherte externe Alarmdatensätze**. F04-FSR-H01
-(beschädigte gespeicherte Alarmdaten externer Melder) ist weiterhin offen. Die Reset-Funktion der
+(beschädigte gespeicherte Alarmdaten externer Melder) war in den Betas offen und ist in
+**2.0.0** behoben ([Details](F04_FSR_H01.md)). Die Reset-Funktion der
 Karte für externe Lecks ist daher nur außerhalb dieses Beta-Umfangs relevant.
 [Voraussetzungen im Detail](BETA_1.2.0.md#voraussetzung-hydraulischer-einsatz-ohne-externe-sensoren).
 

@@ -162,6 +162,12 @@ FORM_SESSION_PAIRING = "session_pairing"
 _NO_PAIRING = "__none__"
 _PAIR_USER = "user:"
 _PAIR_TOKEN = "token:"
+# Wiki section with the TouchKio automation example (wakes the display on an
+# alarm). Passed as a placeholder: hassfest forbids URLs in translation strings.
+DISPLAY_AUTOMATION_URL = (
+    "https://github.com/BeGiBue/homeassistant-water-leak-detection/wiki/"
+    "Dashboard-Karte#wanddisplay--touchkio"
+)
 
 
 def _is_display(raw: dict[str, Any] | None) -> bool:
@@ -1684,7 +1690,10 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                 self._display_options(session_options, existing, None)
             ),
             errors=errors,
-            description_placeholders=_recipient_description_placeholders(existing),
+            description_placeholders={
+                **_recipient_description_placeholders(existing),
+                "automation_url": DISPLAY_AUTOMATION_URL,
+            },
         )
 
     async def async_step_edit_display_details(
@@ -1760,7 +1769,10 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                 self._display_options(session_options, recipients, recipient_id), current
             ),
             errors=errors,
-            description_placeholders=_recipient_description_placeholders(recipients),
+            description_placeholders={
+                **_recipient_description_placeholders(recipients),
+                "automation_url": DISPLAY_AUTOMATION_URL,
+            },
         )
 
     async def _pairable_users(self) -> dict[str, User]:

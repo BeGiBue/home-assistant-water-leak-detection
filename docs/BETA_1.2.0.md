@@ -1,5 +1,10 @@
 # Beta 1.2.0: veröffentlichter Stand und Praxistest
 
+> **Historisch.** Water Leak Guard **2.0.0** ist veröffentlicht und ersetzt diese Beta-Notizen. Die
+> hier beschriebene Einschränkung auf Installationen ohne externe Lecksensoren gilt nicht mehr
+> (F04-FSR-H01 ist in 2.0.0 behoben). Aktuell: [Release Notes 2.0.0](../RELEASE_NOTES_2.0.0.md),
+> [Upgrade auf 2.0.0](INSTALLATION.md#upgrading-to-200). Der Inhalt unten ist unverändert.
+
 Diese Vorabversion ist für einen begrenzten privaten Test der hydraulischen
 Erkennung gedacht: Slow, Low, High und Burst sowie Benachrichtigung, Mute und ACK.
 Am 14. Oktober 2026 ist **1.2.0-beta.3 als GitHub-Pre-release veröffentlicht**.
@@ -13,9 +18,12 @@ die unten genannten Voraussetzungen; H01 ist nicht allgemein geschlossen.
 
 ## Voraussetzung: hydraulischer Einsatz ohne externe Sensoren
 
-F04-FSR-H01 bleibt ein offenes Sicherheitsfinding bei beschädigten gespeicherten
-Alarmdaten aktuell eingebundener externer Wassermelder. Externe Sensoren sind
-deshalb nicht uneingeschränkt für diese Beta freigegeben.
+F04-FSR-H01 war für diese Beta ein offenes Sicherheitsfinding bei beschädigten
+gespeicherten Alarmdaten aktuell eingebundener externer Wassermelder. Externe Sensoren
+sind deshalb nicht uneingeschränkt für diese Beta freigegeben. **Nachtrag:** H01 ist in
+**2.0.0** behoben; Definition, Fallliste und
+Restgrenzen: [F04-FSR-H01](F04_FSR_H01.md). Für die veröffentlichten Betas gilt die
+Einschränkung unverändert.
 
 Vor Installation die bestehende vollständige HA-Konfiguration und Runtime-Datei
 sichern. Prüfen, dass keine externen Sensoren konfiguriert sind und die gespeicherten

@@ -32,7 +32,7 @@
  * License: AGPL-3.0-only (same as the integration).
  */
 
-const CARD_VERSION = "0.6.1";
+const CARD_VERSION = "0.6.2";
 const DOMAIN = "water_leak_detection";
 const CARD_TAG = "water-leak-guard-card";
 const EDITOR_TAG = "water-leak-guard-card-editor";
@@ -80,6 +80,8 @@ const I18N = {
   de: {
     title: "Wasserwächter",
     not_found: "Keine Instanz der Integration gefunden. Bitte im Karteneditor die Status-Entität wählen.",
+    loading: "Lädt …",
+    fallback_alarm: "⚠ Leckalarm aktiv – Details im Gerät der Integration",
     status: {
       unavailable: "Status nicht verfügbar",
       source_unavailable: "Messquelle nicht verfügbar",
@@ -266,6 +268,8 @@ const I18N = {
   en: {
     title: "Water Leak Guard",
     not_found: "No Water Leak Guard instance found. Pick the status entity in the card editor.",
+    loading: "Loading …",
+    fallback_alarm: "⚠ Leak alarm active – see the integration's device for details",
     status: {
       unavailable: "Status unavailable",
       source_unavailable: "Source unavailable",
@@ -455,14 +459,23 @@ const HYDRAULIC_KINDS = ["slow_leak", "low_flow", "high_flow", "burst_leak"];
 /** Values of `active_detector` / status state that name a real alarm kind. */
 const ALARM_KINDS = [...HYDRAULIC_KINDS, "external_leak"];
 
+/**
+ * External sources as a list of objects. While Home Assistant starts, attributes
+ * can be missing, null or of another shape; never throw on them.
+ */
+function sourceList(attrs) {
+  const list = attrs?.external_sources;
+  return Array.isArray(list) ? list.filter((s) => s && typeof s === "object") : [];
+}
+
 function isOffline(state) {
   return !state || state.state === "unavailable" || state.state === "unknown";
 }
 
 /** A configured, non-ACTIVE external source whose own sensor cannot report "dry". */
 function externalOffline(hass, attrs) {
-  return (attrs?.external_sources || []).some(
-    (s) => s && !s.tombstone && s.phase !== "ACTIVE" && isOffline(hass?.states?.[s.source_entity])
+  return sourceList(attrs).some(
+    (s) => !s.tombstone && s.phase !== "ACTIVE" && isOffline(hass?.states?.[s.source_entity])
   );
 }
 
@@ -529,7 +542,7 @@ function formatClock(hass, iso) {
 /** All status sensors of this integration (one per instance). */
 function statusEntityIds(hass) {
   return Object.values(hass?.entities || {})
-    .filter((e) => e.platform === DOMAIN && e.translation_key === "status")
+    .filter((e) => e && e.platform === DOMAIN && e.translation_key === "status")
     .map((e) => e.entity_id);
 }
 
@@ -545,7 +558,7 @@ function resolveEntities(hass, statusEntityId) {
   const own = registry[statusEntityId];
   if (!own || !own.device_id) return map;
   for (const entry of Object.values(registry)) {
-    if (entry.platform === DOMAIN && entry.device_id === own.device_id && entry.translation_key) {
+    if (entry && entry.platform === DOMAIN && entry.device_id === own.device_id && entry.translation_key) {
       map[entry.translation_key] = entry.entity_id;
     }
   }
@@ -608,8 +621,12 @@ class WaterLeakGuardCard extends HTMLElement {
     // hass may have been set while disconnected: render now.
     this._signature = "";
     this._update();
-    this._lastAlarm = this._alarmActive();
-    this._requestSession({ defer: false });
+    try {
+      this._lastAlarm = this._alarmActive();
+      this._requestSession({ defer: false });
+    } catch (err) {
+      this._reportError(err);
+    }
   }
 
   disconnectedCallback() {
@@ -661,26 +678,93 @@ class WaterLeakGuardCard extends HTMLElement {
     this._render();
   }
 
+  /**
+   * Never throws (precaution): Home Assistant replaces a card whose `hass`
+   * setter throws by an empty "configuration error" card for the rest of the
+   * page's life (hui-card.ts, update()). A render error shows the fallback,
+   * logs "render failed …" and the next update tries again.
+   */
   set hass(hass) {
     this._hass = hass;
     // A detached card neither renders nor talks to the backend.
     if (!this.isConnected) return;
     this._update();
-    // Session triggers (not the render signature): alarm start and tracker change.
-    const alarm = this._alarmActive();
-    if (alarm && this._lastAlarm === false) this._requestSession();
-    this._lastAlarm = alarm;
-    const trackerSig = this._trackerState()?.state;
-    if (this._trackerSig !== undefined && trackerSig !== this._trackerSig) this._requestSession();
-    if (this._sessionTrackerId()) this._trackerSig = trackerSig;
+    try {
+      // Session triggers (not the render signature): alarm start and tracker change.
+      const alarm = this._alarmActive();
+      if (alarm && this._lastAlarm === false) this._requestSession();
+      this._lastAlarm = alarm;
+      const trackerSig = this._trackerState()?.state;
+      if (this._trackerSig !== undefined && trackerSig !== this._trackerSig) this._requestSession();
+      if (this._sessionTrackerId()) this._trackerSig = trackerSig;
+    } catch (err) {
+      this._reportError(err);
+    }
   }
 
   _update() {
-    const signature = this._computeSignature();
+    let signature;
+    try {
+      signature = this._computeSignature();
+    } catch (err) {
+      this._renderFallback(err);
+      return;
+    }
     if (signature !== this._signature) {
       this._signature = signature;
       this._render();
     }
+  }
+
+  /** Render guard: a failed render shows the fallback and retries on the next update. */
+  _render() {
+    try {
+      this._renderCard();
+      this._renderError = undefined;
+    } catch (err) {
+      this._renderFallback(err);
+    }
+  }
+
+  _reportError(err) {
+    const message = String(err?.message || err);
+    if (message === this._renderError) return; // one log per distinct error, not per update
+    this._renderError = message;
+    console.error("water-leak-guard-card: render failed, retrying on the next update", err);
+  }
+
+  /**
+   * Minimal, non-alarming "Loading …" state. Safety: an active alarm is never
+   * hidden by a render error – if the status or leak alarm entity can be read
+   * at all, an alarm line is shown.
+   */
+  _renderFallback(err) {
+    this._reportError(err);
+    this._signature = ""; // retry on the next hass update
+    if (!this.shadowRoot) return;
+    let alarm = false;
+    let t = (key) => key;
+    try {
+      t = translator(this._hass);
+    } catch (_) {
+      /* keep the key */
+    }
+    try {
+      const states = this._hass?.states || {};
+      const statusId = this._config?.entity || findStatusEntity(this._hass);
+      const status = states[statusId];
+      const map = resolveEntities(this._hass, statusId);
+      alarm =
+        status?.attributes?.aggregate_alarm_active === true ||
+        ALARM_KINDS.includes(status?.state) ||
+        states[map.leak_alarm]?.state === "on";
+    } catch (_) {
+      /* nothing readable: no alarm line */
+    }
+    this.shadowRoot.innerHTML = `<style>${STYLES}</style>
+      <ha-card><div class="empty">${esc(t("loading"))}</div>${
+        alarm ? `<div class="fallback-alarm" role="alert">${esc(t("fallback_alarm"))}</div>` : ""
+      }</ha-card>`;
   }
 
   /** The paired recipient's tracker, named by the session (refresh trigger and UI hint only). */
@@ -705,10 +789,14 @@ class WaterLeakGuardCard extends HTMLElement {
    * 700 px). Masonry only uses it to balance columns.
    */
   getCardSize() {
-    const alarm = this._hass && this._config ? this._alarmActive() : false;
-    if (alarm) return 14;
-    const expanded = this._expanded || {};
-    return expanded.bypass || expanded.learning ? 11 : 7;
+    try {
+      const alarm = this._hass && this._config ? this._alarmActive() : false;
+      if (alarm) return 14;
+      const expanded = this._expanded || {};
+      return expanded.bypass || expanded.learning ? 11 : 7;
+    } catch (_) {
+      return 7; // a size hint must never break the view
+    }
   }
 
   /**
@@ -731,12 +819,15 @@ class WaterLeakGuardCard extends HTMLElement {
     const ids = Object.values(resolveEntities(this._hass, this._statusEntity));
     // External sensors are other integrations' entities; their live availability
     // decides between "dry" and "unavailable", so they must trigger a re-render too.
-    const status = this._hass.states[this._resolvedStatusId];
-    for (const src of status?.attributes?.external_sources || []) {
-      if (src?.source_entity) ids.push(src.source_entity);
+    // Precaution: HA renders panels only once states exist (home-assistant.ts),
+    // but a hass without states must still never throw from the setter.
+    const states = this._hass.states || {};
+    const status = states[this._resolvedStatusId];
+    for (const src of sourceList(status?.attributes)) {
+      if (src.source_entity) ids.push(src.source_entity);
     }
     const parts = ids.map((id) => {
-      const s = this._hass.states[id];
+      const s = states[id];
       return s ? `${id}:${s.state}:${s.last_updated}` : `${id}:-`;
     });
     // The tracker only re-renders (home-only buttons); it never grants anything.
@@ -752,7 +843,7 @@ class WaterLeakGuardCard extends HTMLElement {
 
   _state(map, key) {
     const id = map[key];
-    return id ? this._hass.states[id] : undefined;
+    return id ? this._hass?.states?.[id] : undefined;
   }
 
   async _entryId(statusEntity) {
@@ -945,7 +1036,7 @@ class WaterLeakGuardCard extends HTMLElement {
         if (kind !== "slow_leak" && kind !== "low_flow") return;
         const map = resolveEntities(this._hass, this._statusEntity);
         const entityId = map[`${kind}_detection`];
-        if (!entityId || this._hass.states[entityId]?.state !== "on") return;
+        if (!entityId || this._hass?.states?.[entityId]?.state !== "on") return;
         if (this._detectorPhase(kind) !== "active" || !this._perm.canClear) return;
         // Switching off ends this detector's ACTIVE alarm at once (backend:
         // apply_controls -> IDLE). Ask first.
@@ -1016,13 +1107,18 @@ class WaterLeakGuardCard extends HTMLElement {
 
   /* ------------------------------------------------------------ rendering */
 
-  _render() {
+  _renderCard() {
     if (!this.shadowRoot) return;
     if (!this._config || !this._hass) {
       this.shadowRoot.innerHTML = "";
       return;
     }
     const t = translator(this._hass);
+    if (!this._hass.states) {
+      // Precaution: no states yet (HA normally renders panels only with states).
+      this.shadowRoot.innerHTML = `<style>${STYLES}</style><ha-card><div class="empty">${esc(t("loading"))}</div></ha-card>`;
+      return;
+    }
     const map = resolveEntities(this._hass, this._statusEntity);
     const status = this._state(map, "status");
 
@@ -1301,7 +1397,7 @@ class WaterLeakGuardCard extends HTMLElement {
         });
       }
     }
-    for (const src of a.external_sources || []) {
+    for (const src of sourceList(a)) {
       if (src.phase === "ACTIVE" && src.event_id && !src.identity_conflict) {
         events.push({
           kind: "external_leak",
@@ -1383,7 +1479,7 @@ class WaterLeakGuardCard extends HTMLElement {
         const clearAway = !perm.canClear;
         if ((ev.kind === "slow_leak" || ev.kind === "low_flow") && !ev.external && perm.paired) {
           const switchId = map[`${ev.kind}_detection`];
-          if (switchId && this._hass.states[switchId]?.state === "on") {
+          if (switchId && this._hass?.states?.[switchId]?.state === "on") {
             const busyKey = `toggle:${switchId}`;
             buttons.push(`
               <button class="btn btn-danger-ghost" data-action="disable-detection" data-kind="${esc(ev.kind)}"
@@ -1499,7 +1595,7 @@ class WaterLeakGuardCard extends HTMLElement {
 
     const tiles = HYDRAULIC_KINDS.map((kind) => {
       const switchId = switches[kind];
-      const enabled = switchId ? this._hass.states[switchId]?.state === "on" : true;
+      const enabled = switchId ? this._hass?.states?.[switchId]?.state === "on" : true;
       let phase = phases[kind] || "idle";
       let pillClass = null;
       if (!enabled) phase = "off";
@@ -1578,11 +1674,11 @@ class WaterLeakGuardCard extends HTMLElement {
       </section>`;
   }
   _renderExternal(t, status) {
-    const sources = (status.attributes?.external_sources || []).filter((s) => !s.tombstone);
+    const sources = sourceList(status.attributes).filter((s) => !s.tombstone);
     if (sources.length === 0) return "";
     const rows = sources
       .map((s) => {
-        const offline = isOffline(this._hass.states[s.source_entity]);
+        const offline = isOffline(this._hass?.states?.[s.source_entity]);
         let phaseClass = s.identity_conflict ? "warn" : s.phase === "ACTIVE" ? "active" : s.phase === "ARMED" ? "idle" : "monitoring";
         let label = s.identity_conflict ? t("external_conflict") : t(`external_phase.${s.phase}`);
         // A dry reading needs a reachable sensor; an ACTIVE leak always stays visible.
@@ -1764,6 +1860,7 @@ const STYLES = `
   ha-icon { --mdc-icon-size: 18px; display: inline-flex; }
   button { font: inherit; color: inherit; }
   .empty { padding: 16px; color: var(--wlg-muted); }
+  .fallback-alarm { margin: 0 16px 16px; padding: 10px 12px; border-radius: 10px; font-weight: 600; color: var(--wlg-alarm); background: color-mix(in srgb, var(--wlg-alarm) 16%, transparent); }
 
   .head { display: flex; align-items: center; gap: 6px 12px; padding: 10px 16px 8px; flex-wrap: wrap; }
   .orb {

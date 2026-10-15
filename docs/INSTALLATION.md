@@ -47,7 +47,8 @@ Runtime learning history, active acknowledgement state, and relevant integration
 
 ## Removing the integration
 
-1. Remove the config entry under **Settings → Devices & services**.
+1. Remove the config entry under **Settings → Devices & services** (this also removes the
+   dashboard card's loader resource).
 2. Remove the integration from HACS.
 3. Restart Home Assistant if requested.
 
@@ -85,6 +86,43 @@ Notification recipients do not have to be configured only during initial install
 Each source, expert and recipient form now has a **Back without saving** switch.
 Enable it and submit to return to the preceding menu without saving or validating
 unfinished fields. Changing only recipients preserves running detection timers.
+
+## Upgrading to 2.0.0
+
+2.0.0 is the stable release. It requires Home Assistant 2026.9.0 or newer. Read the
+[release notes](../RELEASE_NOTES_2.0.0.md), especially the behavior changes.
+
+**From 1.1.0:**
+
+1. Make a complete Home Assistant backup, including `.storage/` (the integration's runtime store is
+   `.storage/water_leak_detection.runtime.<entry_id>`).
+2. Update to 2.0.0 in HACS and restart Home Assistant.
+3. Reload the browser / Companion app (in the app if needed: *Settings → Companion App → Debugging →
+   Reset frontend cache*).
+4. Legacy learning data is quarantined (a repair issue explains it); detection learns again from new
+   data. If the expert options were never saved, 3,500 L/h now applies to Burst. A saved value,
+   including 2,000 L/h stored by 1.1.0 when the options were saved, is kept. Please check it.
+5. Add the card via **Add card → Water Leak Guard** (no file copy, no resource). Remove an old manual
+   `/local/water-leak-guard-card.js` resource and file if you had one.
+6. Optional: pair devices for card actions (*Configure → Notification recipients → Edit recipient →
+   Pairing for the dashboard card*), add external leak sensors, add a wall display.
+
+**From a 2.0.0 beta:**
+
+1. Back up, update to 2.0.0 in HACS (the stable release replaces the beta) and restart.
+2. Reload the browser / Companion app. Existing pairings, recipients and wall displays keep working.
+3. External leak sensors are no longer excluded from use: the F04-FSR-H01 fix is included
+   ([details](F04_FSR_H01.md)).
+4. In the default resource mode a "water-leak-guard-card loader" entry appears under *Resources*;
+   keep it.
+
+Then check `storage_recovery_required` on the status entity (`false`) and the Hydraulic monitoring
+sensor.
+
+## Earlier beta upgrades (historical)
+
+The following sections describe upgrades to the betas. They are kept for reference; 2.0.0 supersedes
+them, and the beta scope they mention no longer applies.
 
 ## Upgrading to the published 1.2.0-beta.3
 
@@ -132,6 +170,6 @@ Home Assistant. Then:
    Edit recipient → Pairing for the dashboard card** (a Home Assistant user, the default, or a single
    login).
 
-The beta scope is unchanged: hydraulic detection with notifications, without configured external
-leak sensors or persisted external records. See [2.0 beta notes](BETA_2.0.0.md) and
+The beta scope at that time: hydraulic detection with notifications, without configured external
+leak sensors or persisted external records (superseded by 2.0.0). See [2.0 beta notes](BETA_2.0.0.md) and
 [card guide](CARD.md).

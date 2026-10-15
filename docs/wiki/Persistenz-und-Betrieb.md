@@ -1,6 +1,6 @@
 # Persistenz und Neustartverhalten
 
-> **Stand: 14. Oktober 2026 – veröffentlichte 1.2.0-beta.3.** Historische Versions-/Korrekturrunden bleiben als solche bezeichnet. F02, F08 und F04 V3 sind implementiert; Beta-Einschränkungen siehe [F04 V3](F04-V3).
+> **Stand: 15. Oktober 2026 – stabiler Release 2.0.0.** Historische Versions-/Korrekturrunden bleiben als solche bezeichnet. F02, F08 und F04 V3 sind implementiert; externe Lecksensoren werden unterstützt (F04-FSR-H01 in 2.0.0 behoben, siehe [F04 V3](F04-V3)).
 
 
 ## Ziel

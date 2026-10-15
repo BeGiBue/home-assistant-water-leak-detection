@@ -290,7 +290,7 @@
       },
       "add_display": {
         "title": "Wanddisplay hinzufügen",
-        "description": "**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}\n\nEin fest montiertes Display (z. B. TouchKio auf einem Raspberry Pi) bekommt keine Benachrichtigungen, braucht keinen Device Tracker und gilt immer als zuhause. Die Dashboard-Karte darf dort, was du unten erlaubst. Diese Rechte hat jede Sitzung, die als das Display erkannt wird – nicht nur, wer davor steht. Empfohlen: ein eigener HA-Kiosk-Benutzer ohne Adminrechte mit eigenem, starkem Passwort, das nirgends sonst verwendet wird.",
+        "description": "**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}\n\nEin fest montiertes Display (z. B. TouchKio auf einem Raspberry Pi) bekommt keine Benachrichtigungen, braucht keinen Device Tracker und gilt immer als zuhause. Die Dashboard-Karte darf dort, was du unten erlaubst. Diese Rechte hat jede Sitzung, die als das Display erkannt wird – nicht nur, wer davor steht. Empfohlen: ein eigener HA-Kiosk-Benutzer ohne Adminrechte mit eigenem, starkem Passwort, das nirgends sonst verwendet wird.\n\nDamit das Display bei Alarm aufwacht und die Karte zeigt, braucht es eine Automation: [Beispiel im Wiki]({automation_url}).",
         "data": {
           "name": "Anzeigename",
           "session_pairing": "Kopplung des Displays (erforderlich)",
@@ -307,7 +307,7 @@
       },
       "edit_display_details": {
         "title": "Wanddisplay bearbeiten",
-        "description": "Die Art (Wanddisplay) lässt sich nicht ändern; für ein Handy den Eintrag entfernen und neu als Empfänger anlegen. Interne Kennung und Token bleiben erhalten.\n\n**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}",
+        "description": "Die Art (Wanddisplay) lässt sich nicht ändern; für ein Handy den Eintrag entfernen und neu als Empfänger anlegen. Interne Kennung und Token bleiben erhalten.\n\n**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}\n\nDamit das Display bei Alarm aufwacht und die Karte zeigt, braucht es eine Automation: [Beispiel im Wiki]({automation_url}).",
         "data": {
           "name": "Anzeigename",
           "session_pairing": "Kopplung des Displays (erforderlich)",
@@ -751,7 +751,7 @@
     },
     "runtime_safety_recovery": {
       "title": "Sicherheitszustand muss wiederhergestellt werden",
-      "description": "Für {name} ist der Laufzeitspeicher beschädigt oder enthält widersprüchliche Alarmidentitäten. Alarm- und Absperranforderungen bleiben konservativ erhalten; betroffene Quittierungen und Resets sind gesperrt. Sichern Sie die Originaldatei, stoppen Sie Home Assistant und stellen Sie ein geprüftes vollständiges Backup wieder her. Löschen Sie den Speicher nicht, um den Alarm zu beenden. Prüfen Sie anschließend Quellen und Diagnose. Die Integration betätigt kein Ventil."
+      "description": "Für {name} ist der Laufzeitspeicher beschädigt oder enthält widersprüchliche Alarmidentitäten. Alarm- und Absperranforderungen bleiben konservativ erhalten; betroffene Quittierungen und Resets sind gesperrt. Sichern Sie die Originaldatei, stoppen Sie Home Assistant und stellen Sie ein geprüftes vollständiges Backup wieder her. Löschen Sie den Speicher nicht, um den Alarm zu beenden. Prüfen Sie anschließend Quellen und Diagnose. Die Integration betätigt kein Ventil. Fehlt die Datei .storage/water_leak_detection.runtime.EINTRAGS_ID und liegt daneben eine Kopie …corrupt.ZEIT (Home Assistant hat ungültiges JSON beiseitegelegt), dann bei gestopptem Home Assistant ein Backup zurückspielen. Ohne Backup: bei gestopptem Home Assistant die .corrupt-Kopie aus .storage verschieben; damit verzichten Sie bewusst auf den gespeicherten Zustand."
     }
   }
 }
