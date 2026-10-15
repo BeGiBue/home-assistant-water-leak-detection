@@ -290,7 +290,7 @@
       },
       "add_display": {
         "title": "Add wall display",
-        "description": "**Already configured: {recipient_count}**\n\n{configured_recipients}\n\nA fixed display (e.g. TouchKio on a Raspberry Pi) receives no notifications, needs no device tracker and always counts as home. The dashboard card there may do what you allow below. Every session recognised as the display has these rights – not only whoever stands in front of it. Recommended: a dedicated non-admin HA kiosk user with its own strong password that is not used anywhere else.",
+        "description": "**Already configured: {recipient_count}**\n\n{configured_recipients}\n\nA fixed display (e.g. TouchKio on a Raspberry Pi) receives no notifications, needs no device tracker and always counts as home. The dashboard card there may do what you allow below. Every session recognised as the display has these rights – not only whoever stands in front of it. Recommended: a dedicated non-admin HA kiosk user with its own strong password that is not used anywhere else.\n\nThe display needs an automation to wake up and show the card on an alarm: [example in the wiki](https://github.com/BeGiBue/homeassistant-water-leak-detection/wiki/Dashboard-Karte#wanddisplay--touchkio).",
         "data": {
           "name": "Display name",
           "session_pairing": "Pairing of the display (required)",
@@ -307,7 +307,7 @@
       },
       "edit_display_details": {
         "title": "Edit wall display",
-        "description": "The kind (wall display) cannot be changed; for a phone, remove this entry and add it as a recipient. Internal ID and token are kept.\n\n**Already configured: {recipient_count}**\n\n{configured_recipients}",
+        "description": "The kind (wall display) cannot be changed; for a phone, remove this entry and add it as a recipient. Internal ID and token are kept.\n\n**Already configured: {recipient_count}**\n\n{configured_recipients}\n\nThe display needs an automation to wake up and show the card on an alarm: [example in the wiki](https://github.com/BeGiBue/homeassistant-water-leak-detection/wiki/Dashboard-Karte#wanddisplay--touchkio).",
         "data": {
           "name": "Display name",
           "session_pairing": "Pairing of the display (required)",

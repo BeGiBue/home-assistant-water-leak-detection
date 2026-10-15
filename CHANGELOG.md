@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The wall display forms ("Add wall display", editing a display) link to the TouchKio automation
+  example in the wiki (`Dashboard-Karte#wanddisplay--touchkio`): the display needs an automation to
+  wake up and show the card on an alarm.
+
 ## 2.0.0-beta.3 — 2026-10-15
 
 - Dashboard card 0.6.0: "High Flow bypass" and "Learning" start **expanded**. New option

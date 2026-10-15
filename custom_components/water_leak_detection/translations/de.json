@@ -290,7 +290,7 @@
       },
       "add_display": {
         "title": "Wanddisplay hinzufügen",
-        "description": "**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}\n\nEin fest montiertes Display (z. B. TouchKio auf einem Raspberry Pi) bekommt keine Benachrichtigungen, braucht keinen Device Tracker und gilt immer als zuhause. Die Dashboard-Karte darf dort, was du unten erlaubst. Diese Rechte hat jede Sitzung, die als das Display erkannt wird – nicht nur, wer davor steht. Empfohlen: ein eigener HA-Kiosk-Benutzer ohne Adminrechte mit eigenem, starkem Passwort, das nirgends sonst verwendet wird.",
+        "description": "**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}\n\nEin fest montiertes Display (z. B. TouchKio auf einem Raspberry Pi) bekommt keine Benachrichtigungen, braucht keinen Device Tracker und gilt immer als zuhause. Die Dashboard-Karte darf dort, was du unten erlaubst. Diese Rechte hat jede Sitzung, die als das Display erkannt wird – nicht nur, wer davor steht. Empfohlen: ein eigener HA-Kiosk-Benutzer ohne Adminrechte mit eigenem, starkem Passwort, das nirgends sonst verwendet wird.\n\nDamit das Display bei Alarm aufwacht und die Karte zeigt, braucht es eine Automation: [Beispiel im Wiki](https://github.com/BeGiBue/homeassistant-water-leak-detection/wiki/Dashboard-Karte#wanddisplay--touchkio).",
         "data": {
           "name": "Anzeigename",
           "session_pairing": "Kopplung des Displays (erforderlich)",
@@ -307,7 +307,7 @@
       },
       "edit_display_details": {
         "title": "Wanddisplay bearbeiten",
-        "description": "Die Art (Wanddisplay) lässt sich nicht ändern; für ein Handy den Eintrag entfernen und neu als Empfänger anlegen. Interne Kennung und Token bleiben erhalten.\n\n**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}",
+        "description": "Die Art (Wanddisplay) lässt sich nicht ändern; für ein Handy den Eintrag entfernen und neu als Empfänger anlegen. Interne Kennung und Token bleiben erhalten.\n\n**Bereits eingerichtet: {recipient_count}**\n\n{configured_recipients}\n\nDamit das Display bei Alarm aufwacht und die Karte zeigt, braucht es eine Automation: [Beispiel im Wiki](https://github.com/BeGiBue/homeassistant-water-leak-detection/wiki/Dashboard-Karte#wanddisplay--touchkio).",
         "data": {
           "name": "Anzeigename",
           "session_pairing": "Kopplung des Displays (erforderlich)",

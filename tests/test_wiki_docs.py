@@ -78,3 +78,34 @@ def test_wiki_uses_current_product_names() -> None:
     assert "Wasserwächter" in home
     assert "Water Leak Guard" in home
     assert "water_leak_detection" in home
+
+
+def _github_slug(heading: str) -> str:
+    """GitHub heading anchor: lower case, punctuation dropped, each space a hyphen."""
+    slug = re.sub(r"[^\w\- ]", "", heading.strip().lower())
+    return slug.replace(" ", "-")
+
+
+def test_display_forms_link_to_the_wiki_automation_example() -> None:
+    import json
+
+    base = "https://github.com/BeGiBue/homeassistant-water-leak-detection/wiki/"
+    page = (WIKI / "Dashboard-Karte.md").read_text(encoding="utf-8")
+    anchors = {
+        _github_slug(line.lstrip("#"))
+        for line in page.splitlines()
+        if line.startswith("#")
+    }
+    assert _github_slug("Wanddisplay / TouchKio") == "wanddisplay--touchkio"
+    translations = ROOT / "custom_components" / "water_leak_detection" / "translations"
+    for lang in ("de", "en"):
+        steps = json.loads((translations / f"{lang}.json").read_text(encoding="utf-8"))[
+            "options"
+        ]["step"]
+        for step in ("add_display", "edit_display_details"):
+            links = re.findall(r"\]\((https://[^)]+)\)", steps[step]["description"])
+            wiki = [link for link in links if link.startswith(base)]
+            assert len(wiki) == 1, (lang, step)
+            target_page, _, anchor = wiki[0].removeprefix(base).partition("#")
+            assert target_page == "Dashboard-Karte", (lang, step)
+            assert anchor == "wanddisplay--touchkio" and anchor in anchors, (lang, step)
