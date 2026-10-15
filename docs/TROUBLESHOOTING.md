@@ -103,6 +103,19 @@ The integration exposes source unavailability and suspends incomplete learning e
    cache*, then reopen the app.
 4. In *Add card* search for "Water Leak Guard"; custom cards are listed below the built-in cards.
 
+**"Configuration error" ("Konfigurationsfehler") instead of the card, a reload fixes it.** The page
+was loaded while Home Assistant was still starting (for example the Companion app reconnecting after
+a restart, or a start page cached from that moment). HA writes the card module into the page only
+when it serves the page, and serves the frontend before custom integrations are set up; the
+frontend never asks again. HA then shows its error card after two seconds and waits for the
+element. Since the H01 fix branch the integration also keeps a small Lovelace resource
+(*Settings → Dashboards → ⋮ → Resources*, a `data:text/javascript…` entry "water-leak-guard-card
+loader"). It needs no server request, loads the card as soon as the integration serves it (it
+retries) and the error card is replaced automatically. Do not delete that entry; it is removed when
+the last Water Leak Guard entry is removed. With resources in YAML mode
+(`lovelace: resource_mode: yaml`) the integration cannot add it: add the same entry yourself or
+reload the page after HA has started.
+
 **Console warning "version … is already loaded".** An older, manually added resource
 `/local/water-leak-guard-card.js` is still present. Remove it under *Settings → Dashboards → ⋮ →
 Resources* and delete the file from `<config>/www/`.

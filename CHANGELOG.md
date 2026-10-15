@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Dashboard card: fixed "Configuration error" instead of the card until a reload (e.g. iPad Companion
+  app after an HA restart). HA writes extra modules into the page only when serving it, serves the
+  frontend before custom integrations are set up, and never re-requests them; HA's
+  `_customCreate` then shows its error card and waits for the element forever. In storage resource
+  mode the integration now also keeps one Lovelace resource, a `data:` loader module that needs no
+  server route, imports the card (with retries) once the integration serves it, and lets HA's
+  `ll-rebuild` replace the error card. Created/updated at startup, removed with the last entry,
+  never blocks setup; YAML resource mode keeps the extra module only. `lovelace` added to
+  `after_dependencies`. The card file itself is unchanged (0.6.1).
 - **Security F04-FSR-H01:** damaged persisted records of configured external leak sensors can no
   longer silently end an ACTIVE alarm or its shutoff contribution, nor turn into an invented but
   trusted identity. Every `external_sources` record must be interpretable (known phase; valid IDs,

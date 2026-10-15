@@ -3,7 +3,8 @@
   "name": "Water Leak Guard",
   "after_dependencies": [
     "frontend",
-    "http"
+    "http",
+    "lovelace"
   ],
   "codeowners": [
     "@BeGiBue"
