@@ -226,6 +226,7 @@ Gerätekopplung im Empfängereintrag und Kartenaktionen über WebSocket-Befehle 
 Zusammengeführt aus PR #18 (Überwachungsanzeige), #19 (Backend-Vertrag und Kopplung), #22 (Auslieferung
 mit der Integration) und #23 (Kartenaktionen). Jede Etappe wurde von einer unabhängigen Review-Instanz
 anhand des Codes geprüft; Validate, Hassfest und HACS bestanden. Kein Test in einer echten Installation.
-Beta-Umfang weiterhin ohne externe Lecksensoren (H01 offen).
+Beta-Umfang weiterhin ohne externe Lecksensoren (H01 damals offen; inzwischen im Branch
+`fix/f04-fsr-h01` behoben, noch nicht veröffentlicht: [F04-FSR-H01](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/F04_FSR_H01.md)).
 [Release Notes](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0-beta.1.md) ·
 [Beta 2.0.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_2.0.0.md).

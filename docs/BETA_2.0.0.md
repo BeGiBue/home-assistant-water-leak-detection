@@ -42,7 +42,8 @@ Entitäts-IDs, Dienste und Events.
 
 Der Beta-Umfang bleibt wie bei 1.2.0: hydraulische Erkennung mit Benachrichtigung, **ohne
 konfigurierte externe Lecksensoren und ohne gespeicherte externe Alarmdatensätze**. F04-FSR-H01
-(beschädigte gespeicherte Alarmdaten externer Melder) ist weiterhin offen. Die Reset-Funktion der
+(beschädigte gespeicherte Alarmdaten externer Melder) ist in den veröffentlichten Betas offen und im
+Branch `fix/f04-fsr-h01` behoben, noch nicht veröffentlicht ([Details](F04_FSR_H01.md)). Die Reset-Funktion der
 Karte für externe Lecks ist daher nur außerhalb dieses Beta-Umfangs relevant.
 [Voraussetzungen im Detail](BETA_1.2.0.md#voraussetzung-hydraulischer-einsatz-ohne-externe-sensoren).
 

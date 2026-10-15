@@ -151,6 +151,31 @@ async def test_external_on_off_and_reload_during_recovery_never_release_or_write
     assert recovery_issue(runtime_hass, runtime_entry) is None
 
 
+@pytest.mark.parametrize(
+    "change",
+    [{"started_at": "garbage"}, {"started_at": 7}, {"phase": None}, {"contributes_to_shutoff": 1}],
+)
+async def test_damaged_waiting_record_holds_alarm(
+    runtime_hass, runtime_entry, measurement_clock, change
+):
+    """A WAITING record (after an authorized reset) is checked as strictly."""
+    manager = await setup(runtime_hass, runtime_entry, measurement_clock)
+    assert await manager.async_external_reset(action(manager))
+    assert manager.external.sources["a"].phase is ExternalPhase.RESET_WAITING_FOR_OFF
+    await manager.async_unload()
+    path = Path(manager._store.path)
+    raw = json.loads(path.read_text())
+    record = next(r for r in raw["data"]["external_sources"] if r["source_id"] == "a")
+    assert record["phase"] == "RESET_WAITING_FOR_OFF" and record["started_at"]
+    record.update(change)
+    path.write_text(json.dumps(raw))
+    before = path.read_bytes()
+    manager = await restart(runtime_hass, runtime_entry, manager)
+    assert manager._storage_load_failed
+    assert manager.alarm_active and manager.shutoff_request
+    assert path.read_bytes() == before
+
+
 @pytest.mark.parametrize("damaged", [False, True])
 async def test_record_of_a_removed_source(runtime_hass, runtime_entry, measurement_clock, damaged):
     """V2-H03: a removed ACTIVE source stays an alarm (tombstone); damage means recovery."""

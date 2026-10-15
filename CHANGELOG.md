@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Security F04-FSR-H01:** damaged persisted records of configured external leak sensors can no
+  longer silently end an ACTIVE alarm or its shutoff contribution, nor turn into an invented but
+  trusted identity. Every `external_sources` record must be interpretable (known phase; valid IDs,
+  entity and shutoff flag; for ACTIVE a valid Event-ID and aware start time; correctly typed
+  optional fields), otherwise the existing Store recovery barrier applies: alarm and shutoff held,
+  original bytes kept, external reset and ACK refused, ERROR repair, `storage_recovery_required`.
+  The same applies to a missing list in a current-schema body and to a Store file that HA renamed
+  to `.corrupt.*` because it was not valid JSON (previously the second start looked like a new
+  installation). Undamaged and hydraulic-only installations are unchanged. Details:
+  `docs/F04_FSR_H01.md`.
 - The wall display forms ("Add wall display", editing a display) link to the TouchKio automation
   example in the wiki (`Dashboard-Karte#wanddisplay--touchkio`): the display needs an automation to
   wake up and show the card on an alarm.
