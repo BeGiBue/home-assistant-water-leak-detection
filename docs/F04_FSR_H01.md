@@ -1,11 +1,11 @@
 # F04-FSR-H01: damaged persisted data of configured external leak sensors
 
-Status: **addressed on branch `fix/f04-fsr-h01`** (not yet released). The original finding text
+Status: **fixed in Water Leak Guard 2.0.0** (released 2026-10-15). The original finding text
 is not in the repository; the betas only recorded it as "an open security finding for damaged
 persisted alarm data of currently configured external water sensors" and restricted the beta scope
 to installations without configured external sensors and with empty `external_sources` /
 `external_alarm_ledger` lists. This page derives the finding from the code as it was before the
-fix (2.0.0-beta.3) and documents the behavior after the fix.
+fix (2.0.0-beta.3, the last beta) and documents the behavior after the fix.
 
 ## Definition (derived from the code)
 

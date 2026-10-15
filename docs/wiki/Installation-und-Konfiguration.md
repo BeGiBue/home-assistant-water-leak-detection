@@ -189,7 +189,24 @@ werden. Shutoff-Beitrag je Quelle ist standardmäßig true, External-Reset-Recht
 je Empfänger false. Einzelheiten zu Migration, Home-Zone und defekten Sensoren:
 [F04 V3](F04-V3.md).
 
-## Upgrade auf Beta.3 und optionale Karte
+## Upgrade auf 2.0.0
+
+**2.0.0** ist der stabile Stand ([Release Notes](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0.md)). Vorher ein vollständiges HA-Backup inklusive
+`.storage/` erstellen (Laufzeitspeicher `.storage/water_leak_detection.runtime.<entry_id>`), in HACS
+auf 2.0.0 aktualisieren, HA neu starten und Browser bzw. Companion App neu laden.
+
+- **Von 1.1.0:** Alte Lerndaten werden quarantänisiert (ein Reparaturhinweis erklärt es). Nicht
+  gesetzte Burst-Werte nutzen jetzt 3.500 L/h, eigene Werte bleiben. Die Karte über *Karte hinzufügen →
+  Water Leak Guard* einfügen; eine alte manuelle Ressource `/local/water-leak-guard-card.js` entfernen.
+- **Von einer 2.0.0-Beta:** Kopplungen, Empfänger und Wanddisplays bleiben erhalten. Externe
+  Lecksensoren sind nicht mehr ausgeschlossen (F04-FSR-H01 behoben). Unter *Ressourcen* erscheint der
+  Eintrag „water-leak-guard-card loader“; nicht löschen.
+
+Danach `storage_recovery_required` (soll `false` sein) und die Hydraulische Überwachung prüfen.
+
+Die folgenden Upgrade-Abschnitte zu Betas sind historisch.
+
+## Upgrade auf Beta.3 und optionale Karte (historisch)
 
 Die Veröffentlichung von 1.2.0-beta.3 installiert nichts in einem laufenden HA.
 Konfiguration und Store sichern, in HACS Beta-/Pre-release-Versionen aktivieren,
@@ -198,7 +215,7 @@ Entität **Hydraulische Überwachung** am Integrationsgerät prüfen. Config Ent
 Runtime-Datei nicht löschen, um eine Sperre zu umgehen.
 [Beta-Voraussetzungen](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
 
-## Upgrade auf 2.0.0-beta.1 und Dashboard-Karte
+## Upgrade auf 2.0.0-beta.1 und Dashboard-Karte (historisch; Kopplung und Wanddisplay gelten weiter)
 
 Konfiguration und Store sichern, in HACS Beta-Versionen aktivieren, 2.0.0-beta.1 herunterladen und HA
 neu starten. Die Karte wird danach automatisch geladen: *Karte hinzufügen → Water Leak Guard*. Eine
@@ -219,5 +236,5 @@ Kiosk-Benutzer ohne Adminrechte, den sonst kein Empfänger nutzt, oder die einze
 Kiosk-Geräts) und die Häkchen „Globales Quittieren“ und „Externer Reset“. Es
 bekommt keine Benachrichtigungen und gilt immer als zuhause. Details:
 [Dashboard-Karte – Wanddisplay](Dashboard-Karte#wanddisplay--touchkio).
-Der Beta-Umfang bleibt ohne externe Lecksensoren.
+Externe Lecksensoren werden seit 2.0.0 unterstützt (in den Betas ausgeschlossen).
 [Dashboard-Karte](Dashboard-Karte) · [Beta 2.0.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_2.0.0.md).

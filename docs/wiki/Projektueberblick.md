@@ -1,6 +1,6 @@
 # Projektüberblick
 
-> **Stand: 14. Oktober 2026 – veröffentlichte 1.2.0-beta.3.** Historische Versions-/Korrekturrunden bleiben als solche bezeichnet. F02, F08 und F04 V3 sind implementiert; Beta-Einschränkungen siehe [F04 V3](F04-V3).
+> **Stand: 15. Oktober 2026 – stabiler Release 2.0.0.** Historische Versions-/Korrekturrunden bleiben als solche bezeichnet. F02, F08 und F04 V3 sind implementiert; externe Lecksensoren werden unterstützt (F04-FSR-H01 in 2.0.0 behoben, siehe [F04 V3](F04-V3)).
 
 
 ## Identität
@@ -12,7 +12,7 @@
 | Technische Domain | `water_leak_detection` |
 | Plattform | Home Assistant |
 | Integrationstyp | Service-Integration |
-| Aktueller Release | 1.2.0-beta.3 (Pre-release) |
+| Aktueller Release | 2.0.0 (stabil) |
 | Repository | `BeGiBue/homeassistant-water-leak-detection` |
 | Fokus | Backend-Integration |
 | Sprache | folgt der in Home Assistant eingestellten Sprache; Deutsch und Englisch enthalten |
@@ -142,7 +142,18 @@ Die niedrigeren Detektoren dürfen intern weiter aktiv bleiben. Das ist wichtig,
 - statische High- und adaptive Burst-Grenzen
 - Burst-Erkennung über schnellen Durchflussanstieg
 
-## Betriebsstand Beta.3
+## Betriebsstand 2.0.0
+
+**2.0.0** (15. Oktober 2026) ist der stabile Stand: hydraulische Erkennung (Slow, Low, High, Burst),
+Benachrichtigungen, die mitgelieferte [Dashboard-Karte](Dashboard-Karte) 0.6.2 mit Gerätekopplung und
+Wanddisplay sowie **externe Lecksensoren**. Die frühere Beta-Einschränkung auf Installationen ohne
+externe Sensoren entfällt, weil F04-FSR-H01 in 2.0.0 behoben ist ([Details](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/F04_FSR_H01.md)).
+Die Integration betätigt selbst kein Ventil. Nicht auf jeder echten Hardware geprüft.
+[Release Notes](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0.md).
+
+Die folgenden Abschnitte „Betriebsstand Beta.3“ und „Betriebsstand 2.0.0-beta.1“ sind historisch.
+
+## Betriebsstand Beta.3 (historisch)
 
 PR #15 liefert Logo/Bildmaterial und eine vorbereitete manuelle Lovelace-Karte
 0.1.0; PR #16 behebt die verzögerte erste MQTT-Messung; PR #17 ergänzt
@@ -151,17 +162,16 @@ sind von Alarmen unabhängig. Gesperrt bleibt als nutzbarer Sensorzustand sichtb
 bestehende ACTIVE-Ereignisse und Shutoff-Beiträge bleiben erhalten.
 [Entitäten](Home-Assistant-Schnittstellen) · [Diagnose](Troubleshooting).
 
-Die Beta ist auf hydraulische Erkennung/Benachrichtigungen ohne konfigurierte
+Die Beta war auf hydraulische Erkennung/Benachrichtigungen ohne konfigurierte
 externe Sensoren oder gespeicherte externe Alarmdatensätze beschränkt. F04-FSR-H01
-(beschädigte gespeicherte Daten konfigurierter externer Melder) ist im Branch
-`fix/f04-fsr-h01` behoben, aber noch nicht veröffentlicht ([Details](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/F04_FSR_H01.md)). Softwaretests und der am 14. Oktober 2026
+(beschädigte gespeicherte Daten konfigurierter externer Melder) ist in 2.0.0 behoben ([Details](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/F04_FSR_H01.md)). Softwaretests und der am 14. Oktober 2026
 vom Benutzer bestätigte erfolgreiche Hydrus-Neustart mit Beta.3 sind getrennte
 Nachweise; der Einzeltest belegt nicht sämtliche Ausfall-/Neustartszenarien. [Beta-Chronologie](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
 [Kartendokumentation](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/CARD.md).
 
-## Betriebsstand 2.0.0-beta.1
+## Betriebsstand 2.0.0-beta.1 (historisch)
 
 Die [Dashboard-Karte](Dashboard-Karte) wird seit 2.0.0-beta.1 mit der Integration geladen. Sie zeigt Alarm und
 hydraulische Überwachung getrennt und bietet gekoppelten Geräten Stummschalten, globale Quittierung und
 externen Reset an, jeweils nur wenn das Backend es erlaubt. Erkennung, Alarm- und Absperrlogik sind
-unverändert. Der Beta-Umfang bleibt ohne externe Lecksensoren.
+unverändert. Der Beta-Umfang blieb damals ohne externe Lecksensoren.

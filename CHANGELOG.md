@@ -1,6 +1,31 @@
 # Changelog
 
-## Unreleased
+## 2.0.0 — 2026-10-15
+
+Stable major release. Summary of the changes since the last stable release 1.1.0 (details in the
+entries below and in the beta sections; user-facing overview in
+[RELEASE_NOTES_2.0.0.md](RELEASE_NOTES_2.0.0.md)):
+
+- **F04 V3** (from 1.2.0-beta.1): Burst Leak with a new default base of 3,500 L/h for unset values
+  (explicit values are kept), evidence-based Rapid Rise, separate Rolling and confirmed Long-Term
+  learning with legacy-learning quarantine, MQTT measurement provenance and replay protection.
+- **External leak sensors** with persistent per-source lifecycle, generation-bound alarm ledger,
+  Home-authorized external reset and identity-conflict quarantine. With the **F04-FSR-H01** fix they
+  are no longer excluded from use ([docs/F04_FSR_H01.md](docs/F04_FSR_H01.md)).
+- **Hydraulic monitoring status** sensor (active / waiting / blocked) with source diagnostics
+  (1.2.0-beta.3).
+- **Dashboard card bundled with the integration** (card 0.6.2): loads without a manual resource,
+  shows alarm and monitoring separately, per-device alarm actions authorized by the backend
+  (pairing with a user or a single login), no detector switches in the card, sections open by default
+  (2.0.0-beta.1 to beta.3).
+- **Wall display** recipient kind for kiosk displays such as TouchKio (2.0.0-beta.3).
+- Shutoff-request icon follows its state; the integration still never operates a valve.
+
+Beta notes: [1.2.0-beta.1](RELEASE_NOTES_1.2.0-beta.1.md), [1.2.0-beta.3](RELEASE_NOTES_1.2.0-beta.3.md),
+[2.0.0-beta.1](RELEASE_NOTES_2.0.0-beta.1.md), [2.0.0-beta.2](RELEASE_NOTES_2.0.0-beta.2.md),
+[2.0.0-beta.3](RELEASE_NOTES_2.0.0-beta.3.md).
+
+Changes since 2.0.0-beta.3:
 
 - Dashboard card 0.6.2 (hardening, a precaution): the `hass` setter, `getCardSize` and the render
   path never throw any more. HA replaces a card whose `hass` setter throws by an empty
@@ -19,7 +44,7 @@
   server route, imports the card (with retries) once the integration serves it, and lets HA's
   `ll-rebuild` replace the error card. Created/updated at startup, removed with the last entry,
   never blocks setup; YAML resource mode keeps the extra module only. `lovelace` added to
-  `after_dependencies`. The card file itself is unchanged (0.6.1).
+  `after_dependencies`.
 - **Security F04-FSR-H01:** damaged persisted records of configured external leak sensors can no
   longer silently end an ACTIVE alarm or its shutoff contribution, nor turn into an invented but
   trusted identity. Every `external_sources` record must be interpretable (known phase; valid IDs,

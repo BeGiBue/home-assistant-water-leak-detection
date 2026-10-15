@@ -1,6 +1,6 @@
 # Dashboard-Karte
 
-Seit **2.0.0-beta.1** gehört die Dashboard-Karte **Water Leak Guard** zur Integration (seit 2.0.0-beta.3: Karte 0.6.1 mit offenen Abschnitten und Wanddisplay-Empfänger). Sie ist
+Seit **2.0.0-beta.1** gehört die Dashboard-Karte **Water Leak Guard** zur Integration; mit **2.0.0** ist es Karte **0.6.2** (offene Abschnitte, Wanddisplay-Empfänger, robuster Start). Sie ist
 eine Ansicht und Bedienoberfläche, aber **keine Vertrauensgrenze**: Ob eine Aktion erlaubt ist,
 entscheidet ausschließlich das Backend. Die Integration funktioniert unverändert auch ohne Karte.
 
@@ -19,6 +19,12 @@ bereit und lädt sie in jedes Dashboard (UI- und YAML-Modus). Die Adresse enthä
 dem Dateiinhalt, damit nach Updates keine alte Version im Browser-Cache bleibt. Frontend und http sind
 nur Lade-Reihenfolge: Schlägt das Registrieren fehl, startet die Leckerkennung trotzdem, nur die Karte
 fehlt und im Log steht eine Warnung.
+
+Im UI-Ressourcenmodus legt die Integration zusätzlich **einen** Eintrag unter *Ressourcen* an:
+„water-leak-guard-card loader“ (`data:text/javascript…`). Er lädt die Karte auch auf einer Seite, die
+während des HA-Starts geöffnet wurde, und verhindert so den „Konfigurationsfehler“ bis zum Neuladen.
+Nicht löschen; er wird mit dem letzten Eintrag der Integration entfernt. Beim Deinstallieren daher
+zuerst die Einträge der Integration entfernen, dann HACS.
 
 **Umstieg von Karte 0.1.0/0.2.0:** die manuell eingetragene Ressource `/local/water-leak-guard-card.js`
 unter *Einstellungen → Dashboards → ⋮ → Ressourcen* löschen und die Datei in `<config>/www/` entfernen.

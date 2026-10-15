@@ -108,7 +108,7 @@ the page did not get the card module in time. HA writes extra modules into the s
 it serves the page, serves the frontend before custom integrations are set up and never asks again;
 the Companion app and the browser's service worker may also show a cached start page from such a
 moment (without the module, or with an older `?v=` digest). HA then shows its error card after two
-seconds and waits for the card element. Since the H01 fix branch the integration also keeps a small
+seconds and waits for the card element. Since 2.0.0 the integration also keeps a small
 Lovelace resource (*Settings → Dashboards → ⋮ → Resources*, a `data:text/javascript…` entry
 "water-leak-guard-card loader"). It needs no server request, waits briefly for the card, then loads
 it as soon as the integration serves it (with retries), and HA replaces the error card by itself.

@@ -3,8 +3,8 @@
 > stehen in [docs/F04_V3.md](docs/F04_V3.md). F02 und F08 bleiben geschlossen.
 > Die darunterstehenden älteren Roadmap- und Entwurfsabschnitte sind historischer
 > Kontext; abweichende Burst-/High-Lernanforderungen werden durch V3 ersetzt.
-> Keine Release- oder Merge-Freigabe. Vorbereiteter Kandidat: 1.2.0-beta.1;
-> letzter veröffentlichter stabiler Stand: 1.1.0. Beta-Voraussetzungen siehe docs/BETA_1.2.0.md.
+> F04 V3 ist Teil des stabilen Releases 2.0.0 (15. Oktober 2026); F04-FSR-H01 ist darin behoben
+> (docs/F04_FSR_H01.md). Die früheren Beta-Voraussetzungen (docs/BETA_1.2.0.md) sind historisch.
 
 > Sicherheitskorrektur: Unterstützte Store-Versionen mit nicht-dict Body werden
 > konservativ gesperrt. MQTT-Timeouts und direkte Gap-Rückkehr verwenden eine

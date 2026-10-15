@@ -1,6 +1,6 @@
 # Dashboard-Karte (Lovelace)
 
-**Status:** Karte 0.6.1 mit Water Leak Guard **2.0.0-beta.3**, unveröffentlicht Karte 0.6.2 (robuster Start ohne „Konfigurationsfehler“) (Abschnitte standardmäßig offen, Option `collapsed`, Wanddisplay-Empfänger; vorher 0.5.0 mit 2.0.0-beta.2). Die Karte ist eine Ansicht auf die vorhandenen
+**Status:** Karte **0.6.2** mit Water Leak Guard **2.0.0** (stabil; Abschnitte standardmäßig offen, Option `collapsed`, Wanddisplay-Empfänger, robuster Start mit Loader-Ressource). Die Karte ist eine Ansicht auf die vorhandenen
 Entitäten, Dienste und Kartenbefehle und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
 Reset-Nonce, und Berechtigung, Anwesenheit und erlaubte Alarmaktionen prüft ausschließlich das
 Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).
@@ -449,7 +449,7 @@ Einschalten des Displays bei Alarm: Wiki-Seite *Dashboard-Karte*, Abschnitt „W
 
 Alle Etappen der Kartenübergabe sind umgesetzt: A (Überwachungszustand, ehrliche Anzeige), B (Backend-Vertrag
 mit Gerätekopplung), C (Alarmaktionen in der Karte) und D (Auslieferung mit der Integration). Danach: kompaktes,
-einklappbares Layout mit zwei Spalten und Kopplung an einen Benutzer (Karte 0.5.0, unveröffentlicht). Jede Etappe
+einklappbares Layout mit zwei Spalten und Kopplung an einen Benutzer (Karte 0.5.0), danach Wanddisplay und robuster Start (0.6.x, veröffentlicht mit 2.0.0). Jede Etappe
 wurde von einer unabhängigen Review-Instanz anhand des Codes geprüft. Getestet ist die Karte mit simuliertem
 Home Assistant und der vollständigen Python-Testsuite in der CI; ein Test in einer echten Installation steht
 aus.
