@@ -199,6 +199,14 @@ Release ist nicht nötig. Der manuelle Workflow **Publish Wiki** synchronisiert
 werden; allein ein Merge aktualisiert das öffentliche Wiki nicht.
 Die früheren Release-/Korrekturrunden auf dieser Seite sind historischer Kontext.
 
+## 2.0.0-beta.3 – 15. Oktober 2026
+
+Karte 0.6.1 mit standardmäßig offenen Abschnitten (Option `collapsed`), neuer Empfängertyp Wanddisplay
+(z. B. TouchKio) mit Kiosk-Benutzer- oder Anmelde-Kopplung, zustandsabhängige Ventil-Symbole der
+Absperranforderung. Zusammengeführt aus `feature/display-recipient`; mehrere Runden unabhängiger Review
+anhand des Codes, Validate, Hassfest und HACS bestanden. Kein Test in einer echten Installation.
+[Release Notes](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0-beta.3.md).
+
 ## 2.0.0-beta.2 – 14. Oktober 2026
 
 Karte 0.5.0: kompaktes, einklappbares Layout (ruhig einspaltig ca. 335 px, passt auf iPhone, iPad-Spalte

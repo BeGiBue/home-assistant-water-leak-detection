@@ -1,0 +1,13 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "shutoff_request": {
+        "default": "mdi:valve",
+        "state": {
+          "off": "mdi:valve-open",
+          "on": "mdi:valve-closed"
+        }
+      }
+    }
+  }
+}

@@ -1,8 +1,17 @@
 # Beta 2.0.0: Dashboard-Karte, Gerätekopplung und Kartenaktionen
 
-**2.0.0-beta.2** ist eine Vorabversion (GitHub-Pre-release). Der zuletzt veröffentlichte stabile Stand bleibt
+**2.0.0-beta.3** ist eine Vorabversion (GitHub-Pre-release). Der zuletzt veröffentlichte stabile Stand bleibt
 1.1.0. Eine Veröffentlichung aktualisiert kein laufendes HA: Backup, Download über HACS mit aktivierten
 Beta-Versionen und Neustart sind erforderlich. [Upgrade-Schritte](INSTALLATION.md#upgrading-to-200-beta1).
+
+## Neu in 2.0.0-beta.3
+
+| Bereich | Neu in 2.0.0-beta.3 |
+|---|---|
+| Karte | Karte 0.6.1: Bypass und Lernmodell standardmäßig offen; Option `collapsed: true` für niedrige Bildschirme (z. B. 800×480 quer). |
+| Wanddisplay | Neuer Empfängertyp für Wanddisplays (z. B. TouchKio): ohne Push und Tracker, gilt immer als zuhause, kein Stummschalten, Rechte über die Häkchen. Kopplung nur mit eigenem Kiosk-Benutzer (kein Admin/Besitzer, nirgends sonst gekoppelt) oder mit der Kiosk-Anmeldung; Anmeldungen der Companion-App sind ausgeschlossen. |
+| Sicherheit | Externer Reset eines Displays nur über die Karte, nicht über Benachrichtigungsaktion oder Dienst; unbekannter Empfängertyp wird gewarnt und nie berechtigt. |
+| Symbole | Absperranforderung: `mdi:valve-open` ohne, `mdi:valve-closed` mit Anforderung. |
 
 ## Neu in 2.0.0-beta.2
 
@@ -72,3 +81,4 @@ Empfohlene erste Prüfungen nach dem Upgrade:
 | 1.2.0-beta.1 bis beta.3 | Siehe [Beta 1.2.0](BETA_1.2.0.md). |
 | 2.0.0-beta.1 | Karte 0.4.1 mit der Integration, Überwachungsanzeige, Gerätekopplung und Kartenaktionen. |
 | 2.0.0-beta.2 | Karte 0.5.0: kompaktes Layout ohne Schalter, Alarm beenden nur zuhause, Benutzerkopplung. |
+| 2.0.0-beta.3 | Karte 0.6.1 mit offenen Abschnitten, Wanddisplay-Empfänger, Ventil-Symbole. |

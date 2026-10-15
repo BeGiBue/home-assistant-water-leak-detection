@@ -8,7 +8,7 @@ from homeassistant.const import Platform
 
 DOMAIN = "water_leak_detection"
 NAME = "Water Leak Guard"
-VERSION = "2.0.0-beta.2"
+VERSION = "2.0.0-beta.3"
 
 PLATFORMS: tuple[Platform, ...] = (
     Platform.SENSOR,
@@ -36,6 +36,13 @@ RECIPIENT_TRUSTED_STATIONARY = "trusted_stationary"
 RECIPIENT_TOKEN = "token"
 RECIPIENT_SESSION_TOKEN_ID = "session_token_id"  # paired HA login (refresh token id), not a secret
 RECIPIENT_SESSION_USER_ID = "session_user_id"  # paired HA user (every normal login), not a secret
+# Recipient kind: "mobile" (default, Companion app with notify service and device
+# tracker) or "display" (stationary wall display / kiosk: no notifications, no
+# tracker, always treated as Home, only useful with a dashboard pairing).
+RECIPIENT_KIND = "kind"
+RECIPIENT_KIND_MOBILE = "mobile"
+RECIPIENT_KIND_DISPLAY = "display"
+RECIPIENT_KINDS = (RECIPIENT_KIND_MOBILE, RECIPIENT_KIND_DISPLAY)
 
 CONF_SLOW_ENABLED = "slow_enabled"
 CONF_SLOW_THRESHOLD_LPH = "slow_threshold_lph"

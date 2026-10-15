@@ -1,6 +1,6 @@
 # Dashboard-Karte
 
-Seit **2.0.0-beta.1** gehört die Dashboard-Karte **Water Leak Guard** zur Integration (seit 2.0.0-beta.2: Karte 0.5.0 mit kompaktem Layout und Benutzerkopplung). Sie ist
+Seit **2.0.0-beta.1** gehört die Dashboard-Karte **Water Leak Guard** zur Integration (seit 2.0.0-beta.3: Karte 0.6.1 mit offenen Abschnitten und Wanddisplay-Empfänger). Sie ist
 eine Ansicht und Bedienoberfläche, aber **keine Vertrauensgrenze**: Ob eine Aktion erlaubt ist,
 entscheidet ausschließlich das Backend. Die Integration funktioniert unverändert auch ohne Karte.
 
@@ -56,8 +56,7 @@ bypass_presets: [60, 120, 240]        # Minuten, 1–1440
 
 Ab Karte 0.5.0 ist die ruhige Karte einspaltig nur noch ca. 335 px hoch (gemessen, je nach Schrift
 ca. ±15 px). Spalten im Masonry-Layout und Abschnitte sind in Home Assistant höchstens ca. 500 px breit;
-dort – auch auf iPad und dem alten 7″-Display des Raspberry Pi (800×480) – ist die Karte einspaltig und
-passt unter die HA-Leiste. Zwei Spalten (links Kopf, Alarm, Überwachung, Durchfluss; rechts Erkennung,
+dort – auch auf iPad und dem alten 7″-Display des Raspberry Pi – ist die Karte einspaltig. Zwei Spalten (links Kopf, Alarm, Überwachung, Durchfluss; rechts Erkennung,
 Bypass, externe Sensoren, Lernmodell) zeigt sie nur, wenn sie selbst mindestens ca. 600 px breit ist: in
 der Panel-Ansicht oder in einem Abschnitt über mehrere Spalten (`column_span` ≥ 2) mit
 `grid_options: columns: full`. Beispiel für ein Wanddisplay:
@@ -75,6 +74,102 @@ unerreichbar), zeigt ein grüner Hinweis „Hydraulik aktiv“ in der Durchfluss
 Zustand erscheint die volle Zeile mit Grund. Sind Speicher oder Messquelle gestört, heißt es gelb
 „Überwachung eingeschränkt“ statt „Alles ruhig“. Der Stummschalt-Knopf nennt den
 gekoppelten Empfänger („Für Bea stummschalten“). Hell/dunkel und „Bewegung reduzieren“ werden beachtet.
+
+## Abschnitte auf- oder zugeklappt
+
+Ab Karte 0.6.0 starten „High-Flow-Bypass“ und „Lernmodell“ **aufgeklappt** (ruhige Karte einspaltig ca.
+550 px hoch, bei 320 px ca. 615 px). Mit `collapsed: true` (Editor: „Abschnitte eingeklappt starten“)
+starten sie zu; dann ist die ruhige Karte einspaltig ca. 335 px hoch (alle Werte gemessen, ±15 px).
+
+Altes Raspberry-Pi-Display 7″:
+
+- **hochkant (480×800):** Der Standard (offen) passt: ruhig ca. 550 px bei 448–464 px Kartenbreite,
+  Unterkante bei ca. 613 px unter einer 56-px-Leiste (Platz ca. 744 px). `collapsed` ist nicht nötig.
+  Ein Alarm braucht mehr Platz (ca. 850–900 px); der Alarmkasten steht oben.
+- **quer (800×480):** Nur eingeklappt passt die ruhige Karte unter die Leiste (ca. 420 px Platz):
+
+```yaml
+type: custom:water-leak-guard-card
+collapsed: true   # nur für 800×480 quer oder andere niedrige Bildschirme
+```
+
+Auf- und Zuklappen in der Karte bleibt bis zum Neuladen der Seite erhalten; eine Änderung der Option
+im Editor setzt auf den neuen Standard zurück.
+
+## Wanddisplay / TouchKio
+
+Ein fest montiertes Display – etwa [TouchKio](https://github.com/leukipp/touchkio) auf einem Raspberry Pi
+oder ein anderer HA-Kiosk-Browser – hat weder Companion-Benachrichtigungen noch einen Device Tracker.
+Seit Karte 0.6.0 gibt es dafür den Empfängertyp **Wanddisplay**:
+*Konfigurieren → Benachrichtigungsempfänger → Wanddisplay hinzufügen*.
+
+- Ein Wanddisplay bekommt **keine Benachrichtigungen** und ist nie Teil der Zustellung; Stummschalten
+  entfällt (die Karte zeigt den Knopf dort nicht).
+- Es gilt bei jeder Zuhause-Prüfung **immer als zuhause**.
+- Es braucht eine **Kopplung** (Pflichtfeld), sonst erkennt die Karte es nicht. Zwei Möglichkeiten:
+  - **„👤 Kiosk-Benutzer“:** ein eigener HA-Benutzer **ohne Adminrechte** (nicht der Besitzer), den
+    **kein anderer Empfänger** nutzt – weder als Benutzer noch über eine seiner Anmeldungen. Das Formular
+    lehnt Besitzer, Administratoren und schon anderweitig gekoppelte Benutzer ab; umgekehrt kann kein
+    anderer Empfänger diesen Benutzer oder eine seiner Anmeldungen wählen. **Achtung:** Dann gilt **jede** Anmeldung
+    des Kiosk-Benutzers als das Display und damit als zuhause – auch eine Anmeldung aus der Ferne mit
+    seinem Passwort. Deshalb ein eigenes, starkes Passwort, das niemand anderswo verwendet.
+  - **„🔑 Anmeldung“** (strenger): bindet die Rechte an genau die eine Sitzung des Kiosk-Geräts. Meldet
+    sich das Kiosk-Gerät neu an, muss die Kopplung erneuert werden. Anmeldungen der Companion-App
+    (Handy/Tablet) und Anmeldungen eines Benutzers, den ein Handy-Empfänger nutzt, werden nicht angeboten.
+  - Gezählt werden die Kopplungen aller Instanzen der Integration.
+- Die Rechte sind die üblichen Häkchen des Empfängers: „Globales Quittieren erlauben“ und „Externen Reset
+  erlauben“ (beide standardmäßig aus). Im Alarm bietet die Karte dort außerdem „Erkennung abschalten“
+  (Slow Leak/Low Flow) und „Bypass starten“ (High Flow) an, weil das Display als gekoppelt und zuhause gilt.
+- **Abwägung:** Jede Sitzung, die als das Display erkannt wird, hat diese Rechte – ohne Device Tracker,
+  also nicht nur, wer vor dem Display steht (siehe Kopplung oben). Nur freigeben, was für jeden im
+  Haushalt (und Besuch) in Ordnung ist.
+- Die Art lässt sich nach dem Anlegen nicht ändern (Eintrag entfernen und neu anlegen).
+
+Auf dem 7″-Display hochkant (480×800) reicht der Standard; quer (800×480) `collapsed: true` setzen (siehe oben).
+
+**Beispiel-Automation:** Bei einem Leckalarm das Display einschalten und auf volle Helligkeit stellen.
+Die Entity-IDs sind **Platzhalter** – die echten Namen stehen unter *Einstellungen → Geräte & Dienste →
+Geräte → TouchKio (Gerät des Displays)*; TouchKio meldet sie per MQTT.
+
+**Empfohlen (einfachste Variante):** Das Dashboard mit der Karte ist schon die Startseite des Kiosks
+(TouchKio `web_url`). Dann genügt es, das Display einzuschalten; eine Aktion für die Seiten-URL ist
+nicht nötig:
+
+```yaml
+alias: Wasserwächter – Display bei Leck einschalten
+triggers:
+  - trigger: event
+    event_type: water_leak_detection_event_started
+  - trigger: state
+    entity_id: binary_sensor.wasserwachter_leckalarm   # Platzhalter: Leckalarm der Integration
+    to: "on"
+actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.touchkio_flur_display          # Platzhalter: Display-Licht von TouchKio
+    data:
+      brightness_pct: 100
+mode: single
+```
+
+**Nur wenn der Kiosk sonst eine andere Seite zeigt,** zusätzlich die Seiten-URL setzen. Dabei **exakt
+dieselbe Basis-URL** (Schema, Host, Port) verwenden, mit der TouchKio startet, also die konfigurierte
+`web_url` – nur der Pfad darf sich unterscheiden. Beispiel: Startet TouchKio mit
+`http://192.168.1.20:8123/…`, dann nicht `http://homeassistant.local:8123/…` setzen (IP statt Hostname
+oder umgekehrt). Ein anderer Host ist für den Browser ein anderer Ursprung (Origin) ohne die gespeicherte
+Anmeldung; dann lädt das Dashboard bzw. die Karte nicht.
+
+```yaml
+  - action: text.set_value
+    target:
+      entity_id: text.touchkio_flur_page_url          # Platzhalter: Seiten-URL von TouchKio
+    data:
+      # Platzhalter: gleiche Basis-URL wie TouchKios web_url, nur der Pfad deines Dashboards
+      value: "http://192.168.1.20:8123/wasser"
+```
+
+Optional kann [Browser Mod](https://github.com/thomasloven/hass-browser_mod) zusätzlich ein Popup oder
+einen Ton auf dem Display auslösen. Das ist **nicht getestet** und nicht Teil der Integration.
 
 ## Bedienung mit Rückfrage
 
@@ -106,6 +201,7 @@ des Empfängers ändern sich dadurch nicht. Bestehende Kopplungen an eine Anmeld
 | nicht gekoppelt (z. B. Desktop-Browser) | keine, Hinweis „nur Anzeige“ |
 | gekoppelt, unterwegs | Für *Empfänger* stummschalten (z. B. „Für Bea stummschalten“); „Global quittieren“ gesperrt („Nur zuhause möglich“) |
 | gekoppelt, unterwegs, Alarm Slow/Low/High | zusätzlich „Erkennung abschalten“ bzw. „Bypass starten“ gesperrt („Nur zuhause möglich“) |
+| Wanddisplay (gekoppelt, gilt immer als zuhause) | kein Stummschalten; Global quittieren und externes „Zurücksetzen“ je nach Berechtigung, „Erkennung abschalten“/„Bypass starten“ im Alarm – nie „Nur zuhause möglich“ |
 | gekoppelt, zuhause, mit Berechtigung | Stummschalten, Global quittieren, bei externem Leck „Zurücksetzen“, bei Slow/Low „Erkennung abschalten“, bei High „Bypass starten“ – jeweils mit Rückfrage, wo ein Alarm endet |
 
 - Stummschalten wirkt nur auf das eigene Gerät; Quittieren stoppt Benachrichtigungen für alle. Beides

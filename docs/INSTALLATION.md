@@ -100,6 +100,14 @@ or its Store to resolve a blocked state. Check the
 Card 0.1.0 of this beta had to be registered manually; since 2.0.0-beta.1 the card is loaded
 automatically (see below).
 
+## Upgrading to 2.0.0-beta.3
+
+Back up, download `2.0.0-beta.3` in HACS, restart Home Assistant and reload the browser / Companion
+app. Card sections now start expanded; add `collapsed: true` to a card on short screens (e.g. a
+800×480 display in landscape). To use a wall display (e.g. TouchKio), create a dedicated non-admin
+kiosk user, log the display in with it and add it under *Configure → Notification recipients → Add
+wall display*. Existing recipients are unchanged.
+
 ## Upgrading from 2.0.0-beta.1 to 2.0.0-beta.2
 
 Back up, download `2.0.0-beta.2` in HACS and restart Home Assistant, then reload the browser /

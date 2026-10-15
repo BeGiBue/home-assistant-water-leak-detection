@@ -174,7 +174,7 @@
         },
         "submit": "Add and go back",
         "data_description": {
-          "session_pairing": "Whom the dashboard card treats as this device (the backend checks every action). “👤 …” (user, recommended) covers every app/browser login of this Home Assistant user and survives logging out and in or reinstalling the app – a laptop browser of the same user then gets this recipient's rights too, but “home” always comes from the device tracker above. “🔑 …” pairs exactly one login (user – app/browser · last used), e.g. when one user has several devices with different rights; select again after that device logs in anew. A paired login takes precedence over a user pairing. Muting applies to this recipient only; global acknowledgement and external reset need the permissions above and the device tracker at home. “—” = not paired. “⚠” = stored pairing that is no longer valid."
+          "session_pairing": "Whom the dashboard card treats as this device (the backend checks every action). “👤 …” (user, recommended) covers every app/browser login of this Home Assistant user and survives logging out and in or reinstalling the app – a laptop browser of the same user then gets this recipient's rights too, but “home” always comes from the device tracker above. “🔑 …” pairs exactly one login (user – app/browser · last used), e.g. when one user has several devices with different rights; select again after that device logs in anew. A paired login takes precedence over a user pairing. Muting applies to this recipient only; global acknowledgement and external reset need the permissions above and the device tracker at home. “—” = not paired. “⚠” = stored pairing that is no longer valid. A user assigned to a wall display (kiosk user or the user of the display's login) is reserved for that display: neither that user nor one of its logins can be selected here."
         }
       },
       "remove_recipient": {
@@ -211,7 +211,7 @@
         },
         "submit": "Save and go back",
         "data_description": {
-          "session_pairing": "Whom the dashboard card treats as this device (the backend checks every action). “👤 …” (user, recommended) covers every app/browser login of this Home Assistant user and survives logging out and in or reinstalling the app – a laptop browser of the same user then gets this recipient's rights too, but “home” always comes from the device tracker above. “🔑 …” pairs exactly one login (user – app/browser · last used), e.g. when one user has several devices with different rights; select again after that device logs in anew. A paired login takes precedence over a user pairing. Muting applies to this recipient only; global acknowledgement and external reset need the permissions above and the device tracker at home. “—” = not paired. “⚠” = stored pairing that is no longer valid."
+          "session_pairing": "Whom the dashboard card treats as this device (the backend checks every action). “👤 …” (user, recommended) covers every app/browser login of this Home Assistant user and survives logging out and in or reinstalling the app – a laptop browser of the same user then gets this recipient's rights too, but “home” always comes from the device tracker above. “🔑 …” pairs exactly one login (user – app/browser · last used), e.g. when one user has several devices with different rights; select again after that device logs in anew. A paired login takes precedence over a user pairing. Muting applies to this recipient only; global acknowledgement and external reset need the permissions above and the device tracker at home. “—” = not paired. “⚠” = stored pairing that is no longer valid. A user assigned to a wall display (kiosk user or the user of the display's login) is reserved for that display: neither that user nor one of its logins can be selected here."
         }
       },
       "notifications": {
@@ -219,6 +219,7 @@
         "description": "**Already configured: {recipient_count}**\n\n{configured_recipients}\n\nManage the Companion App devices that receive leak alerts.",
         "menu_options": {
           "add_recipient": "Add recipient",
+          "add_display": "Add wall display (no push, always home)",
           "edit_recipient": "Edit recipient",
           "remove_recipient": "Remove recipient",
           "back_to_main": "Back to configuration"
@@ -286,6 +287,40 @@
           "recipient_id": "Authorized recipient",
           "go_back": "Back"
         }
+      },
+      "add_display": {
+        "title": "Add wall display",
+        "description": "**Already configured: {recipient_count}**\n\n{configured_recipients}\n\nA fixed display (e.g. TouchKio on a Raspberry Pi) receives no notifications, needs no device tracker and always counts as home. The dashboard card there may do what you allow below. Every session recognised as the display has these rights – not only whoever stands in front of it. Recommended: a dedicated non-admin HA kiosk user with its own strong password that is not used anywhere else.",
+        "data": {
+          "name": "Display name",
+          "session_pairing": "Pairing of the display (required)",
+          "allow_global_ack": "Allow global acknowledgement",
+          "allow_external_reset": "Allow external reset",
+          "go_back": "Back without saving"
+        },
+        "data_description": {
+          "session_pairing": "Required: the card recognises the display only through this pairing. “👤 …” = kiosk user: only a dedicated non-admin user (not the owner) that no other recipient uses – neither as user nor through one of its logins. Caution: every login of this user then counts as at home, including a remote login with its password; so give it its own strong password that nobody uses elsewhere. “🔑 …” = exactly the one login of the kiosk device (stricter): the rights are bound to that one session; after the kiosk device logs in again, the pairing must be renewed. A paired login takes precedence over a user pairing. Long-lived tokens never count. Companion app logins (phone/tablet) and logins of a user that a mobile recipient uses are not offered.",
+          "allow_global_ack": "May the card on this display acknowledge alarms for everyone? The display always counts as home.",
+          "allow_external_reset": "May the card on this display reset external leaks (ends that sensor's alarm)? The display always counts as home. Independently, the card offers “Disable detection” and “Start bypass” during an alarm to every paired device at home."
+        },
+        "submit": "Add and return"
+      },
+      "edit_display_details": {
+        "title": "Edit wall display",
+        "description": "The kind (wall display) cannot be changed; for a phone, remove this entry and add it as a recipient. Internal ID and token are kept.\n\n**Already configured: {recipient_count}**\n\n{configured_recipients}",
+        "data": {
+          "name": "Display name",
+          "session_pairing": "Pairing of the display (required)",
+          "allow_global_ack": "Allow global acknowledgement",
+          "allow_external_reset": "Allow external reset",
+          "go_back": "Back without saving"
+        },
+        "data_description": {
+          "session_pairing": "Required: the card recognises the display only through this pairing. “👤 …” = kiosk user: only a dedicated non-admin user (not the owner) that no other recipient uses – neither as user nor through one of its logins. Caution: every login of this user then counts as at home, including a remote login with its password; so give it its own strong password that nobody uses elsewhere. “🔑 …” = exactly the one login of the kiosk device (stricter): the rights are bound to that one session; after the kiosk device logs in again, the pairing must be renewed. A paired login takes precedence over a user pairing. Long-lived tokens never count. Companion app logins (phone/tablet) and logins of a user that a mobile recipient uses are not offered.",
+          "allow_global_ack": "May the card on this display acknowledge alarms for everyone? The display always counts as home.",
+          "allow_external_reset": "May the card on this display reset external leaks (ends that sensor's alarm)? The display always counts as home. Independently, the card offers “Disable detection” and “Start bypass” during an alarm to every paired device at home."
+        },
+        "submit": "Save and return"
       }
     },
     "error": {
@@ -313,7 +348,12 @@
       "session_not_found": "This login no longer exists. Please reload the list.",
       "session_already_paired": "This login is already paired with another recipient. Remove that pairing first.",
       "session_user_not_found": "This user no longer exists or is deactivated. Please reload the list.",
-      "session_user_already_paired": "This user is already paired with another recipient. Remove that pairing first or pick a single login here."
+      "session_user_already_paired": "This user is already paired with another recipient. Remove that pairing first or pick a single login here.",
+      "display_pairing_required": "A wall display needs a pairing (kiosk user or login); otherwise the card cannot recognise it.",
+      "display_user_not_allowed": "A wall display always counts as home, so it cannot be paired with the owner or an administrator. Create a dedicated non-admin kiosk user or select the kiosk device's single login (🔑).",
+      "display_user_in_use": "This user or one of its logins is already paired with another recipient. A wall display needs a dedicated kiosk user nobody else uses – or select the kiosk device's single login (🔑).",
+      "session_user_reserved_for_display": "This user is assigned to a wall display (as kiosk user or as the user of the display's login). Select another user or a login of another user.",
+      "display_login_not_allowed": "This login cannot be a wall display: it comes from the Companion app (phone/tablet) or belongs to a user a mobile recipient already uses. Otherwise this device would be “at home” everywhere. Select the kiosk browser's login."
     },
     "abort": {
       "no_mobile_app_notify_services": "No mobile_app notification services were found. Set up the Home Assistant Companion App first.",
