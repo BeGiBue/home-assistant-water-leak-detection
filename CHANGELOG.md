@@ -6,8 +6,8 @@ Stable major release. Summary of the changes since the last stable release 1.1.0
 entries below and in the beta sections; user-facing overview in
 [RELEASE_NOTES_2.0.0.md](RELEASE_NOTES_2.0.0.md)):
 
-- **F04 V3** (from 1.2.0-beta.1): Burst Leak with a new default base of 3,500 L/h for unset values
-  (explicit values are kept), evidence-based Rapid Rise, separate Rolling and confirmed Long-Term
+- **F04 V3** (from 1.2.0-beta.1): Burst Leak with a base of 3,500 L/h if the expert options were never
+  saved (a saved value, including 2,000 L/h stored by 1.1.0, is kept), evidence-based Rapid Rise, separate Rolling and confirmed Long-Term
   learning with legacy-learning quarantine, MQTT measurement provenance and replay protection.
 - **External leak sensors** with persistent per-source lifecycle, generation-bound alarm ledger,
   Home-authorized external reset and identity-conflict quarantine. With the **F04-FSR-H01** fix they

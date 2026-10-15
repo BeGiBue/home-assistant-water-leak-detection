@@ -100,7 +100,8 @@ unfinished fields. Changing only recipients preserves running detection timers.
 3. Reload the browser / Companion app (in the app if needed: *Settings → Companion App → Debugging →
    Reset frontend cache*).
 4. Legacy learning data is quarantined (a repair issue explains it); detection learns again from new
-   data. Check the Burst threshold: unset values now use 3,500 L/h; explicit values are kept.
+   data. If the expert options were never saved, 3,500 L/h now applies to Burst. A saved value,
+   including 2,000 L/h stored by 1.1.0 when the options were saved, is kept. Please check it.
 5. Add the card via **Add card → Water Leak Guard** (no file copy, no resource). Remove an old manual
    `/local/water-leak-guard-card.js` resource and file if you had one.
 6. Optional: pair devices for card actions (*Configure → Notification recipients → Edit recipient →

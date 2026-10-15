@@ -179,8 +179,9 @@ Nur fehlende Stabilitätszeiten werden für UI und Runtime gemeinsam abgeleitet:
 
 ## F04 V3 Upgrade und externe Quellen
 
-Die neue Burst-Basis beträgt für nicht gesetzte Werte 3.500 L/h; explizit
-gespeicherte Werte bleiben erhalten. Prüfe den Sicherheitsabstand zu normalem
+Wurden die Experteneinstellungen nie gespeichert, gilt jetzt eine Burst-Basis von
+3.500 L/h. Ein gespeicherter Wert bleibt erhalten, auch 2.000 L/h, die 1.1.0 beim
+Speichern der Optionen abgelegt hat. Bitte prüfen. Prüfe den Sicherheitsabstand zu normalem
 Maximalverbrauch. Beim Upgrade werden alte gemeinsame Lerndaten quarantänisiert;
 die effektive Burst-Schwelle kann sinken. Ein tatsächlicher Lern-Upgrade erzeugt
 einen HA-Repair-Hinweis. ACTIVE-Alarme, ACK, Empfänger und Optionen bleiben erhalten.
@@ -195,8 +196,9 @@ je Empfänger false. Einzelheiten zu Migration, Home-Zone und defekten Sensoren:
 `.storage/` erstellen (Laufzeitspeicher `.storage/water_leak_detection.runtime.<entry_id>`), in HACS
 auf 2.0.0 aktualisieren, HA neu starten und Browser bzw. Companion App neu laden.
 
-- **Von 1.1.0:** Alte Lerndaten werden quarantänisiert (ein Reparaturhinweis erklärt es). Nicht
-  gesetzte Burst-Werte nutzen jetzt 3.500 L/h, eigene Werte bleiben. Die Karte über *Karte hinzufügen →
+- **Von 1.1.0:** Alte Lerndaten werden quarantänisiert (ein Reparaturhinweis erklärt es). Wurden die
+  Experteneinstellungen nie gespeichert, gilt jetzt Burst 3.500 L/h. Ein gespeicherter Wert bleibt
+  erhalten, auch 2.000 L/h, die 1.1.0 beim Speichern der Optionen abgelegt hat. Bitte prüfen. Die Karte über *Karte hinzufügen →
   Water Leak Guard* einfügen; eine alte manuelle Ressource `/local/water-leak-guard-card.js` entfernen.
 - **Von einer 2.0.0-Beta:** Kopplungen, Empfänger und Wanddisplays bleiben erhalten. Externe
   Lecksensoren sind nicht mehr ausgeschlossen (F04-FSR-H01 behoben). Unter *Ressourcen* erscheint der

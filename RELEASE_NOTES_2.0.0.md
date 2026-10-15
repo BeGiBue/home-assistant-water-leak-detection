@@ -35,10 +35,10 @@ These notes are for upgrades from **1.1.0** and from the **betas**. Everything i
 
 ## Behavior changes – please read
 
-- **Burst base 3,500 L/h for unset values.** If you never set the Burst threshold, the base is now
-  3,500 L/h (1.1.0 used 2,000 L/h). Explicitly configured values, including 2,000 L/h, are
-  kept. Check that the value fits your installation: two large consumers at once or a garden hose
-  can reach high flows.
+- **Burst base 3,500 L/h if the expert options were never saved.** If the expert options were
+  never saved, 3,500 L/h now applies. A saved value, including 2,000 L/h stored by 1.1.0 when the
+  options were saved, is kept. Please check it: two large consumers at once or a garden hose can
+  reach high flows.
 - **Learning data from 1.1.0 is quarantined.** The legacy learning history is not reused. A repair
   issue explains the migration; adaptive thresholds learn again from new data.
 - **Damaged store files now keep the safety lock (F04-FSR-H01).** If Home Assistant sets the

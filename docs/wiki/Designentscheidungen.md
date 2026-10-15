@@ -397,5 +397,5 @@ keinen fremden Lifecycle, keine Event-ID und keinen Reset-Nonce übernehmen.
 High-Peaks werden getrennt im Langzeitkanal bestätigt und wirken ausschließlich
 über Faktor 1,20; das heuristische hydraulische Ceiling begrenzt diesen Kanal
 nicht. Die konfigurierte Burst-Basis bleibt stets der feste Aufnahmeanker.
-Eine unveröffentlichte Funktion auf diesem Branch ersetzt frühere F04-Entwürfe;
+Seit 2.0.0 (erstmals in 1.2.0-beta.1) ersetzt F04 V3 frühere F04-Entwürfe;
 [der aktuelle V3-Vertrag](F04-V3.md) hat Vorrang.
