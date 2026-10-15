@@ -20,6 +20,7 @@
 - [Persistenz & Betrieb](Persistenz-und-Betrieb)
 - [Troubleshooting](Troubleshooting)
 - [Dashboard-Karte](Dashboard-Karte)
+- [Wanddisplay mit TouchKio](Wanddisplay-TouchKio)
 
 ### Entwicklung
 - [Entwicklung & Release](Entwicklung-und-Release)

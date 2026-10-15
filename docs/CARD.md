@@ -444,6 +444,10 @@ dort „Stummschalten“ aus und zeigt nie „Nur zuhause möglich“. Empfänge
 (`kind`) werden ignoriert und im Log gemeldet; sie bekommen keine Benachrichtigungen und dürfen nichts.
 Beispiel-Automation zum
 Einschalten des Displays bei Alarm: Wiki-Seite *Dashboard-Karte*, Abschnitt „Wanddisplay / TouchKio“.
+Vollständige Schritt-für-Schritt-Anleitung (Kiosk-Benutzer, Formular, Karte, Automation, Fehlerbehebung):
+[Wiki: Wanddisplay mit TouchKio](https://github.com/BeGiBue/homeassistant-water-leak-detection/wiki/Wanddisplay-TouchKio).
+
+![Karte auf dem Raspberry Pi 7″: hochkant ruhig und bei Burst-Alarm, quer eingeklappt](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/card-wall-display.png)
 
 ## Entwicklungsstand
 

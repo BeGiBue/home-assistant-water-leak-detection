@@ -46,6 +46,7 @@ Diese Trennung ist eine der wichtigsten Sicherheitsentscheidungen des Projekts.
 
 - [Entitäten, Aktionen und Events – einschließlich hydraulischer Überwachung](Home-Assistant-Schnittstellen)
 - [Dashboard-Karte: Anzeige, Gerätekopplung und Alarmaktionen](Dashboard-Karte)
+- [Wanddisplay mit TouchKio: Schritt-für-Schritt-Anleitung](Wanddisplay-TouchKio)
 - [Persistenz und Neustartverhalten](Persistenz-und-Betrieb)
 - [Fehlerbilder und Troubleshooting – Warten/Gesperrt](Troubleshooting)
 

@@ -237,6 +237,7 @@ Benachrichtigungsempfänger → Wanddisplay hinzufügen* angelegt: Name, Kopplun
 Kiosk-Benutzer ohne Adminrechte, den sonst kein Empfänger nutzt, oder die einzelne Anmeldung des
 Kiosk-Geräts) und die Häkchen „Globales Quittieren“ und „Externer Reset“. Es
 bekommt keine Benachrichtigungen und gilt immer als zuhause. Details:
-[Dashboard-Karte – Wanddisplay](Dashboard-Karte#wanddisplay--touchkio).
+[Dashboard-Karte – Wanddisplay](Dashboard-Karte#wanddisplay--touchkio); vollständige Anleitung:
+[Wanddisplay mit TouchKio](Wanddisplay-TouchKio).
 Externe Lecksensoren werden seit 2.0.0 unterstützt (in den Betas ausgeschlossen).
 [Dashboard-Karte](Dashboard-Karte) · [Beta 2.0.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_2.0.0.md).
