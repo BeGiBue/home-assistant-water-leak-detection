@@ -6,7 +6,7 @@
 
 A backend-focused Home Assistant custom integration for detecting abnormal water consumption and possible water leaks from an existing water-meter flow sensor.
 
-**Current release:** 2.0.0-beta.2
+**Current release:** 2.0.0-beta.3
 **Release status:** pre-release; latest published stable: 1.1.0.
 **Beta scope:** hydraulic detection with notifications and the bundled dashboard card, without
 configured external leak sensors or persisted external records. See [the 2.0 beta notes](docs/BETA_2.0.0.md).
@@ -459,7 +459,7 @@ See [configuration](docs/CONFIGURATION.md#hydraulische-überwachung).
 
 ### Dashboard card and beta verification status
 
-Since 2.0.0-beta.1 the card (now 0.5.0 in 2.0.0-beta.2) is installed and loaded with the integration, shows the
+Since 2.0.0-beta.1 the card (now 0.6.1 in 2.0.0-beta.3) is installed and loaded with the integration, shows the
 hydraulic monitoring state separately from the alarm state and offers per-device alarm actions
 that the backend authorizes (see [Dashboard card](#dashboard-card) and [docs/CARD.md](docs/CARD.md)).
 Remove an older manual `/local/water-leak-guard-card.js` resource after upgrading.

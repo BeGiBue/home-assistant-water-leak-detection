@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.0.0-beta.3 — 2026-10-15
 
 - Dashboard card 0.6.0: "High Flow bypass" and "Learning" start **expanded**. New option
   `collapsed: true` (editor: "Start with sections collapsed") starts them collapsed, needed only on short screens such
