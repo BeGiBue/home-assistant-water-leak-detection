@@ -137,6 +137,8 @@ The integration creates a Home Assistant device with backend entities including:
 
 ![Water Leak Guard card: normal state and Burst Leak alarm with device actions](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/card-preview.png)
 
+![Card on the Raspberry Pi 7 inch display: portrait idle and Burst alarm on a display session, landscape collapsed](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/card-wall-display.png)
+
 A dependency-free Lovelace card ships with the integration and is loaded automatically: after
 installing or updating and restarting Home Assistant, choose **Add card → Water Leak Guard**. No
 file copy and no dashboard resource are needed (remove an older manual
@@ -151,7 +153,7 @@ use `collapsed: true`. For a device paired with a notification
 recipient it offers exactly the alarm actions the backend allows right now (device mute, global
 acknowledgement at home, external reset at home with permission); other devices are view only.
 Pair a device under **Configure → Notification recipients → Edit recipient → Pairing for the
-dashboard card** (a Home Assistant user or a single login). Details, permissions and migration: [docs/CARD.md](docs/CARD.md). Tested with
+dashboard card** (a Home Assistant user or a single login). Wall display with TouchKio (German guide): [Wiki](https://github.com/BeGiBue/homeassistant-water-leak-detection/wiki/Wanddisplay-TouchKio). Details, permissions and migration: [docs/CARD.md](docs/CARD.md). Tested with
 a simulated Home Assistant and the full CI suite; not yet tested on a live installation.
 
 ## Language and later configuration

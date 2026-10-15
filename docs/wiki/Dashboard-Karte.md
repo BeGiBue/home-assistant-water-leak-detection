@@ -104,42 +104,25 @@ im Editor setzt auf den neuen Standard zurück.
 
 ## Wanddisplay / TouchKio
 
+> **Vollständige Anleitung (Kiosk-Benutzer, Formular, Karte, Automation, Fehlerbehebung):
+> [Wanddisplay mit TouchKio](Wanddisplay-TouchKio).**
+
+![Karte auf dem Raspberry Pi 7″: hochkant ruhig und bei Burst-Alarm, quer eingeklappt](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/card-wall-display.png)
+
 Ein fest montiertes Display – etwa [TouchKio](https://github.com/leukipp/touchkio) auf einem Raspberry Pi
 oder ein anderer HA-Kiosk-Browser – hat weder Companion-Benachrichtigungen noch einen Device Tracker.
-Seit Karte 0.6.0 gibt es dafür den Empfängertyp **Wanddisplay**:
-*Konfigurieren → Benachrichtigungsempfänger → Wanddisplay hinzufügen*.
-
-- Ein Wanddisplay bekommt **keine Benachrichtigungen** und ist nie Teil der Zustellung; Stummschalten
-  entfällt (die Karte zeigt den Knopf dort nicht).
-- Es gilt bei jeder Zuhause-Prüfung **immer als zuhause**.
-- Es braucht eine **Kopplung** (Pflichtfeld), sonst erkennt die Karte es nicht. Zwei Möglichkeiten:
-  - **„👤 Kiosk-Benutzer“:** ein eigener HA-Benutzer **ohne Adminrechte** (nicht der Besitzer), den
-    **kein anderer Empfänger** nutzt – weder als Benutzer noch über eine seiner Anmeldungen. Das Formular
-    lehnt Besitzer, Administratoren und schon anderweitig gekoppelte Benutzer ab; umgekehrt kann kein
-    anderer Empfänger diesen Benutzer oder eine seiner Anmeldungen wählen. **Achtung:** Dann gilt **jede** Anmeldung
-    des Kiosk-Benutzers als das Display und damit als zuhause – auch eine Anmeldung aus der Ferne mit
-    seinem Passwort. Deshalb ein eigenes, starkes Passwort, das niemand anderswo verwendet.
-  - **„🔑 Anmeldung“** (strenger): bindet die Rechte an genau die eine Sitzung des Kiosk-Geräts. Meldet
-    sich das Kiosk-Gerät neu an, muss die Kopplung erneuert werden. Anmeldungen der Companion-App
-    (Handy/Tablet) und Anmeldungen eines Benutzers, den ein Handy-Empfänger nutzt, werden nicht angeboten.
-  - Gezählt werden die Kopplungen aller Instanzen der Integration.
-- Die Rechte sind die üblichen Häkchen des Empfängers: „Globales Quittieren erlauben“ und „Externen Reset
-  erlauben“ (beide standardmäßig aus). Im Alarm bietet die Karte dort außerdem „Erkennung abschalten“
-  (Slow Leak/Low Flow) und „Bypass starten“ (High Flow) an, weil das Display als gekoppelt und zuhause gilt.
-- **Abwägung:** Jede Sitzung, die als das Display erkannt wird, hat diese Rechte – ohne Device Tracker,
-  also nicht nur, wer vor dem Display steht (siehe Kopplung oben). Nur freigeben, was für jeden im
-  Haushalt (und Besuch) in Ordnung ist.
-- Die Art lässt sich nach dem Anlegen nicht ändern (Eintrag entfernen und neu anlegen).
+Dafür gibt es den Empfängertyp **Wanddisplay** (*Konfigurieren → Benachrichtigungsempfänger →
+Wanddisplay hinzufügen*): keine Benachrichtigungen, kein Stummschalten, gilt immer als zuhause, braucht
+eine Kopplung (eigener Kiosk-Benutzer ohne Adminrechte oder die einzelne Anmeldung des Kiosks).
+**Jede Sitzung, die als das Display erkannt wird, hat seine Rechte** – bei einer Kopplung an den Benutzer
+auch eine Anmeldung aus der Ferne; deshalb ein eigenes, starkes Passwort. Alles Weitere steht auf der
+[Anleitungsseite](Wanddisplay-TouchKio).
 
 Auf dem 7″-Display hochkant (480×800) reicht der Standard; quer (800×480) `collapsed: true` setzen (siehe oben).
 
-**Beispiel-Automation:** Bei einem Leckalarm das Display einschalten und auf volle Helligkeit stellen.
-Die Entity-IDs sind **Platzhalter** – die echten Namen stehen unter *Einstellungen → Geräte & Dienste →
-Geräte → TouchKio (Gerät des Displays)*; TouchKio meldet sie per MQTT.
-
-**Empfohlen (einfachste Variante):** Das Dashboard mit der Karte ist schon die Startseite des Kiosks
-(TouchKio `web_url`). Dann genügt es, das Display einzuschalten; eine Aktion für die Seiten-URL ist
-nicht nötig:
+**Empfohlene Automation:** Das Dashboard mit der Karte ist die Startseite des Kiosks (TouchKio `web_url`);
+bei einem Leck genügt es, das Display einzuschalten. Die Entity-IDs sind **Platzhalter** – die echten
+stehen unter *Einstellungen → Geräte & Dienste → Geräte → TouchKio*.
 
 ```yaml
 alias: Wasserwächter – Display bei Leck einschalten
@@ -158,24 +141,9 @@ actions:
 mode: single
 ```
 
-**Nur wenn der Kiosk sonst eine andere Seite zeigt,** zusätzlich die Seiten-URL setzen. Dabei **exakt
-dieselbe Basis-URL** (Schema, Host, Port) verwenden, mit der TouchKio startet, also die konfigurierte
-`web_url` – nur der Pfad darf sich unterscheiden. Beispiel: Startet TouchKio mit
-`http://192.168.1.20:8123/…`, dann nicht `http://homeassistant.local:8123/…` setzen (IP statt Hostname
-oder umgekehrt). Ein anderer Host ist für den Browser ein anderer Ursprung (Origin) ohne die gespeicherte
-Anmeldung; dann lädt das Dashboard bzw. die Karte nicht.
-
-```yaml
-  - action: text.set_value
-    target:
-      entity_id: text.touchkio_flur_page_url          # Platzhalter: Seiten-URL von TouchKio
-    data:
-      # Platzhalter: gleiche Basis-URL wie TouchKios web_url, nur der Pfad deines Dashboards
-      value: "http://192.168.1.20:8123/wasser"
-```
-
-Optional kann [Browser Mod](https://github.com/thomasloven/hass-browser_mod) zusätzlich ein Popup oder
-einen Ton auf dem Display auslösen. Das ist **nicht getestet** und nicht Teil der Integration.
+Zeigt der Kiosk sonst eine andere Seite, kann zusätzlich die Seiten-URL gesetzt werden – mit **exakt
+derselben Basis-URL** (Schema, Host, Port) wie TouchKios `web_url`, sonst fehlt die gespeicherte
+Anmeldung. Beispiel und Warnung: [Anleitung, Schritt 4](Wanddisplay-TouchKio#schritt-4-automation-die-das-display-aufweckt).
 
 ## Bedienung mit Rückfrage
 

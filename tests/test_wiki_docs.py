@@ -20,6 +20,7 @@ REQUIRED_PAGES = {
     "Home-Assistant-Schnittstellen.md",
     "Persistenz-und-Betrieb.md",
     "Troubleshooting.md",
+    "Wanddisplay-TouchKio.md",
     "Entwicklung-und-Release.md",
     "Designentscheidungen.md",
     "_Sidebar.md",
@@ -112,3 +113,55 @@ def test_display_forms_link_to_the_wiki_automation_example() -> None:
             description = steps[step]["description"]
             assert re.search(r"\[[^\]]+\]\(\{automation_url\}\)", description), (lang, step)
             assert "://" not in description, (lang, step)
+
+
+def test_wall_display_page_is_linked_and_anchors_resolve() -> None:
+    """The guide exists, is linked from the entry pages and its anchors work."""
+    guide = (WIKI / "Wanddisplay-TouchKio.md").read_text(encoding="utf-8")
+    assert guide.startswith("# Wanddisplay mit TouchKio")
+    for page in (
+        "_Sidebar.md",
+        "Home.md",
+        "Dashboard-Karte.md",
+        "Alarmstufen-und-Quittierung.md",
+        "Installation-und-Konfiguration.md",
+    ):
+        assert "Wanddisplay-TouchKio" in (WIKI / page).read_text(encoding="utf-8"), page
+
+    anchors_by_page = {
+        path.stem: {
+            _github_slug(line.lstrip("#"))
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.startswith("#")
+        }
+        for path in WIKI.glob("*.md")
+    }
+    link_pattern = re.compile(r"\[[^]]+\]\(([^)]+)\)")
+    broken: list[tuple[str, str]] = []
+    for path in WIKI.glob("*.md"):
+        for target in link_pattern.findall(path.read_text(encoding="utf-8")):
+            if "://" in target or target.endswith(".md"):
+                continue
+            page, _, anchor = target.partition("#")
+            page = page or path.stem
+            if anchor and page in anchors_by_page and anchor not in anchors_by_page[page]:
+                broken.append((path.name, target))
+    assert broken == []
+
+
+def test_wall_display_images_are_absolute_raw_urls_and_small() -> None:
+    base = (
+        "https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection"
+        "/main/docs/assets/"
+    )
+    for image in ("card-preview.png", "card-wall-display.png"):
+        assert (ROOT / "docs" / "assets" / image).stat().st_size < 400_000, image
+    for doc in (
+        ROOT / "README.md",
+        ROOT / "docs" / "CARD.md",
+        WIKI / "Dashboard-Karte.md",
+        WIKI / "Wanddisplay-TouchKio.md",
+    ):
+        text = doc.read_text(encoding="utf-8")
+        assert base + "card-wall-display.png" in text or base + "card-preview.png" in text, doc
+        assert "](docs/assets/" not in text and "](../assets/" not in text, doc
