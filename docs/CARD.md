@@ -1,6 +1,6 @@
 # Dashboard-Karte (Lovelace)
 
-**Status:** Karte 0.6.1 mit Water Leak Guard **2.0.0-beta.3** (Abschnitte standardmäßig offen, Option `collapsed`, Wanddisplay-Empfänger; vorher 0.5.0 mit 2.0.0-beta.2). Die Karte ist eine Ansicht auf die vorhandenen
+**Status:** Karte 0.6.1 mit Water Leak Guard **2.0.0-beta.3**, unveröffentlicht Karte 0.6.2 (robuster Start ohne „Konfigurationsfehler“) (Abschnitte standardmäßig offen, Option `collapsed`, Wanddisplay-Empfänger; vorher 0.5.0 mit 2.0.0-beta.2). Die Karte ist eine Ansicht auf die vorhandenen
 Entitäten, Dienste und Kartenbefehle und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
 Reset-Nonce, und Berechtigung, Anwesenheit und erlaubte Alarmaktionen prüft ausschließlich das
 Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).

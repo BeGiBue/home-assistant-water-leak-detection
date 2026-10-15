@@ -49,8 +49,7 @@ be acknowledged or reset.
 |---|---|---|
 | List not a list (`null`, dict, string, number) or an entry that is not a dict | Barrier | Barrier (unchanged) |
 | A list is missing in a current-schema body (`learning_schema_version: 2`) | Treated as "no external records": ACTIVE alarms and shutoff lost, then overwritten, not reported | Barrier |
-| File is not valid JSON (`NaN`, truncated), external sensors configured | HA renames it to `.corrupt.*`. First start: barrier. Next start: new installation, alarm and shutoff lost, only HA's own storage-corruption repair | Barrier on every start while the file is missing and this entry's `.corrupt.*` copy exists |
-| File is not valid JSON, hydraulic-only installation (no external sensors in the options) | First start: barrier. Next start: new installation | Unchanged (maintainer decision) |
+| File is not valid JSON (`NaN`, truncated), any installation (hydraulic-only included) | HA renames it to `.corrupt.*`. First start: barrier. Next start: new installation, alarm and shutoff lost, only HA's own storage-corruption repair | Barrier on every start while the file is missing and this entry's `.corrupt.*` copy exists (**behavior change**, also for hydraulic-only installations) |
 | `phase` missing/unknown/wrong type, `event_id` valid | Kept ACTIVE with that Event-ID; reset/ACK allowed; rewritten as clean; not reported | Barrier |
 | `phase` missing/unknown **and** `event_id` missing/invalid | **Dropped**: source ARMED, alarm and shutoff released, damaged record overwritten, not reported | Barrier |
 | ACTIVE, `event_id` missing/invalid | Invented Event-ID; alarm kept; reset/ACK on the invented ID; rewritten; not reported | Barrier |
@@ -81,12 +80,12 @@ be acknowledged or reset.
   Optional metadata that older writers did not store may be absent. The check runs before any
   live state is replaced, before a version-1 migration and before every Store write.
 - `storage.validate_snapshot_body` treats a missing list in a current-schema body as damage.
-- `WaterLeakManager` enters the barrier when external leak sensors are configured (read from the
-  config entry options, which do not depend on the Store), the Store file is missing and HA kept a
-  copy of exactly this file (`water_leak_detection.runtime.<entry_id>.corrupt.<time>`). Copies of
-  other entries or other Store keys do not count. The directory scan runs in the executor.
-  Hydraulic-only installations behave as before: the first start after the rename is locked,
-  the next one starts fresh.
+- `WaterLeakManager` enters the barrier when the Store file is missing and HA kept a copy of
+  exactly this file (`water_leak_detection.runtime.<entry_id>.corrupt.<time>`). Copies of other
+  entries or other Store keys do not count. The directory scan runs in the executor. This is a
+  deliberate behavior change for **every** installation, hydraulic-only included: before, the
+  second start after the rename began as a new installation and silently lost all stored alarms
+  (hydraulic alarms in that file are safety evidence too).
 - No parallel mechanism: everything reuses the existing Store recovery barrier, its repair issue
   and the `storage_recovery_required` status attribute. The dashboard card shows that attribute as
   its storage-recovery hint, so the card needed no change.
@@ -119,8 +118,7 @@ that to clear an alarm.
 - **Missing optional keys are accepted.** A record from an older writer may legitimately lack them.
   Required keys (phase, IDs, entity, shutoff flag, and for ACTIVE the Event-ID and start time) may
   not be missing.
-- **Store-level copy.** The `.corrupt.*` check only looks next to the Store file and only with
-  configured external sensors. If the copy is deleted while the Store file is missing, the next
-  start is a new installation, the same as deleting the Store. A hydraulic-only installation
-  starts fresh on the second start after HA renamed an invalid file (unchanged behavior).
+- **Store-level copy.** The `.corrupt.*` check only looks next to the Store file. If the copy is
+  moved away while the Store file is missing, the next start is a new installation, the same as
+  deleting the Store. Without a backup that is the deliberate way out (HA stopped).
 - The integration never operates a valve; the shutoff request is a signal for external automations.

@@ -467,6 +467,92 @@ test("I18N: DE and EN have exactly the same keys", async () => {
   for (const k of collapsed) assert.ok(en.has(k), k);
 });
 
+// HA's first hass object (src/state/connection-mixin.ts) has states/entities/devices null.
+const STARTUP_HASS = [
+  () => ({ ...hass(), states: null, entities: null, devices: null }),
+  () => ({ ...hass(), states: undefined }),
+  () => ({ ...hass(), entities: { ...hass().entities, "x.y": null }, devices: { d: null } }),
+  () => ({ language: "de" }),
+  () => {
+    const h = hass({ alarm: "low_flow" });
+    h.states[K.status] = { ...h.states[K.status], attributes: { ...h.states[K.status].attributes, external_sources: [null, 5] } };
+    return h;
+  },
+  () => {
+    const h = hass({ alarm: "low_flow" });
+    h.states[K.status] = { ...h.states[K.status], attributes: { ...h.states[K.status].attributes, external_sources: {} } };
+    return h;
+  },
+  () => ({ ...hass(), user: undefined, locale: undefined, language: undefined, callWS: undefined }),
+];
+
+test("incomplete startup hass never throws from the setter; next complete hass renders the card", async () => {
+  const errors = [];
+  const original = console.error;
+  console.error = (...args) => errors.push(args);
+  try {
+    await startupVariants();
+  } finally {
+    console.error = original;
+  }
+  // The root causes are fixed, not only caught: no render error at all.
+  assert.deepEqual(errors, []);
+});
+
+async function startupVariants() {
+  for (const [i, make] of STARTUP_HASS.entries()) {
+    for (const order of ["config_first", "hass_first"]) {
+      const card = new Card();
+      if (order === "hass_first") card.hass = make();
+      card.setConfig({ type: "custom:water-leak-guard-card", entity: K.status });
+      card.__connected = true;
+      card.connectedCallback();
+      assert.doesNotThrow(() => { card.hass = make(); }, `variant ${i} ${order}`);
+      assert.doesNotThrow(() => card.getCardSize());
+      assert.doesNotThrow(() => card.getGridOptions());
+      await new Promise((r) => setTimeout(r, 0));
+      if (i === 0) assert.ok(html(card).includes("Lädt"), "states not loaded yet: Loading");
+      card.hass = hass();
+      assert.match(html(card), /class="tiles"/, `variant ${i} ${order}: recovered`);
+      card.disconnectedCallback();
+    }
+  }
+}
+
+test("a render error shows Loading, never hides an active alarm, and recovers", async () => {
+  const errors = [];
+  const original = console.error;
+  console.error = (...args) => errors.push(args);
+  try {
+    const card = await mount({ alarm: "burst_leak" });
+    const real = card._renderCard;
+    card._renderCard = () => { throw new Error("boom"); };
+    card._signature = "";
+    assert.doesNotThrow(() => { card.hass = hass({ alarm: "burst_leak" }); });
+    assert.ok(html(card).includes("Lädt"), "loading fallback");
+    assert.ok(html(card).includes('class="fallback-alarm"'), "alarm stays visible");
+    assert.doesNotThrow(() => { card.hass = hass({ alarm: "burst_leak" }); });
+    assert.equal(errors.length, 1, "one log per distinct error");
+    card.hass = hass();
+    assert.ok(!html(card).includes('class="fallback-alarm"'), "no alarm line without an alarm");
+    const signature = card._computeSignature;
+    card._computeSignature = () => { throw new Error("signature"); };
+    assert.doesNotThrow(() => { card.hass = hass({ alarm: "low_flow" }); });
+    assert.ok(html(card).includes('class="fallback-alarm"'), "alarm line also on a signature error");
+    card._computeSignature = signature;
+    const alarmActive = card._alarmActive;
+    card._alarmActive = () => { throw new Error("size"); };
+    assert.equal(card.getCardSize(), 7, "size hint never throws");
+    card._alarmActive = alarmActive;
+    card._renderCard = real;
+    card.hass = hass();
+    assert.match(html(card), /class="tiles"/, "recovered on the next update");
+    card.disconnectedCallback();
+  } finally {
+    console.error = original;
+  }
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {

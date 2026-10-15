@@ -102,7 +102,7 @@ def test_frontend_is_ordering_only_not_a_hard_dependency():
 
 def test_card_file_reports_its_version():
     source = CARD_FILE.read_text()
-    assert 'const CARD_VERSION = "0.6.1";' in source
+    assert 'const CARD_VERSION = "0.6.2";' in source
     assert "static get cardVersion()" in source
 
 

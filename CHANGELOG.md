@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Dashboard card 0.6.2: fixed the empty "Configuration error" card on startup (e.g. iPad Companion
+  app) that only a reload removed. HA's first `hass` object has `states: null` (and null
+  `entities`/`devices`) while connecting; the card's `hass` setter read `hass.states[...]` and threw,
+  and HA's `hui-card` then replaced the card for the rest of the page's life. The card now handles
+  missing/null states, registry entries and attribute shapes, shows "Loading …" until states arrive,
+  never throws from `hass`/`getCardSize`, renders a small "Loading …" fallback on any render error
+  (logged once, retried on the next update) and, if an alarm is readable, keeps an alarm line in
+  that fallback.
 - Dashboard card: fixed "Configuration error" instead of the card until a reload (e.g. iPad Companion
   app after an HA restart). HA writes extra modules into the page only when serving it, serves the
   frontend before custom integrations are set up, and never re-requests them; HA's
@@ -17,11 +25,13 @@
   entity and shutoff flag; for ACTIVE a valid Event-ID and aware start time; correctly typed
   optional fields), otherwise the existing Store recovery barrier applies: alarm and shutoff held,
   original bytes kept, external reset and ACK refused, ERROR repair, `storage_recovery_required`.
-  The same applies to a missing list in a current-schema body and, when external leak sensors are
-  configured, to a Store file that HA renamed to `water_leak_detection.runtime.<entry_id>.corrupt.*`
-  because it was not valid JSON (previously the second start looked like a new installation). The
-  repair text explains backup restore and the deliberate way without a backup. Undamaged and
-  hydraulic-only installations are unchanged. Details:
+  The same applies to a missing list in a current-schema body and to a Store file that HA renamed
+  to `water_leak_detection.runtime.<entry_id>.corrupt.<time>` because it was not valid JSON.
+  **Behavior change for every installation, hydraulic-only included:** previously the second start
+  after such a rename began as a new installation and silently dropped all stored alarms; now the
+  barrier stays until a backup is restored or the copy is deliberately moved aside with HA stopped
+  (accepting the loss of the stored state). The repair text explains both. Undamaged installations
+  are unchanged. Details:
   `docs/F04_FSR_H01.md`.
 - The wall display forms ("Add wall display", editing a display) link to the TouchKio automation
   example in the wiki (`Dashboard-Karte#wanddisplay--touchkio`): the display needs an automation to

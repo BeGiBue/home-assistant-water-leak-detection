@@ -103,6 +103,11 @@ The integration exposes source unavailability and suspends incomplete learning e
    cache*, then reopen the app.
 4. In *Add card* search for "Water Leak Guard"; custom cards are listed below the built-in cards.
 
+**Empty "Configuration error" card right after opening the app, a reload fixes it.** Card 0.6.1 and
+older threw when Home Assistant handed it its first, still empty state while connecting (states not
+loaded yet); HA then kept an error card without a message until the page was reloaded. Fixed in
+card 0.6.2: the card shows "Loading …" and renders as soon as the states arrive.
+
 **"Configuration error" ("Konfigurationsfehler") instead of the card, a reload fixes it.** The page
 was loaded while Home Assistant was still starting (for example the Companion app reconnecting after
 a restart, or a start page cached from that moment). HA writes the card module into the page only

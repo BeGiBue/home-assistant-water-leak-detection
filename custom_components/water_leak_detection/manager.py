@@ -273,18 +273,14 @@ class WaterLeakManager:
         if existed and not isinstance(stored, dict):
             self._storage_load_failed = True
             stored = None
-        if (
-            not existed
-            and self._external_sensors_configured()
-            and await self._corrupt_store_copies()
-        ):
+        if not existed and await self._corrupt_store_copies():
             # F04-FSR-H01: HA renames a Store file that is not valid JSON (e.g.
             # NaN, truncation) to "<file>.corrupt.<time>" and loads nothing. The
             # first start after that already holds the barrier above; without
             # this check the next start would look like a new installation and
-            # silently drop persisted external alarms and shutoff contributions.
-            # Only with configured external sensors (read from the options, not
-            # the Store): a hydraulic-only installation starts fresh as before.
+            # silently drop persisted alarms and shutoff contributions. This holds
+            # for every installation, hydraulic-only too: hydraulic alarms in that
+            # file are safety evidence as well (maintainer decision, fail-safe).
             _LOGGER.error(
                 "Runtime store %s is missing but a corrupt copy exists; holding alarm "
                 "and shutoff until a verified backup is restored",
@@ -1402,10 +1398,6 @@ class WaterLeakManager:
                 controller.sources.pop(source_id)
             else:
                 controller.remove(source_id)
-
-    def _external_sensors_configured(self) -> bool:
-        configured = self.entry.options.get(CONF_EXTERNAL_SENSORS)
-        return isinstance(configured, list) and bool(configured)
 
     async def _corrupt_store_copies(self) -> list[Path]:
         """Copies HA's Store kept of this entry's unreadable runtime file.

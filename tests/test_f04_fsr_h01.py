@@ -279,10 +279,12 @@ async def test_invalid_json_is_renamed_by_ha_and_the_next_start_still_holds_the_
     assert old_action["event_id"] in manager.active_events() and manager.shutoff_request
 
 
-async def test_hydraulic_only_installation_with_corrupt_copy_behaves_as_before(
+async def test_hydraulic_only_installation_with_corrupt_copy_stays_locked(
     runtime_hass, runtime_entry, measurement_clock
 ):
-    """Without external sensors the .corrupt rule does not apply (maintainer decision)."""
+    """Changed behavior (maintainer decision): the .corrupt lock applies to every
+    installation. Before, the second start of a hydraulic-only installation began
+    fresh and silently dropped the hydraulic alarms of the unreadable file."""
     manager = await start(runtime_hass, runtime_entry, measurement_clock)
     assert not runtime_entry.options.get(CONF_EXTERNAL_SENSORS)
     await manager.async_unload()
@@ -292,9 +294,10 @@ async def test_hydraulic_only_installation_with_corrupt_copy_behaves_as_before(
     assert manager._storage_load_failed  # first start: as before
     assert len(list(path.parent.glob(f"{path.name}.corrupt.*"))) == 1
     manager = await restart(runtime_hass, runtime_entry, manager)
-    assert not manager._storage_load_failed  # second start: fresh, as before
-    assert not manager.alarm_active and not manager.shutoff_request
-    assert recovery_issue(runtime_hass, runtime_entry) is None
+    assert manager._storage_load_failed  # second start: still locked
+    assert manager.alarm_active and manager.shutoff_request
+    assert recovery_issue(runtime_hass, runtime_entry) is not None
+    assert not path.exists()  # nothing was written
 
 
 @pytest.mark.parametrize("own", [False, True])
