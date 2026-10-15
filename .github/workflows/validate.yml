@@ -41,17 +41,3 @@ jobs:
         run: ruff check .
       - name: Test
         run: pytest -q
-      - name: TEMP failure details
-        if: always()
-        run: |
-          pytest -q -p no:cacheprovider -x -q --tb=short tests/test_f04_fsr_h01.py > /tmp/one.txt 2>&1 || true
-          pytest -q -p no:cacheprovider --tb=line > /tmp/all.txt 2>&1 || true
-          python - <<'PY'
-          one = open("/tmp/one.txt").read()
-          lines = [l for l in open("/tmp/all.txt").read().splitlines() if l.startswith(("FAILED", "ERROR", "/")) or " passed" in l or " failed" in l]
-          t = one[-5000:] + "\n==ALL==\n" + "\n".join(lines)[-5000:]
-          print("::error::" + t.replace("%", "%25").replace("\r", "").replace("\n", "%0A"))
-          PY
-      - name: TEMP mutation check
-        if: always()
-        run: python .github/tmp/mutations.py
