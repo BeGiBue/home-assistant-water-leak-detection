@@ -1556,8 +1556,14 @@ class WaterLeakManager:
             _LOGGER.exception("External transition write failed; retaining physical alarm evidence")
 
     @serialized
-    async def async_external_reset(self, payload: dict) -> bool:
-        """Same validator for services/mobile actions; linearize only current Home authority."""
+    async def async_external_reset(self, payload: dict, *, allow_display: bool = False) -> bool:
+        """Same validator for services/mobile actions; linearize only current Home authority.
+
+        A wall display never uses notification actions or the service: its token
+        never leaves the server. Only the dashboard card's websocket command, which
+        has already resolved the paired display session, passes ``allow_display``.
+        The kind is read from the raw options, so an unknown kind is rejected too.
+        """
         if self._closed or not self._migration_ready or self._storage_load_failed:
             return False
         if payload.get("action_kind") != ACTION_EXTERNAL_RESET or (
@@ -1599,6 +1605,8 @@ class WaterLeakManager:
         current_token = recipient.get(RECIPIENT_TOKEN)
         tracker_id = recipient.get(RECIPIENT_TRACKER_ENTITY)
         display = recipient.get(RECIPIENT_KIND) == RECIPIENT_KIND_DISPLAY
+        if display and not allow_display:
+            return False
         if (
             not isinstance(token, str)
             or not token.strip()

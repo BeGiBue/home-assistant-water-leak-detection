@@ -267,7 +267,10 @@ async def handle_external_reset(hass: HomeAssistant, connection, msg: dict[str, 
                 "recipient_token": current.token,
                 "reset_nonce": source.reset_nonce,
             }
-            return current, await manager.async_external_reset(payload)
+            # The paired session is resolved above; only this path may act as a display.
+            return current, await manager.async_external_reset(
+                payload, allow_display=current.is_display
+            )
 
         recipient, reset = await _locked(manager, action)
         if not reset:

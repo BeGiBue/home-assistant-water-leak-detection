@@ -32,7 +32,7 @@
  * License: AGPL-3.0-only (same as the integration).
  */
 
-const CARD_VERSION = "0.6.0";
+const CARD_VERSION = "0.6.1";
 const DOMAIN = "water_leak_detection";
 const CARD_TAG = "water-leak-guard-card";
 const EDITOR_TAG = "water-leak-guard-card-editor";
@@ -699,13 +699,16 @@ class WaterLeakGuardCard extends HTMLElement {
   }
 
   /**
-   * Masonry height hint in 50 px units. The idle card is about 340 px (7 units)
-   * in one column with both sections collapsed; an alarm adds the alarm box
-   * (about 700 px). Masonry only uses it to balance columns.
+   * Masonry height hint in 50 px units. The idle card in one column is about
+   * 550 px (11 units) with a section expanded (the default) and about 335 px
+   * (7 units) with both sections collapsed; an alarm adds the alarm box (about
+   * 700 px). Masonry only uses it to balance columns.
    */
   getCardSize() {
     const alarm = this._hass && this._config ? this._alarmActive() : false;
-    return alarm ? 14 : 7;
+    if (alarm) return 14;
+    const expanded = this._expanded || {};
+    return expanded.bypass || expanded.learning ? 11 : 7;
   }
 
   /**

@@ -1,6 +1,6 @@
 # Dashboard-Karte (Lovelace)
 
-**Status:** Karte 0.6.0 (unveröffentlicht: Abschnitte standardmäßig offen, Option `collapsed`, Wanddisplay-Empfänger); zuletzt veröffentlicht Karte 0.5.0 mit Water Leak Guard **2.0.0-beta.2**. Die Karte ist eine Ansicht auf die vorhandenen
+**Status:** Karte 0.6.1 (unveröffentlicht: Abschnitte standardmäßig offen, Option `collapsed`, Wanddisplay-Empfänger); zuletzt veröffentlicht Karte 0.5.0 mit Water Leak Guard **2.0.0-beta.2**. Die Karte ist eine Ansicht auf die vorhandenen
 Entitäten, Dienste und Kartenbefehle und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
 Reset-Nonce, und Berechtigung, Anwesenheit und erlaubte Alarmaktionen prüft ausschließlich das
 Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).
@@ -416,11 +416,21 @@ Kopplung; Vorrang, Eindeutigkeit und „nur normale Anmeldungen“ gelten wie ob
   seinem Passwort. Deshalb ein eigener Kiosk-Benutzer ohne Adminrechte mit eigenem, starkem Passwort, das
   niemand anderswo verwendet.
 - **„🔑 Anmeldung“** (strenger): bindet die Rechte an genau die eine Sitzung des Kiosk-Geräts. Meldet sich
-  das Kiosk-Gerät neu an, muss die Kopplung erneuert werden.
+  das Kiosk-Gerät neu an, muss die Kopplung erneuert werden. Nicht angeboten und abgelehnt
+  (`display_login_not_allowed`) werden Anmeldungen der Companion-App (Client-ID
+  `https://home-assistant.io/iOS…` oder `…/android…`, also Handy/Tablet) und Anmeldungen eines Benutzers,
+  den ein Handy-Empfänger nutzt; sonst wäre dieses Handy überall „zuhause“. Umgekehrt kann ein
+  Handy-Empfänger den Benutzer einer Display-Anmeldung nicht wählen.
 
-Dieselbe Regel gilt zur Laufzeit: Ein von Hand bearbeitetes Display, dessen Benutzer Besitzer oder
+Alle Regeln zählen die Kopplungen **aller Instanzen** der Integration (Benutzer und Anmeldungen gehören
+Home Assistant, nicht einer Instanz).
+
+Dieselben Regeln gelten zur Laufzeit: Ein von Hand bearbeitetes Display, dessen Benutzer Besitzer oder
 Administrator ist oder auch in der Kopplung eines anderen Empfängers vorkommt (als Benutzer oder über eine
-seiner Anmeldungen), wird nie erkannt; das Log nennt den Empfänger. Die Rechte sind die üblichen Häkchen
+seiner Anmeldungen), wird nie erkannt, ebenso nie über eine Companion-App-Anmeldung oder eine Anmeldung
+eines von einem Handy-Empfänger genutzten Benutzers; das Log nennt den Empfänger. Ein Display nutzt nie
+Benachrichtigungsaktionen: Die Aktion „Externes Leck zurücksetzen“ und der Dienst `external_reset`
+lehnen ein Display ab (sein Token verlässt den Server nie); zurücksetzen kann es nur über die Karte. Die Rechte sind die üblichen Häkchen
 des Empfängers; „Globales Quittieren“ ist bei einem Display ohne gespeicherten Wert aus. Die Karte blendet
 dort „Stummschalten“ aus und zeigt nie „Nur zuhause möglich“. Empfänger mit unbekannter oder leerer Art
 (`kind`) werden ignoriert und im Log gemeldet; sie bekommen keine Benachrichtigungen und dürfen nichts.

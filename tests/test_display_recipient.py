@@ -6,13 +6,17 @@ notification dispatch, has nothing to mute and passes every Home check; its
 permissions are the ordinary per-recipient flags. Mobile recipients are unchanged.
 """
 
+import base64
+import json
+from types import SimpleNamespace
+
 import pytest
 from homeassistant.auth.const import GROUP_ID_ADMIN
 from homeassistant.auth.models import TOKEN_TYPE_LONG_LIVED_ACCESS_TOKEN
+from homeassistant.config_entries import ConfigEntry
 from test_ack_duration_diagnostics import ack_manager
 from test_card_backend_contract import (
     ALARM_FIELDS,
-    CLIENT,
     Connection,
     alarm_settings,
     assert_safety,
@@ -27,8 +31,10 @@ from test_external_reset_runtime import configured
 from custom_components.water_leak_detection import notifications as notifications_module
 from custom_components.water_leak_detection.const import (
     ACTION_ACK_ALL,
+    ACTION_EXTERNAL_RESET,
     ACTION_PREFIX,
     CONF_NOTIFICATION_RECIPIENTS,
+    DOMAIN,
     EVENT_ACK_REJECTED,
     MOBILE_ACTION_EVENT,
 )
@@ -67,15 +73,46 @@ def add(hass, entry, raw):
     )
 
 
-async def kiosk_user(hass, *names, admin=False):
+# The kiosk browser (e.g. TouchKio) logs in like the HA frontend, not like a Companion app.
+BROWSER = "http://192.168.1.20:8123/"
+
+
+async def browser_logins(hass, *names):
+    """Like logins() (owner "Bea"), but browser logins as a kiosk has them."""
+    user, _ = await logins(hass)
+    tokens = {}
+    for name in names:
+        tokens[name] = await hass.auth.async_create_refresh_token(user, BROWSER, client_name=name)
+    return user, tokens
+
+
+async def kiosk_user(hass, *names, admin=False, client=BROWSER):
     """A further HA user (not the owner, created after logins()) with normal logins."""
     user = await hass.auth.async_create_user(
         "Admin" if admin else "Kiosk", group_ids=[GROUP_ID_ADMIN] if admin else None
     )
     tokens = {}
     for name in names:
-        tokens[name] = await hass.auth.async_create_refresh_token(user, CLIENT, client_name=name)
+        tokens[name] = await hass.auth.async_create_refresh_token(user, client, client_name=name)
     return user, tokens
+
+
+def second_instance(hass, recipients):
+    """Another config entry of the integration with its own recipients."""
+    entry = ConfigEntry(
+        domain=DOMAIN,
+        title="Second meter",
+        data={},
+        options={CONF_NOTIFICATION_RECIPIENTS: recipients},
+        version=1,
+        minor_version=1,
+        source="user",
+        unique_id=None,
+        discovery_keys={},
+        subentries_data=[],
+    )
+    hass.config_entries._entries[entry.entry_id] = entry
+    return entry
 
 
 def set_recipients(hass, entry, raws):
@@ -126,7 +163,7 @@ async def test_display_session_is_home_and_has_no_mute(
     runtime_hass, runtime_entry, measurement_clock
 ):
     _, manager, event_id, _ = await ack_manager(runtime_hass, runtime_entry, measurement_clock)
-    user, tokens = await logins(runtime_hass, "kiosk")
+    user, tokens = await browser_logins(runtime_hass, "kiosk")
     add(runtime_hass, runtime_entry, display(session_token_id=tokens["kiosk"].id))
     conn = Connection(user, tokens["kiosk"].id)
     session = (await call(handle_session, runtime_hass, conn))[0]
@@ -156,7 +193,7 @@ async def test_display_global_ack_follows_permission_not_a_tracker(
     _, manager, event_id, _ = await ack_manager(runtime_hass, runtime_entry, measurement_clock)
     # The phone is away: only the display can be "home", and it is, always.
     runtime_hass.states.async_set("device_tracker.phone", "not_home")
-    user, tokens = await logins(runtime_hass, "kiosk")
+    user, tokens = await browser_logins(runtime_hass, "kiosk")
     add(
         runtime_hass,
         runtime_entry,
@@ -182,7 +219,7 @@ async def test_display_external_reset_follows_permission(
     await manager._async_external_changed("binary_sensor.kitchen", "on")
     source = manager.external.sources["a"]
     runtime_hass.states.async_set("device_tracker.phone", "not_home")
-    user, tokens = await logins(runtime_hass, "kiosk")
+    user, tokens = await browser_logins(runtime_hass, "kiosk")
     add(
         runtime_hass,
         runtime_entry,
@@ -295,8 +332,11 @@ async def test_display_form_accepts_a_kiosk_user_or_a_login_and_keeps_mobile_unc
     runtime_hass, runtime_entry, measurement_clock
 ):
     await ack_manager(runtime_hass, runtime_entry, measurement_clock)
-    owner, tokens = await logins(runtime_hass, "phone", "kiosk_browser")
-    kiosk, _ = await kiosk_user(runtime_hass)
+    owner, tokens = await logins(runtime_hass, "phone")
+    tokens["kiosk_browser"] = await runtime_hass.auth.async_create_refresh_token(
+        owner, BROWSER, client_name="kiosk_browser"
+    )
+    kiosk, kiosk_tokens = await kiosk_user(runtime_hass, "kiosk_browser")
     assert owner.is_owner and not kiosk.is_owner and not kiosk.is_admin
     before = recipients_by_id(runtime_entry)
     flow = options_flow(runtime_hass, runtime_entry)
@@ -311,6 +351,8 @@ async def test_display_form_accepts_a_kiosk_user_or_a_login_and_keeps_mobile_unc
     # Users and single logins, but no "—".
     assert "__none__" not in offered
     assert f"user:{kiosk.id}" in offered and f"token:{tokens['kiosk_browser'].id}" in offered
+    # The phone's Companion app login is never offered to a display.
+    assert f"token:{tokens['phone'].id}" not in offered
 
     # Without a pairing, nothing is saved.
     flags = {"allow_global_ack": True, "allow_external_reset": False}
@@ -322,17 +364,24 @@ async def test_display_form_accepts_a_kiosk_user_or_a_login_and_keeps_mobile_unc
     assert none["errors"] == {"base": "display_pairing_required"}
     assert recipients_by_id(runtime_entry) == before
 
-    # Uniqueness: a login paired elsewhere cannot be paired to the display.
+    # The phone (Companion app login, here also paired with the phone recipient)
+    # can never be a display; neither can another login of the phone's user.
     set_recipients(
         runtime_hass,
         runtime_entry,
         mobile_pairing(runtime_entry, session_token_id=tokens["phone"].id),
     )
     before = recipients_by_id(runtime_entry)
-    _, dup = await _form(
-        flow, "add_display", name="Flur", session_pairing=f"token:{tokens['phone'].id}"
-    )
-    assert dup["errors"] == {"base": "session_already_paired"}
+    for login in ("phone", "kiosk_browser"):
+        rejected = await flow.async_step_add_display(
+            {"name": "Flur", "session_pairing": f"token:{tokens[login].id}", **flags}
+        )
+        assert rejected["errors"] == {"base": "display_login_not_allowed"}, login
+    form = await flow.async_step_add_display()
+    offered = [o["value"] for o in form["data_schema"].schema["session_pairing"].config["options"]]
+    assert f"token:{tokens['kiosk_browser'].id}" not in offered
+    assert f"token:{kiosk_tokens['kiosk_browser'].id}" in offered
+    assert recipients_by_id(runtime_entry) == before
 
     # A kiosk user is accepted and stored as user pairing.
     _, result = await _form(
@@ -367,19 +416,19 @@ async def test_display_form_accepts_a_kiosk_user_or_a_login_and_keeps_mobile_unc
     )
     assert rejected["errors"] == {"base": "display_user_not_allowed"}
     assert recipients_by_id(runtime_entry)[wall["id"]] == edited
-    # A single login stays allowed, also one of the owner (the stricter option).
+    # The kiosk browser's single login stays allowed (the stricter option).
     flow._editing_recipient_id = wall["id"]
     form = await flow.async_step_edit_display_details()
     result = await flow.async_step_edit_display_details(
         {
             "name": "Flur oben",
-            "session_pairing": f"token:{tokens['kiosk_browser'].id}",
+            "session_pairing": f"token:{kiosk_tokens['kiosk_browser'].id}",
             **flags,
         }
     )
     assert result["step_id"] == "notifications"
     relogin = recipients_by_id(runtime_entry)[wall["id"]]
-    assert relogin["session_token_id"] == tokens["kiosk_browser"].id
+    assert relogin["session_token_id"] == kiosk_tokens["kiosk_browser"].id
     assert "session_user_id" not in relogin
 
     # The mobile recipient's alarm settings are untouched by all of this.
@@ -553,6 +602,200 @@ async def test_kiosk_user_pairing_resolves_for_its_logins_and_is_home(
     )[0]
     assert session["recipient_id"] == "phone" and session["home"] is False
     assert_safety(manager)
+
+
+async def test_display_login_must_be_the_kiosk_browser_in_both_directions(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    await ack_manager(runtime_hass, runtime_entry, measurement_clock)
+    owner, tokens = await logins(runtime_hass, "tablet_app")
+    tokens["browser"] = await runtime_hass.auth.async_create_refresh_token(
+        owner, BROWSER, client_name="browser"
+    )
+    android, android_tokens = await kiosk_user(
+        runtime_hass, "app", client="https://home-assistant.io/android"
+    )
+    flow = options_flow(runtime_hass, runtime_entry)
+    flags = {"allow_global_ack": True, "allow_external_reset": False}
+    before = recipients_by_id(runtime_entry)
+    form = await flow.async_step_add_display()
+    offered = [o["value"] for o in form["data_schema"].schema["session_pairing"].config["options"]]
+    for token in (tokens["tablet_app"], android_tokens["app"]):
+        assert f"token:{token.id}" not in offered
+        rejected = await flow.async_step_add_display(
+            {"name": "Flur", "session_pairing": f"token:{token.id}", **flags}
+        )
+        assert rejected["errors"] == {"base": "display_login_not_allowed"}
+    assert recipients_by_id(runtime_entry) == before
+    # The owner's browser login is fine while no mobile recipient uses the owner.
+    _, result = await _form(
+        flow, "add_display", name="Flur", session_pairing=f"token:{tokens['browser'].id}"
+    )
+    assert result["step_id"] == "notifications"
+    # Now the owner is reserved for that display: the phone cannot take the owner
+    # or one of the owner's logins (that would silently disable the display).
+    before = recipients_by_id(runtime_entry)
+    for choice in (f"user:{owner.id}", f"token:{tokens['tablet_app'].id}"):
+        _, rejected = await edit(flow, "phone", before["phone"], session_pairing=choice)
+        assert rejected["errors"] == {"base": "session_user_reserved_for_display"}, choice
+    assert recipients_by_id(runtime_entry) == before
+    # Another user's login is still fine for the phone.
+    _, result = await edit(
+        flow, "phone", before["phone"], session_pairing=f"token:{android_tokens['app'].id}"
+    )
+    assert result["step_id"] == "notifications"
+
+
+@pytest.mark.parametrize("problem", ["companion_app", "user_of_mobile"])
+async def test_hand_edited_display_login_of_a_phone_never_resolves(
+    runtime_hass, runtime_entry, measurement_clock, caplog, problem
+):
+    notifications_module._WARNED.clear()
+    _, manager, event_id, _ = await ack_manager(runtime_hass, runtime_entry, measurement_clock)
+    runtime_hass.states.async_set("device_tracker.phone", "not_home")
+    owner, tokens = await logins(runtime_hass, "phone_app")
+    tokens["browser"] = await runtime_hass.auth.async_create_refresh_token(
+        owner, BROWSER, client_name="browser"
+    )
+    if problem == "companion_app":
+        raws = [*mobile_pairing(runtime_entry), display(session_token_id=tokens["phone_app"].id)]
+        conn = Connection(owner, tokens["phone_app"].id)
+        text = "Companion app login"
+    else:
+        raws = [
+            *mobile_pairing(runtime_entry, session_user_id=owner.id),
+            display(session_token_id=tokens["browser"].id),
+        ]
+        conn = Connection(owner, tokens["browser"].id)
+        text = "mobile recipient's pairing uses"
+    set_recipients(runtime_hass, runtime_entry, raws)
+    session = (await call(handle_session, runtime_hass, conn))[0]
+    assert session.get("recipient_id") != "wall"
+    assert (await call(handle_acknowledge, runtime_hass, conn, event_id=event_id))[1] in (
+        "not_paired",
+        "not_home",
+    )
+    assert not manager.notifications.state_for(event_id).globally_acknowledged
+    assert "Wall display wall (Flur)" in caplog.text and text in caplog.text
+    assert_safety(manager)
+
+
+async def test_kiosk_rule_counts_pairings_of_other_instances(
+    runtime_hass, runtime_entry, measurement_clock, caplog
+):
+    notifications_module._WARNED.clear()
+    _, manager, event_id, _ = await ack_manager(runtime_hass, runtime_entry, measurement_clock)
+    await logins(runtime_hass)
+    kiosk, tokens = await kiosk_user(runtime_hass, "kiosk_browser")
+    second_instance(
+        runtime_hass,
+        [
+            {
+                "id": "phone2",
+                "name": "Phone (garden meter)",
+                "notify_service": "notify.mobile_app_phone2",
+                "tracker_entity": "device_tracker.phone2",
+                "token": "t2",
+                "session_user_id": kiosk.id,
+            }
+        ],
+    )
+    flow = options_flow(runtime_hass, runtime_entry)
+    before = recipients_by_id(runtime_entry)
+    _, result = await _form(flow, "add_display", name="Flur", session_pairing=f"user:{kiosk.id}")
+    assert result["errors"] == {"base": "display_user_in_use"}
+    rejected = await flow.async_step_add_display(
+        {
+            "name": "Flur",
+            "session_pairing": f"token:{tokens['kiosk_browser'].id}",
+            "allow_global_ack": True,
+            "allow_external_reset": False,
+        }
+    )
+    assert rejected["errors"] == {"base": "display_login_not_allowed"}
+    assert recipients_by_id(runtime_entry) == before
+    # Hand-edited: the display never resolves while the other instance uses the user.
+    add(runtime_hass, runtime_entry, display(session_user_id=kiosk.id))
+    conn = Connection(kiosk, tokens["kiosk_browser"].id)
+    assert (await call(handle_session, runtime_hass, conn))[0] == {"paired": False}
+    assert "Wall display wall (Flur)" in caplog.text
+    assert not manager.notifications.state_for(event_id).globally_acknowledged
+
+
+def _reset_payload(entry, source, recipient_id, token):
+    return {
+        "action_kind": "EXTERNAL_RESET",
+        "config_entry_id": entry.entry_id,
+        "source_id": source.source_id,
+        "source_generation": source.identity.generation,
+        "event_id": source.event_id,
+        "recipient_id": recipient_id,
+        "recipient_token": token,
+        "reset_nonce": source.reset_nonce,
+    }
+
+
+async def test_display_cannot_reset_through_notification_action_or_service(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    manager = await configured(runtime_hass, runtime_entry, measurement_clock)
+    await manager._async_external_changed("binary_sensor.kitchen", "on")
+    source = manager.external.sources["a"]
+    add(runtime_hass, runtime_entry, display())
+    rejected = []
+    runtime_hass.bus.async_listen(EVENT_ACK_REJECTED, lambda event: rejected.append(event.data))
+    payload = _reset_payload(runtime_entry, source, "wall", "token_wall")
+    encoded = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+    action = f"{ACTION_PREFIX}|{ACTION_EXTERNAL_RESET}|{encoded}"
+    runtime_hass.bus.async_fire(MOBILE_ACTION_EVENT, {"action": action})
+    await runtime_hass.async_block_till_done()
+    assert [r.get("reason") for r in rejected] == ["display_recipient"]
+    assert manager.external.sources["a"].phase is ExternalPhase.ACTIVE
+    # The service validator rejects the display as well; only the card's
+    # websocket command (allow_display) may reset as a display.
+    assert not await manager.async_external_reset(payload)
+    assert manager.external.sources["a"].phase is ExternalPhase.ACTIVE
+    assert manager.alarm_active and manager.shutoff_request
+    assert await manager.async_external_reset(payload, allow_display=True)
+    assert manager.external.sources["a"].phase is ExternalPhase.RESET_WAITING_FOR_OFF
+
+
+async def test_notification_action_reset_rejects_an_unknown_kind(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    manager = await configured(runtime_hass, runtime_entry, measurement_clock)
+    await manager._async_external_changed("binary_sensor.kitchen", "on")
+    source = manager.external.sources["a"]
+    raws = [{**r, "kind": "tablet"} for r in runtime_entry.options[CONF_NOTIFICATION_RECIPIENTS]]
+    set_recipients(runtime_hass, runtime_entry, raws)
+    rejected = []
+    runtime_hass.bus.async_listen(EVENT_ACK_REJECTED, lambda event: rejected.append(event.data))
+    payload = _reset_payload(runtime_entry, source, "phone", "recipient_token")
+    encoded = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+    runtime_hass.bus.async_fire(
+        MOBILE_ACTION_EVENT, {"action": f"{ACTION_PREFIX}|{ACTION_EXTERNAL_RESET}|{encoded}"}
+    )
+    await runtime_hass.async_block_till_done()
+    assert [r.get("reason") for r in rejected] == ["external_reset_rejected"]
+    assert manager.external.sources["a"].phase is ExternalPhase.ACTIVE
+
+
+async def test_prepare_external_reset_action_guard_rejects_a_display(
+    runtime_hass, runtime_entry, measurement_clock, monkeypatch
+):
+    """Even if every tracker looked home, no reset notification is prepared for a display."""
+    manager = await configured(runtime_hass, runtime_entry, measurement_clock)
+    await manager._async_external_changed("binary_sensor.kitchen", "on")
+    add(runtime_hass, runtime_entry, display())
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            type(runtime_hass.states), "get", lambda self, entity_id: SimpleNamespace(state="home")
+        )
+        wall = await manager._prepare_external_reset_action("a", "wall", None, None)
+        # The same call for the phone is prepared (the guard, not the state, decides).
+        phone = await manager._prepare_external_reset_action("a", "phone", None, None)
+    assert wall is None
+    assert phone is not None
 
 
 def test_display_global_ack_defaults_to_off():

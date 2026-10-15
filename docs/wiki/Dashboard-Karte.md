@@ -114,7 +114,9 @@ Seit Karte 0.6.0 gibt es dafür den Empfängertyp **Wanddisplay**:
     des Kiosk-Benutzers als das Display und damit als zuhause – auch eine Anmeldung aus der Ferne mit
     seinem Passwort. Deshalb ein eigenes, starkes Passwort, das niemand anderswo verwendet.
   - **„🔑 Anmeldung“** (strenger): bindet die Rechte an genau die eine Sitzung des Kiosk-Geräts. Meldet
-    sich das Kiosk-Gerät neu an, muss die Kopplung erneuert werden.
+    sich das Kiosk-Gerät neu an, muss die Kopplung erneuert werden. Anmeldungen der Companion-App
+    (Handy/Tablet) und Anmeldungen eines Benutzers, den ein Handy-Empfänger nutzt, werden nicht angeboten.
+  - Gezählt werden die Kopplungen aller Instanzen der Integration.
 - Die Rechte sind die üblichen Häkchen des Empfängers: „Globales Quittieren erlauben“ und „Externen Reset
   erlauben“ (beide standardmäßig aus). Im Alarm bietet die Karte dort außerdem „Erkennung abschalten“
   (Slow Leak/Low Flow) und „Bypass starten“ (High Flow) an, weil das Display als gekoppelt und zuhause gilt.

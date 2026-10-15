@@ -22,6 +22,16 @@
   enforced when resolving sessions: such a hand-edited display never resolves and is logged by name.
   With a user pairing every login of the kiosk user counts as home, also a remote one with its
   password; docs and form texts recommend a non-admin kiosk user with its own strong password.
+- Wall display login pairing: Companion app logins (`https://home-assistant.io/iOS…`, `…/android…`) and
+  logins of a user that a mobile recipient's pairing uses are not offered, rejected
+  (`display_login_not_allowed`) and refused at runtime with a warning; a mobile recipient cannot select
+  the user of a display's login. Kiosk-user and display-login rules count the pairings of all instances
+  of the integration.
+- A display can no longer reset an external leak through the notification action or the
+  `external_reset` service (rejected with `display_recipient` resp. not authorized); only the card's
+  websocket command may act as a display. The recipient kind is read from the stored options.
+- Dashboard card 0.6.1: `getCardSize()` returns 11 with a section expanded, 7 with both collapsed, 14
+  during an alarm. New card tests for `canClear` and DE/EN I18N key parity.
 - Recipients with an unknown or empty `kind` are logged by id and name (they receive no notifications);
   the external-reset validator rejects them as well.
 - The shutoff-request binary sensor's icon follows its state via a new `icons.json`: `mdi:valve-open`

@@ -417,6 +417,56 @@ test("learning: only a reliable model is green", async () => {
   }
 });
 
+test("getCardSize: 11 with a section expanded, 7 collapsed, 14 during an alarm", async () => {
+  let card = await mount();
+  assert.equal(card.getCardSize(), 11);
+  card._onClick({ target: target({ action: "toggle-section", section: "bypass" }) });
+  assert.equal(card.getCardSize(), 11, "learning still expanded");
+  card._onClick({ target: target({ action: "toggle-section", section: "learning" }) });
+  assert.equal(card.getCardSize(), 7);
+  card.disconnectedCallback();
+  card = await mount({}, { collapsed: true });
+  assert.equal(card.getCardSize(), 7);
+  card.disconnectedCallback();
+  card = await mount({ alarm: "burst_leak" }, { collapsed: true });
+  assert.equal(card.getCardSize(), 14);
+  card.disconnectedCallback();
+  card = await mount({ alarm: "burst_leak" });
+  assert.equal(card.getCardSize(), 14);
+  card.disconnectedCallback();
+});
+
+test("canClear needs both the session's home and a visible tracker at home", async () => {
+  // Session says away, tracker says home: not allowed (stale or other device).
+  let card = await mount({ alarm: "low_flow", tracker: "home", session: { ...HOME, home: false } });
+  assert.equal(card._perm.canClear, false);
+  assert.equal(tag(html(card), "disable-detection").includes(" disabled"), true);
+  card.disconnectedCallback();
+  // Session says home, tracker meanwhile not_home: not allowed either.
+  card = await mount({ alarm: "low_flow", tracker: "not_home", session: { ...HOME, home: true } });
+  assert.equal(card._perm.canClear, false);
+  assert.equal(tag(html(card), "disable-detection").includes(" disabled"), true);
+  card.disconnectedCallback();
+  // Both home: allowed.
+  card = await mount({ alarm: "low_flow", tracker: "home", session: HOME });
+  assert.equal(card._perm.canClear, true);
+  card.disconnectedCallback();
+});
+
+test("I18N: DE and EN have exactly the same keys", async () => {
+  const I18N = globalThis.eval("I18N");
+  const keys = (node, prefix = "") =>
+    Object.entries(node).flatMap(([k, v]) => (v && typeof v === "object" ? keys(v, `${prefix}${k}.`) : [`${prefix}${k}`]));
+  const de = new Set(keys(I18N.de));
+  const en = new Set(keys(I18N.en));
+  assert.deepEqual([...de].filter((k) => !en.has(k)), [], "missing in EN");
+  assert.deepEqual([...en].filter((k) => !de.has(k)), [], "missing in DE");
+  for (const k of ["error.mute_not_applicable"]) assert.ok(de.has(k) && en.has(k), k);
+  const collapsed = [...de].filter((k) => k.split(".").pop() === "collapsed");
+  assert.ok(collapsed.length >= 1, "editor label for collapsed");
+  for (const k of collapsed) assert.ok(en.has(k), k);
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {
