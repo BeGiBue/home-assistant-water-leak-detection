@@ -223,16 +223,14 @@ def test_shutoff_request_icon_follows_its_state() -> None:
     from custom_components.water_leak_detection.binary_sensor import ShutoffRequestBinarySensor
 
     icons = _load_json(INTEGRATION / "icons.json")
-    shutoff = icons["entity"]["binary_sensor"][ShutoffRequestBinarySensor._attr_translation_key]
+    for requested in (False, True):
+        entry = SimpleNamespace(entry_id="entry")
+        manager = SimpleNamespace(entry=entry, shutoff_request=requested)
+        entity = ShutoffRequestBinarySensor(manager)
+        assert entity.is_on is requested
+        # No fixed entity icon: it would override the state-dependent icon translation.
+        assert entity.icon is None
+    shutoff = icons["entity"]["binary_sensor"][entity.translation_key]
     assert shutoff["state"] == {"off": "mdi:valve-open", "on": "mdi:valve-closed"}
     # Unavailable/unknown fall back to the neutral valve.
     assert shutoff["default"] == "mdi:valve"
-    # A fixed entity icon would override the state-dependent icon translation.
-    assert "_attr_icon" not in vars(ShutoffRequestBinarySensor)
-    for requested in (False, True):
-        manager = SimpleNamespace(
-            entry=SimpleNamespace(entry_id="entry"), shutoff_request=requested
-        )
-        entity = ShutoffRequestBinarySensor(manager)
-        assert entity.is_on is requested
-        assert entity.icon is None
