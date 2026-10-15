@@ -8,9 +8,11 @@
   entity and shutoff flag; for ACTIVE a valid Event-ID and aware start time; correctly typed
   optional fields), otherwise the existing Store recovery barrier applies: alarm and shutoff held,
   original bytes kept, external reset and ACK refused, ERROR repair, `storage_recovery_required`.
-  The same applies to a missing list in a current-schema body and to a Store file that HA renamed
-  to `.corrupt.*` because it was not valid JSON (previously the second start looked like a new
-  installation). Undamaged and hydraulic-only installations are unchanged. Details:
+  The same applies to a missing list in a current-schema body and, when external leak sensors are
+  configured, to a Store file that HA renamed to `water_leak_detection.runtime.<entry_id>.corrupt.*`
+  because it was not valid JSON (previously the second start looked like a new installation). The
+  repair text explains backup restore and the deliberate way without a backup. Undamaged and
+  hydraulic-only installations are unchanged. Details:
   `docs/F04_FSR_H01.md`.
 - The wall display forms ("Add wall display", editing a display) link to the TouchKio automation
   example in the wiki (`Dashboard-Karte#wanddisplay--touchkio`): the display needs an automation to

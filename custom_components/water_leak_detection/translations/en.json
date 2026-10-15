@@ -751,7 +751,7 @@
     },
     "runtime_safety_recovery": {
       "title": "Safety state requires recovery",
-      "description": "The runtime store for {name} is damaged or contains conflicting alarm identities. Alarm and shutoff requests are conservatively retained; affected acknowledgements and resets are blocked. Preserve the original file, stop Home Assistant and restore a verified complete backup. Do not delete the store to clear an alarm. Then verify sources and diagnostics. The integration does not operate a valve."
+      "description": "The runtime store for {name} is damaged or contains conflicting alarm identities. Alarm and shutoff requests are conservatively retained; affected acknowledgements and resets are blocked. Preserve the original file, stop Home Assistant and restore a verified complete backup. Do not delete the store to clear an alarm. Then verify sources and diagnostics. The integration does not operate a valve. If .storage/water_leak_detection.runtime.ENTRY_ID is missing and a copy …corrupt.TIME lies next to it (Home Assistant set aside invalid JSON), restore a backup with Home Assistant stopped. Without a backup: with Home Assistant stopped, move the .corrupt copy out of .storage; this deliberately gives up the stored state."
     }
   }
 }

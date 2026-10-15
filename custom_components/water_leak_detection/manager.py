@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import glob
 import logging
 from collections.abc import Callable
 from copy import deepcopy
@@ -272,12 +273,18 @@ class WaterLeakManager:
         if existed and not isinstance(stored, dict):
             self._storage_load_failed = True
             stored = None
-        if not existed and self._corrupt_store_copies():
+        if (
+            not existed
+            and self._external_sensors_configured()
+            and await self._corrupt_store_copies()
+        ):
             # F04-FSR-H01: HA renames a Store file that is not valid JSON (e.g.
             # NaN, truncation) to "<file>.corrupt.<time>" and loads nothing. The
             # first start after that already holds the barrier above; without
             # this check the next start would look like a new installation and
-            # silently drop persisted alarms and shutoff contributions.
+            # silently drop persisted external alarms and shutoff contributions.
+            # Only with configured external sensors (read from the options, not
+            # the Store): a hydraulic-only installation starts fresh as before.
             _LOGGER.error(
                 "Runtime store %s is missing but a corrupt copy exists; holding alarm "
                 "and shutoff until a verified backup is restored",
@@ -1396,10 +1403,24 @@ class WaterLeakManager:
             else:
                 controller.remove(source_id)
 
-    def _corrupt_store_copies(self) -> list[Path]:
-        """Copies HA's Store kept of an unreadable runtime file ("<file>.corrupt.<time>")."""
+    def _external_sensors_configured(self) -> bool:
+        configured = self.entry.options.get(CONF_EXTERNAL_SENSORS)
+        return isinstance(configured, list) and bool(configured)
+
+    async def _corrupt_store_copies(self) -> list[Path]:
+        """Copies HA's Store kept of this entry's unreadable runtime file.
+
+        HA names them "<file>.corrupt.<time>"; only this exact file name counts,
+        never another entry's or another Store key's copy. Runs in the executor.
+        """
         path = Path(self._store.path)
-        return sorted(path.parent.glob(f"{path.name}.corrupt.*")) if path.parent.is_dir() else []
+
+        def scan() -> list[Path]:
+            if not path.parent.is_dir():
+                return []
+            return sorted(path.parent.glob(f"{glob.escape(path.name)}.corrupt.*"))
+
+        return await self.hass.async_add_executor_job(scan)
 
     def _ensure_storage_writable(self) -> None:
         if self._storage_load_failed:

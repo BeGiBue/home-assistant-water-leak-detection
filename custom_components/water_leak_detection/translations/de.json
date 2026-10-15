@@ -751,7 +751,7 @@
     },
     "runtime_safety_recovery": {
       "title": "Sicherheitszustand muss wiederhergestellt werden",
-      "description": "Für {name} ist der Laufzeitspeicher beschädigt oder enthält widersprüchliche Alarmidentitäten. Alarm- und Absperranforderungen bleiben konservativ erhalten; betroffene Quittierungen und Resets sind gesperrt. Sichern Sie die Originaldatei, stoppen Sie Home Assistant und stellen Sie ein geprüftes vollständiges Backup wieder her. Löschen Sie den Speicher nicht, um den Alarm zu beenden. Prüfen Sie anschließend Quellen und Diagnose. Die Integration betätigt kein Ventil."
+      "description": "Für {name} ist der Laufzeitspeicher beschädigt oder enthält widersprüchliche Alarmidentitäten. Alarm- und Absperranforderungen bleiben konservativ erhalten; betroffene Quittierungen und Resets sind gesperrt. Sichern Sie die Originaldatei, stoppen Sie Home Assistant und stellen Sie ein geprüftes vollständiges Backup wieder her. Löschen Sie den Speicher nicht, um den Alarm zu beenden. Prüfen Sie anschließend Quellen und Diagnose. Die Integration betätigt kein Ventil. Fehlt die Datei .storage/water_leak_detection.runtime.EINTRAGS_ID und liegt daneben eine Kopie …corrupt.ZEIT (Home Assistant hat ungültiges JSON beiseitegelegt), dann bei gestopptem Home Assistant ein Backup zurückspielen. Ohne Backup: bei gestopptem Home Assistant die .corrupt-Kopie aus .storage verschieben; damit verzichten Sie bewusst auf den gespeicherten Zustand."
     }
   }
 }

@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 from homeassistant.helpers import issue_registry as ir
 from test_external_leaks import NOW, controller
+from test_f04_security_review_adversarial import start
 from test_f04_security_review_controls import action, setup
 from test_f04_v2_safety_boundaries import restart
 
@@ -54,6 +55,7 @@ CHANGES = {
     "tombstone_list": {"tombstone": []},
     "name_number": {"name": 5},
     "registry_id_number": {"registry_id": 5},
+    "identity_signature_list": {"identity_signature": []},
     "reset_nonce_list": {"reset_nonce": []},
 }
 MISSING = ["phase", "event_id", "source_id", "entity_id", "contributes_to_shutoff"]
@@ -275,6 +277,49 @@ async def test_invalid_json_is_renamed_by_ha_and_the_next_start_still_holds_the_
     manager = await restart(runtime_hass, runtime_entry, manager)
     assert not manager._storage_load_failed
     assert old_action["event_id"] in manager.active_events() and manager.shutoff_request
+
+
+async def test_hydraulic_only_installation_with_corrupt_copy_behaves_as_before(
+    runtime_hass, runtime_entry, measurement_clock
+):
+    """Without external sensors the .corrupt rule does not apply (maintainer decision)."""
+    manager = await start(runtime_hass, runtime_entry, measurement_clock)
+    assert not runtime_entry.options.get(CONF_EXTERNAL_SENSORS)
+    await manager.async_unload()
+    path = Path(manager._store.path)
+    path.write_text(path.read_text()[:20])
+    manager = await restart(runtime_hass, runtime_entry, manager)
+    assert manager._storage_load_failed  # first start: as before
+    assert len(list(path.parent.glob(f"{path.name}.corrupt.*"))) == 1
+    manager = await restart(runtime_hass, runtime_entry, manager)
+    assert not manager._storage_load_failed  # second start: fresh, as before
+    assert not manager.alarm_active and not manager.shutoff_request
+    assert recovery_issue(runtime_hass, runtime_entry) is None
+
+
+@pytest.mark.parametrize("own", [False, True])
+async def test_only_this_entrys_corrupt_copy_locks(
+    runtime_hass, runtime_entry, measurement_clock, own
+):
+    manager, path, _, _, _, _ = await active_source(runtime_hass, runtime_entry, measurement_clock)
+    path.unlink()
+    for other in (
+        "water_leak_detection.runtime.other_entry.corrupt.2026-10-15T00:00:00",
+        f"{path.name}x.corrupt.2026-10-15T00:00:00",
+        "water_leak_detection.other_key.corrupt.2026-10-15T00:00:00",
+        f"core.{path.name}.corrupt.2026-10-15T00:00:00",
+    ):
+        (path.parent / other).write_text("{")
+    if own:
+        (path.parent / f"{path.name}.corrupt.2026-10-15T00:00:00").write_text("{")
+    runtime_hass.states.async_set("binary_sensor.a", "unavailable")
+    manager = await restart(runtime_hass, runtime_entry, manager)
+    assert manager._storage_load_failed is own
+    if own:
+        assert manager.alarm_active and manager.shutoff_request
+        assert not path.exists()
+    else:
+        assert recovery_issue(runtime_hass, runtime_entry) is None
 
 
 @pytest.mark.parametrize("waiting", [False, True])

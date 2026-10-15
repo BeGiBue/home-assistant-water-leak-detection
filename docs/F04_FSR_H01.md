@@ -28,7 +28,8 @@ sensor) were not. `ExternalLeakController.restore` parsed them leniently:
   save rewrote everything as a "clean" record.
 
 In addition, HA itself renames a Store file that is not valid JSON (`NaN`, truncation) to
-`<file>.corrupt.<time>` and loads nothing. The first start after that held the recovery barrier,
+`<file>.corrupt.<time>` (here `water_leak_detection.runtime.<entry_id>.corrupt.<time>`) and loads
+nothing. The first start after that held the recovery barrier,
 but the **next** start found no file and behaved like a new installation. All persisted alarms
 and shutoff contributions were then gone.
 
@@ -48,7 +49,8 @@ be acknowledged or reset.
 |---|---|---|
 | List not a list (`null`, dict, string, number) or an entry that is not a dict | Barrier | Barrier (unchanged) |
 | A list is missing in a current-schema body (`learning_schema_version: 2`) | Treated as "no external records": ACTIVE alarms and shutoff lost, then overwritten, not reported | Barrier |
-| File is not valid JSON (`NaN`, truncated) | HA renames it to `.corrupt.*`. First start: barrier. Next start: new installation, alarm and shutoff lost, only HA's own storage-corruption repair | Barrier on every start while the file is missing and a `.corrupt.*` copy exists |
+| File is not valid JSON (`NaN`, truncated), external sensors configured | HA renames it to `.corrupt.*`. First start: barrier. Next start: new installation, alarm and shutoff lost, only HA's own storage-corruption repair | Barrier on every start while the file is missing and this entry's `.corrupt.*` copy exists |
+| File is not valid JSON, hydraulic-only installation (no external sensors in the options) | First start: barrier. Next start: new installation | Unchanged (maintainer decision) |
 | `phase` missing/unknown/wrong type, `event_id` valid | Kept ACTIVE with that Event-ID; reset/ACK allowed; rewritten as clean; not reported | Barrier |
 | `phase` missing/unknown **and** `event_id` missing/invalid | **Dropped**: source ARMED, alarm and shutoff released, damaged record overwritten, not reported | Barrier |
 | ACTIVE, `event_id` missing/invalid | Invented Event-ID; alarm kept; reset/ACK on the invented ID; rewritten; not reported | Barrier |
@@ -79,8 +81,12 @@ be acknowledged or reset.
   Optional metadata that older writers did not store may be absent. The check runs before any
   live state is replaced, before a version-1 migration and before every Store write.
 - `storage.validate_snapshot_body` treats a missing list in a current-schema body as damage.
-- `WaterLeakManager` enters the barrier when the Store file is missing but HA kept a
-  `.corrupt.*` copy of it.
+- `WaterLeakManager` enters the barrier when external leak sensors are configured (read from the
+  config entry options, which do not depend on the Store), the Store file is missing and HA kept a
+  copy of exactly this file (`water_leak_detection.runtime.<entry_id>.corrupt.<time>`). Copies of
+  other entries or other Store keys do not count. The directory scan runs in the executor.
+  Hydraulic-only installations behave as before: the first start after the rename is locked,
+  the next one starts fresh.
 - No parallel mechanism: everything reuses the existing Store recovery barrier, its repair issue
   and the `storage_recovery_required` status attribute. The dashboard card shows that attribute as
   its storage-recovery hint, so the card needed no change.
@@ -92,12 +98,13 @@ be acknowledged or reset.
 1. Stop Home Assistant.
 2. Keep the damaged file and any `.corrupt.*` copy for diagnosis.
 3. Restore a verified complete HA backup, or the entry's verified runtime Store
-   (`.storage/water_leak_detection.<entry_id>`) together with its matching config entry.
+   (`.storage/water_leak_detection.runtime.<entry_id>`) together with its matching config entry.
 4. Start HA and check that `storage_recovery_required` is false and that the expected ACTIVE alarms
    and shutoff request are back. Only a genuine physical reset or an authorized, unambiguous
    external reset may then end them.
 
-There is no in-app override. In the `.corrupt.*` case, moving the copy away with HA stopped
+There is no in-app override. In the `.corrupt.*` case without a usable backup: stop HA and move
+`.storage/water_leak_detection.runtime.<entry_id>.corrupt.<time>` out of `.storage`. This
 deliberately accepts the loss of the persisted state, the same as deleting the Store. Do not do
 that to clear an alarm.
 
@@ -112,7 +119,8 @@ that to clear an alarm.
 - **Missing optional keys are accepted.** A record from an older writer may legitimately lack them.
   Required keys (phase, IDs, entity, shutoff flag, and for ACTIVE the Event-ID and start time) may
   not be missing.
-- **Store-level copy.** The `.corrupt.*` check only looks next to the Store file. If the copy is
-  deleted while the Store file is missing, the next start is a new installation, the same as
-  deleting the Store.
+- **Store-level copy.** The `.corrupt.*` check only looks next to the Store file and only with
+  configured external sensors. If the copy is deleted while the Store file is missing, the next
+  start is a new installation, the same as deleting the Store. A hydraulic-only installation
+  starts fresh on the second start after HA renamed an invalid file (unchanged behavior).
 - The integration never operates a valve; the shutoff request is a signal for external automations.
