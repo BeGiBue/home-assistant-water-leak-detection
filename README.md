@@ -1,8 +1,8 @@
-![Water Leak Guard](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/logo-160.png)
+![Water Leak Guard](https://raw.githubusercontent.com/BeGiBue/home-assistant-water-leak-detection/main/docs/assets/logo-160.png)
 
 # Water Leak Guard
 
-[![Open your Home Assistant instance and open this repository in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=BeGiBue&repository=homeassistant-water-leak-detection&category=integration)
+[![Open your Home Assistant instance and open this repository in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=BeGiBue&repository=home-assistant-water-leak-detection&category=integration)
 
 A backend-focused Home Assistant custom integration for detecting abnormal water consumption and possible water leaks from an existing water-meter flow sensor.
 
@@ -47,7 +47,7 @@ data of configured external sensors) is fixed in 2.0.0; see [F04-FSR-H01](docs/F
 
 Use the button above, or add the repository manually in HACS:
 
-- Repository: `https://github.com/BeGiBue/homeassistant-water-leak-detection`
+- Repository: `https://github.com/BeGiBue/home-assistant-water-leak-detection`
 - Category: **Integration**
 
 Then:
@@ -135,9 +135,9 @@ The integration creates a Home Assistant device with backend entities including:
 
 ## Dashboard card
 
-![Water Leak Guard card: normal state and Burst Leak alarm with device actions](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/card-preview.png)
+![Water Leak Guard card: normal state and Burst Leak alarm with device actions](https://raw.githubusercontent.com/BeGiBue/home-assistant-water-leak-detection/main/docs/assets/card-preview.png)
 
-![Card on the Raspberry Pi 7 inch display: portrait idle and Burst alarm on a display session, landscape collapsed](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/card-wall-display.png)
+![Card on the Raspberry Pi 7 inch display: portrait idle and Burst alarm on a display session, landscape collapsed](https://raw.githubusercontent.com/BeGiBue/home-assistant-water-leak-detection/main/docs/assets/card-wall-display.png)
 
 A dependency-free Lovelace card ships with the integration and is loaded automatically: after
 installing or updating and restarting Home Assistant, choose **Add card → Water Leak Guard**. No
@@ -153,7 +153,7 @@ use `collapsed: true`. For a device paired with a notification
 recipient it offers exactly the alarm actions the backend allows right now (device mute, global
 acknowledgement at home, external reset at home with permission); other devices are view only.
 Pair a device under **Configure → Notification recipients → Edit recipient → Pairing for the
-dashboard card** (a Home Assistant user or a single login). Wall display with TouchKio (German guide): [Wiki](https://github.com/BeGiBue/homeassistant-water-leak-detection/wiki/Wanddisplay-TouchKio). Details, permissions and migration: [docs/CARD.md](docs/CARD.md). Tested with
+dashboard card** (a Home Assistant user or a single login). Wall display with TouchKio (German guide): [Wiki](https://github.com/BeGiBue/home-assistant-water-leak-detection/wiki/Wanddisplay-TouchKio). Details, permissions and migration: [docs/CARD.md](docs/CARD.md). Tested with
 a simulated Home Assistant and the full CI suite; not yet tested on a live installation.
 
 ## Language and later configuration
@@ -273,7 +273,7 @@ Event payloads include the event ID and relevant detector context. Burst events 
 - [Changelog](CHANGELOG.md)
 - [v1.0.3 release notes](RELEASE_NOTES_1.0.3.md)
 - [Release procedure](docs/RELEASING.md)
-- [Project Wiki](https://github.com/BeGiBue/homeassistant-water-leak-detection/wiki)
+- [Project Wiki](https://github.com/BeGiBue/home-assistant-water-leak-detection/wiki)
 - [Technical specification and roadmap](SPEC.md)
 
 ## Release status
