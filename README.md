@@ -1,4 +1,6 @@
-![Water Leak Guard](https://raw.githubusercontent.com/BeGiBue/home-assistant-water-leak-detection/main/docs/assets/logo-160.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/BeGiBue/home-assistant-water-leak-detection/main/docs/assets/logo-160.png?v=2" alt="Water Leak Guard" width="160">
+</p>
 
 # Water Leak Guard
 
