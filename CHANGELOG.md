@@ -24,6 +24,10 @@
   password; docs and form texts recommend a non-admin kiosk user with its own strong password.
 - Recipients with an unknown or empty `kind` are logged by id and name (they receive no notifications);
   the external-reset validator rejects them as well.
+- The shutoff-request binary sensor's icon follows its state via a new `icons.json`: `mdi:valve-open`
+  while no shutoff is requested, `mdi:valve-closed` while one is requested, `mdi:valve` otherwise (the
+  fixed `mdi:valve-closed` entity icon is gone). The card already shows `mdi:valve-closed` only for a
+  requested shutoff and is unchanged.
 - Wiki (TouchKio): recommend only turning the display on when the card's dashboard is the kiosk start
   page; a `text.set_value` page URL must use exactly TouchKio's `web_url` base (scheme, host, port),
   otherwise the browser has no stored login and the dashboard does not load.

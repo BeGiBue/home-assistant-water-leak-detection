@@ -51,9 +51,10 @@ class LeakAlarmBinarySensor(WaterLeakEntity, BinarySensorEntity):
 class ShutoffRequestBinarySensor(WaterLeakEntity, BinarySensorEntity):
     """Independent request for an external motorized shutoff valve."""
 
+    # Icon by state from icons.json (translation key "shutoff_request"):
+    # off = valve open (no shutoff requested), on = valve closed (requested).
     _attr_translation_key = "shutoff_request"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
-    _attr_icon = "mdi:valve-closed"
 
     def __init__(self, manager: WaterLeakManager) -> None:
         super().__init__(manager, "shutoff_request")
