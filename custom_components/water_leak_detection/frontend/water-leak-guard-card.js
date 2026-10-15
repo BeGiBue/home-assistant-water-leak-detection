@@ -32,7 +32,7 @@
  * License: AGPL-3.0-only (same as the integration).
  */
 
-const CARD_VERSION = "0.5.0";
+const CARD_VERSION = "0.6.1";
 const DOMAIN = "water_leak_detection";
 const CARD_TAG = "water-leak-guard-card";
 const EDITOR_TAG = "water-leak-guard-card-editor";
@@ -56,6 +56,7 @@ const ERROR_CODES = [
   "rejected",
   "instance_not_found",
   "unknown_command",
+  "mute_not_applicable",
 ];
 const SESSION_MIN_INTERVAL_MS = 5000;
 const SESSION_ALARM_INTERVAL_MS = 60000;
@@ -69,6 +70,9 @@ const DEFAULT_CONFIG = {
   show_external: true,
   show_learning: true,
   show_background: true,
+  // Sections (bypass, learning) start expanded; true starts them collapsed
+  // (e.g. for an 800×480 wall display).
+  collapsed: false,
   bypass_presets: [60, 120, 240],
 };
 
@@ -197,6 +201,7 @@ const I18N = {
       rejected: "Vom Backend abgelehnt.",
       instance_not_found: "Instanz nicht gefunden oder mehrdeutig. Bitte die Status-Entität der Karte prüfen.",
       unknown_command: "Dieses Backend bietet keine Kartenaktionen an.",
+      mute_not_applicable: "Ein Wanddisplay bekommt keine Benachrichtigungen – Stummschalten entfällt.",
       unknown: "Aktion fehlgeschlagen: {msg}",
     },
     open_integration: "Zur Integration",
@@ -254,6 +259,7 @@ const I18N = {
       show_external: "Externe Sensoren",
       show_learning: "Lernmodell",
       show_background: "Hintergrundmotiv",
+      collapsed: "Abschnitte eingeklappt starten",
       title_hint: "Ohne Titel wird der Gerätename aus Home Assistant verwendet.",
     },
   },
@@ -381,6 +387,7 @@ const I18N = {
       rejected: "Rejected by the backend.",
       instance_not_found: "Instance not found or ambiguous. Please check the card's status entity.",
       unknown_command: "This backend does not offer card actions.",
+      mute_not_applicable: "A wall display receives no notifications – there is nothing to mute.",
       unknown: "Action failed: {msg}",
     },
     open_integration: "Open integration",
@@ -438,6 +445,7 @@ const I18N = {
       show_external: "External sensors",
       show_learning: "Learning",
       show_background: "Background motif",
+      collapsed: "Start with sections collapsed",
       title_hint: "Without a title the Home Assistant device name is used.",
     },
   },
@@ -579,8 +587,9 @@ class WaterLeakGuardCard extends HTMLElement {
     // Session triggers that are independent of the render signature.
     this._lastAlarm = undefined;
     this._trackerSig = undefined;
-    // Collapsible sections: per card instance, survives every re-render.
-    this._expanded = { bypass: false, learning: false };
+    // Collapsible sections: per card instance, survives every re-render. The
+    // initial state comes from the `collapsed` option (setConfig).
+    this._expanded = undefined;
     this._onVisibility = () => {
       // A burst of visibility events needs one answer, not a deferred second one.
       if (document.visibilityState === "visible") this._requestSession({ defer: false });
@@ -640,7 +649,14 @@ class WaterLeakGuardCard extends HTMLElement {
       this._config = { ...DEFAULT_CONFIG, ...config };
       if (this.isConnected) this._requestSession({ defer: false });
     }
+    const previousCollapsed = this._config ? Boolean(this._config.collapsed) : undefined;
     this._config = { ...DEFAULT_CONFIG, ...config };
+    // Initial section state: expanded unless `collapsed: true`. Toggles in the
+    // card stay in memory; changing the option (editor) resets to its default.
+    const collapsed = Boolean(this._config.collapsed);
+    if (!this._expanded || previousCollapsed !== collapsed) {
+      this._expanded = { bypass: !collapsed, learning: !collapsed };
+    }
     this._signature = "";
     this._render();
   }
@@ -683,13 +699,16 @@ class WaterLeakGuardCard extends HTMLElement {
   }
 
   /**
-   * Masonry height hint in 50 px units. The idle card is about 340 px (7 units)
-   * in one column with both sections collapsed; an alarm adds the alarm box
-   * (about 700 px). Masonry only uses it to balance columns.
+   * Masonry height hint in 50 px units. The idle card in one column is about
+   * 550 px (11 units) with a section expanded (the default) and about 335 px
+   * (7 units) with both sections collapsed; an alarm adds the alarm box (about
+   * 700 px). Masonry only uses it to balance columns.
    */
   getCardSize() {
     const alarm = this._hass && this._config ? this._alarmActive() : false;
-    return alarm ? 14 : 7;
+    if (alarm) return 14;
+    const expanded = this._expanded || {};
+    return expanded.bypass || expanded.learning ? 11 : 7;
   }
 
   /**
@@ -864,6 +883,8 @@ class WaterLeakGuardCard extends HTMLElement {
       home: paired && d.home === true && (!this._trackerState() || this._trackerState().state === "home"),
       canAck: paired && d.can_global_ack === true,
       canReset: paired && d.can_external_reset === true,
+      // A stationary display (kind "display") receives no notifications: no mute.
+      canMute: paired && d.can_mute !== false && d.kind !== "display",
       // Ending an alarm (disable detection, bypass start during High Flow) needs
       // the same as the external reset: a paired device at home right now.
       canClear: paired && d.home === true && (!this._trackerState() || this._trackerState().state === "home"),
@@ -1337,7 +1358,7 @@ class WaterLeakGuardCard extends HTMLElement {
         const buttons = [];
         const reasons = [];
         const who = perm.recipientName;
-        if (perm.paired && !acked) {
+        if (perm.canMute && !acked) {
           if (mutedHere) {
             buttons.push(`<span class="pill pill-off"><ha-icon class="mini" icon="mdi:bell-off"></ha-icon>${esc(who ? t("muted_for", { name: who }) : t("muted_here"))}</span>`);
           } else {
@@ -1956,7 +1977,7 @@ class WaterLeakGuardCardEditor extends HTMLElement {
       {
         type: "grid",
         name: "",
-        schema: ["show_flow", "show_detectors", "show_bypass", "show_external", "show_learning", "show_background"].map(
+        schema: ["show_flow", "show_detectors", "show_bypass", "show_external", "show_learning", "show_background", "collapsed"].map(
           (name) => ({ name, selector: { boolean: {} } })
         ),
       },

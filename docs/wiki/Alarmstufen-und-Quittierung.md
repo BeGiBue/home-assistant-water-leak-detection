@@ -99,7 +99,10 @@ Sie beendet trotzdem nicht:
 Globale Quittierung ist nur zulässig, wenn:
 
 1. der Empfänger dafür konfiguriert wurde und
-2. sein zugeordneter `device_tracker.*` aktuell exakt `home` meldet
+2. sein zugeordneter `device_tracker.*` aktuell exakt `home` meldet – oder der Empfänger ein
+   **Wanddisplay** ist: Es hat keinen Tracker und gilt immer als zuhause (siehe
+   [Dashboard-Karte](Dashboard-Karte#wanddisplay--touchkio)). Ein Wanddisplay bekommt keine
+   Benachrichtigungen und kann deshalb auch nicht über eine Benachrichtigung quittieren.
 
 ## Zwei Sicherheitsstufen
 
@@ -256,5 +259,7 @@ Aktionen an, die das Backend gerade erlaubt: persönliches Stummschalten für di
 unterwegs), globale Quittierung (Berechtigung und Device Tracker `home`) und externen Reset
 (Berechtigung und `home`, mit Rückfrage). Die Rechte hängen am Gerät: Ein iPad zuhause kann global
 quittieren, das Telefon desselben Benutzers unterwegs nur sich selbst stummschalten. Nicht gekoppelte
-Geräte sehen nur die Anzeige. Auch in der Karte gilt: Quittierung beendet weder Erkennung noch Alarm
-noch Absperranforderung.
+Geräte sehen nur die Anzeige. Ein gekoppeltes **Wanddisplay** gilt immer als zuhause: Es darf, was seine
+Häkchen erlauben, hat aber kein Stummschalten. Jede Sitzung, die als das Display erkannt wird (bei
+einer Kiosk-Benutzer-Kopplung jede Anmeldung dieses Benutzers), hat diese Rechte. Auch in der
+Karte gilt: Quittierung beendet weder Erkennung noch Alarm noch Absperranforderung.

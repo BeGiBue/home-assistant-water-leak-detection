@@ -120,15 +120,85 @@ test("idle: no switch controls, no links to switch entities", async () => {
   card.disconnectedCallback();
 });
 
-test("collapsible sections: collapsed by default, toggle survives hass updates", async () => {
+const expandedOf = (h, key) => h.match(new RegExp(`data-section="${key}"[^>]*aria-expanded="(true|false)"`))?.[1];
+
+test("sections: expanded by default; toggle survives hass updates", async () => {
   const card = await mount();
-  assert.equal((html(card).match(/aria-expanded="false"/g) || []).length, 2);
-  assert.ok(!html(card).includes('class="sec-body"'));
+  assert.equal(expandedOf(html(card), "bypass"), "true");
+  assert.equal(expandedOf(html(card), "learning"), "true");
+  assert.equal((html(card).match(/class="sec-body"/g) || []).length, 2);
   card._onClick({ target: target({ action: "toggle-section", section: "learning" }) });
-  assert.match(html(card), /data-section="learning"[^>]*aria-expanded="true"/);
+  assert.equal(expandedOf(html(card), "learning"), "false");
   card.hass = { ...hass(), states: { ...hass().states, [K.current_flow]: { entity_id: K.current_flow, state: "12", attributes: {}, last_updated: "y" } } };
-  assert.match(html(card), /data-section="learning"[^>]*aria-expanded="true"/);
-  assert.match(html(card), /data-section="bypass"[^>]*aria-expanded="false"/);
+  assert.equal(expandedOf(html(card), "learning"), "false", "toggle kept after hass update");
+  assert.equal(expandedOf(html(card), "bypass"), "true");
+  // Re-applying the same config (e.g. an unrelated editor change) keeps the toggles.
+  card.setConfig({ type: "custom:water-leak-guard-card", entity: K.status, title: "X" });
+  assert.equal(expandedOf(html(card), "learning"), "false");
+  card.disconnectedCallback();
+});
+
+test("sections: collapsed: true starts collapsed; changing the option resets to its default", async () => {
+  const card = await mount({}, { collapsed: true });
+  assert.equal(expandedOf(html(card), "bypass"), "false");
+  assert.equal(expandedOf(html(card), "learning"), "false");
+  assert.ok(!html(card).includes('class="sec-body"'));
+  card._onClick({ target: target({ action: "toggle-section", section: "bypass" }) });
+  assert.equal(expandedOf(html(card), "bypass"), "true");
+  card.hass = hass();
+  assert.equal(expandedOf(html(card), "bypass"), "true", "toggle kept after hass update");
+  card.setConfig({ type: "custom:water-leak-guard-card", entity: K.status, collapsed: false });
+  assert.equal(expandedOf(html(card), "bypass"), "true");
+  assert.equal(expandedOf(html(card), "learning"), "true");
+  card.setConfig({ type: "custom:water-leak-guard-card", entity: K.status, collapsed: true });
+  assert.equal(expandedOf(html(card), "bypass"), "false");
+  assert.equal(expandedOf(html(card), "learning"), "false");
+  card.disconnectedCallback();
+});
+
+test("editor offers the collapsed option with DE/EN labels", async () => {
+  const Editor = customElements.get("water-leak-guard-card-editor");
+  const editor = new Editor();
+  editor._hass = hass();
+  const grid = editor._schema().find((f) => f.type === "grid");
+  assert.ok(grid.schema.some((f) => f.name === "collapsed" && f.selector.boolean));
+});
+
+const DISPLAY = { paired: true, kind: "display", recipient_id: "wall", recipient_name: "Flur", home: true, tracker_entity: null, can_mute: false, can_global_ack: true, can_external_reset: true };
+
+test("display session: no mute, home actions available, never 'only at home'", async () => {
+  for (const alarm of ["burst_leak", "low_flow", "high_flow"]) {
+    // The phone tracker is away; a display has no tracker and is always home.
+    const card = await mount({ alarm, tracker: "not_home", session: DISPLAY });
+    const h = html(card);
+    assert.ok(!h.includes('data-action="mute"') && !h.includes("stummgeschaltet"), `${alarm}: no mute`);
+    assert.equal(tag(h, "acknowledge").includes(" disabled"), false, `${alarm}: ack enabled`);
+    assert.ok(!h.includes("Nur zuhause möglich"), `${alarm}: no home hint`);
+    if (alarm === "low_flow") assert.equal(tag(h, "disable-detection").includes(" disabled"), false);
+    if (alarm === "high_flow") assert.equal(tag(h, "bypass-start").includes(" disabled"), false);
+    card.disconnectedCallback();
+  }
+  // Without the acknowledge permission there is no acknowledge button.
+  const card = await mount({ alarm: "burst_leak", session: { ...DISPLAY, can_global_ack: false } });
+  assert.ok(!html(card).includes('data-action="acknowledge"'));
+  card.disconnectedCallback();
+});
+
+test("mute is hidden by either signal: kind display or can_mute false", async () => {
+  for (const session of [{ ...HOME, kind: "display" }, { ...HOME, can_mute: false }]) {
+    const card = await mount({ alarm: "burst_leak", session });
+    assert.ok(!html(card).includes('data-action="mute"'), JSON.stringify(session));
+    card.disconnectedCallback();
+  }
+  const card = await mount({ alarm: "burst_leak", session: { ...HOME, kind: "mobile", can_mute: true } });
+  assert.ok(html(card).includes('data-action="mute"'));
+  card.disconnectedCallback();
+});
+
+test("mute_not_applicable has a localized message", async () => {
+  const card = await mount();
+  const t = (k) => card._errorText((key) => ({ "error.mute_not_applicable": "X" })[key] ?? key, { code: k });
+  assert.equal(t("mute_not_applicable"), "X");
   card.disconnectedCallback();
 });
 
@@ -345,6 +415,56 @@ test("learning: only a reliable model is green", async () => {
     assert.ok(sum.includes(`pill ${cls}`), `${confidence} -> ${cls}`);
     card.disconnectedCallback();
   }
+});
+
+test("getCardSize: 11 with a section expanded, 7 collapsed, 14 during an alarm", async () => {
+  let card = await mount();
+  assert.equal(card.getCardSize(), 11);
+  card._onClick({ target: target({ action: "toggle-section", section: "bypass" }) });
+  assert.equal(card.getCardSize(), 11, "learning still expanded");
+  card._onClick({ target: target({ action: "toggle-section", section: "learning" }) });
+  assert.equal(card.getCardSize(), 7);
+  card.disconnectedCallback();
+  card = await mount({}, { collapsed: true });
+  assert.equal(card.getCardSize(), 7);
+  card.disconnectedCallback();
+  card = await mount({ alarm: "burst_leak" }, { collapsed: true });
+  assert.equal(card.getCardSize(), 14);
+  card.disconnectedCallback();
+  card = await mount({ alarm: "burst_leak" });
+  assert.equal(card.getCardSize(), 14);
+  card.disconnectedCallback();
+});
+
+test("canClear needs both the session's home and a visible tracker at home", async () => {
+  // Session says away, tracker says home: not allowed (stale or other device).
+  let card = await mount({ alarm: "low_flow", tracker: "home", session: { ...HOME, home: false } });
+  assert.equal(card._perm.canClear, false);
+  assert.equal(tag(html(card), "disable-detection").includes(" disabled"), true);
+  card.disconnectedCallback();
+  // Session says home, tracker meanwhile not_home: not allowed either.
+  card = await mount({ alarm: "low_flow", tracker: "not_home", session: { ...HOME, home: true } });
+  assert.equal(card._perm.canClear, false);
+  assert.equal(tag(html(card), "disable-detection").includes(" disabled"), true);
+  card.disconnectedCallback();
+  // Both home: allowed.
+  card = await mount({ alarm: "low_flow", tracker: "home", session: HOME });
+  assert.equal(card._perm.canClear, true);
+  card.disconnectedCallback();
+});
+
+test("I18N: DE and EN have exactly the same keys", async () => {
+  const I18N = globalThis.eval("I18N");
+  const keys = (node, prefix = "") =>
+    Object.entries(node).flatMap(([k, v]) => (v && typeof v === "object" ? keys(v, `${prefix}${k}.`) : [`${prefix}${k}`]));
+  const de = new Set(keys(I18N.de));
+  const en = new Set(keys(I18N.en));
+  assert.deepEqual([...de].filter((k) => !en.has(k)), [], "missing in EN");
+  assert.deepEqual([...en].filter((k) => !de.has(k)), [], "missing in DE");
+  for (const k of ["error.mute_not_applicable"]) assert.ok(de.has(k) && en.has(k), k);
+  const collapsed = [...de].filter((k) => k.split(".").pop() === "collapsed");
+  assert.ok(collapsed.length >= 1, "editor label for collapsed");
+  for (const k of collapsed) assert.ok(en.has(k), k);
 });
 
 let failed = 0;

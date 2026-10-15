@@ -149,6 +149,52 @@ Each recipient is configured independently with:
 - optional trusted stationary Home-device flag,
 - optional **pairing for the dashboard card**: a Home Assistant user or a single login (login since 2.0.0-beta.1, user since card 0.5.0).
 
+### Wall display recipient (no push, always home)
+
+**Configure → Notification recipients → Add wall display** creates a recipient of kind `display` for a
+fixed display such as TouchKio on a Raspberry Pi or another kiosk browser. It has no notify service, no
+device tracker and no notification settings:
+
+- it never receives notifications and is never part of notification dispatch; there is nothing to mute
+  (the card hides the button, the `mute` command answers `mute_not_applicable`),
+- it counts as **home** for every home check (global acknowledgement, external reset, the card's
+  alarm-ending actions),
+- it **requires a pairing**, either
+  - a **kiosk user** ("👤"): only a dedicated user that is active, **neither the owner nor an
+    administrator**, and used by **no other recipient's pairing** – neither as user nor through one of
+    its logins (form errors "display user not allowed" / "display user in use"). In return, no other
+    recipient can select that user or one of its logins ("reserved for a wall display"). With a user
+    pairing **every login of the kiosk user counts as the display and therefore as home**, including a
+    remote login with its password. Use a dedicated non-admin kiosk user with its own strong password
+    that nobody uses elsewhere; or
+  - a **single login** ("🔑", stricter): binds the rights to the one kiosk session instead; after the
+    kiosk device logs in again, the pairing must be renewed. Companion app logins (client id
+    `https://home-assistant.io/iOS…` / `…/android…`, i.e. a phone or tablet) and logins of a user that a
+    mobile recipient's pairing uses are not offered and are rejected ("display login not allowed");
+    otherwise that phone would count as home everywhere. In return, a mobile recipient cannot select the
+    user of a display's login.
+
+  All of these rules count the pairings of **every instance** of the integration (users and logins
+  belong to Home Assistant, not to one instance).
+
+  Login precedence, uniqueness and "only normal logins" are as for mobile recipients. The same rule is
+  enforced at runtime: a hand-edited display whose user is the owner or an administrator, or also
+  appears in another recipient's pairing (by user or through one of its logins), never resolves and is
+  logged with its name; neither does any display for a Companion app login or a login of a user that a
+  mobile recipient uses. A display never uses notification actions: the "reset external leak" action
+  and the `external_reset` service reject a display (its token never leaves the server); it resets only
+  through the dashboard card,
+- its rights are the usual flags "Allow global acknowledgement" and "Allow external reset" (both off by
+  default, also for a hand-edited entry without the keys),
+- the kind cannot be changed after creation (remove and add again); editing keeps id, token and pairing.
+
+Trade-off: every session recognised as the display has these rights – not only whoever stands in front
+of it. Only allow what is fine for everyone in the household (and guests).
+A recipient with an unknown or empty `kind` is ignored and logged once; it receives no notifications and
+authorizes nothing. Stored entries carry `kind: display`; entries without `kind`
+are mobile recipients, so existing configurations stay unchanged. The admin "acknowledge active
+alerts" form offers only mobile recipients.
+
 ### Pairing for the dashboard card
 
 The field **Pairing for the dashboard card** offers:

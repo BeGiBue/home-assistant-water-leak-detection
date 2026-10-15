@@ -144,8 +144,10 @@ file copy and no dashboard resource are needed (remove an older manual
 alarm state and the hydraulic monitoring state separately (active / waiting for measurement /
 blocked, with reason), flow, detectors, High Flow bypass, external leak sensors and learning,
 and has no on/off switches: disabling Slow Leak/Low Flow or starting the bypass during an alarm is offered
-only inside the alarm box, to a paired device at home. It is compact (about 335 px high when idle in
-one column) and fits an iPhone, an iPad column or a Raspberry Pi 7″ 800×480 display. For a device paired with a notification
+only inside the alarm box, to a paired device at home. It is compact (idle in one column about 550 px with
+its sections open, the default, or about 335 px with `collapsed: true`) and fits an iPhone, an iPad
+column and the Raspberry Pi 7″ display in portrait (480×800) with the default; in landscape (800×480)
+use `collapsed: true`. For a device paired with a notification
 recipient it offers exactly the alarm actions the backend allows right now (device mute, global
 acknowledgement at home, external reset at home with permission); other devices are view only.
 Pair a device under **Configure → Notification recipients → Edit recipient → Pairing for the

@@ -37,6 +37,10 @@ from .const import (
     RECIPIENT_ALLOW_GLOBAL_ACK,
     RECIPIENT_CRITICAL_ENABLED,
     RECIPIENT_ID,
+    RECIPIENT_KIND,
+    RECIPIENT_KIND_DISPLAY,
+    RECIPIENT_KIND_MOBILE,
+    RECIPIENT_KINDS,
     RECIPIENT_NAME,
     RECIPIENT_NOTIFY_SERVICE,
     RECIPIENT_SESSION_TOKEN_ID,
@@ -49,9 +53,124 @@ from .const import (
 from .validation import parse_datetime, string_set
 
 if TYPE_CHECKING:
+    from homeassistant.auth.models import RefreshToken, User
+
     from .manager import WaterLeakManager
 
 _LOGGER = logging.getLogger(__name__)
+_WARNED: set[tuple[str, str]] = set()
+
+
+def _warn_once(reason: str, raw: dict[str, Any], message: str) -> None:
+    """Log a configuration problem of one recipient once per process (not per query)."""
+    key = (reason, str(raw.get(RECIPIENT_ID)))
+    if key in _WARNED:
+        return
+    _WARNED.add(key)
+    _LOGGER.warning(message, raw.get(RECIPIENT_ID), raw.get(RECIPIENT_NAME))
+
+
+def pairing_uses_user(hass: HomeAssistant, raw: dict[str, Any], user_id: str) -> bool:
+    """Whether a stored recipient pairing refers to this HA user.
+
+    True for a user pairing with this user and for a login pairing with one of
+    this user's logins (of any token type). Both keys are checked, even though a
+    login pairing takes precedence: this is a conflict check, so stricter is safer.
+    """
+    if raw.get(RECIPIENT_SESSION_USER_ID) == user_id:
+        return True
+    token_id = raw.get(RECIPIENT_SESSION_TOKEN_ID)
+    if not isinstance(token_id, str) or not token_id:
+        return False
+    auth = getattr(hass, "auth", None)
+    token = auth.async_get_refresh_token(token_id) if auth is not None else None
+    return token is not None and token.user.id == user_id
+
+
+# Client ids of the Home Assistant Companion apps (iOS/macOS and Android, also
+# their dev/beta variants). Such a login belongs to a phone or tablet, never to a
+# wall display, which always counts as home.
+COMPANION_CLIENT_PREFIXES = ("https://home-assistant.io/ios", "https://home-assistant.io/android")
+
+
+def is_companion_login(token: RefreshToken) -> bool:
+    """Whether this login comes from a Companion app (phone/tablet)."""
+    client_id = token.client_id if isinstance(token.client_id, str) else ""
+    return client_id.casefold().startswith(COMPANION_CLIENT_PREFIXES)
+
+
+def recipients_of_other_entries(hass: HomeAssistant, entry_id: str) -> list[dict[str, Any]]:
+    """Stored recipients of every other config entry of this integration.
+
+    The kiosk and display-login rules are about HA users and logins, which are
+    shared by all instances, so their pairings count as "another recipient".
+    """
+    config_entries = getattr(hass, "config_entries", None)
+    if config_entries is None:
+        return []
+    others: list[dict[str, Any]] = []
+    for entry in config_entries.async_entries(DOMAIN):
+        if entry.entry_id == entry_id:
+            continue
+        raws = entry.options.get(CONF_NOTIFICATION_RECIPIENTS, [])
+        if isinstance(raws, list):
+            others.extend(raw for raw in raws if isinstance(raw, dict))
+    return others
+
+
+def display_login_problem(
+    hass: HomeAssistant, token: RefreshToken | None, others: list[Any]
+) -> str | None:
+    """Why this login may not act as a wall display, or None.
+
+    A display is always Home, so a phone's login must never be one: a
+    Companion app login is refused, and so is any login of a user that a mobile
+    recipient's pairing uses (as user or through one of its logins). ``others``
+    are the stored entries of every other recipient. An unknown login fails closed.
+    """
+    if token is None:
+        return "unknown_login"
+    if is_companion_login(token):
+        return "companion_app"
+    if any(
+        isinstance(raw, dict)
+        and raw.get(RECIPIENT_KIND, RECIPIENT_KIND_MOBILE) != RECIPIENT_KIND_DISPLAY
+        and pairing_uses_user(hass, raw, token.user.id)
+        for raw in others
+    ):
+        return "user_of_mobile"
+    return None
+
+
+_DISPLAY_REFUSALS = {
+    "not_allowed": "is paired with a user that is the owner or an administrator (or not an "
+    "active person)",
+    "in_use": "is paired with a user that is also used by another recipient's pairing (as user "
+    "or by one of its logins, in any instance)",
+    "unknown_login": "was matched by a login that no longer exists",
+    "companion_app": "was matched by a Companion app login (a phone or tablet)",
+    "user_of_mobile": "was matched by a login of a user that a mobile recipient's pairing uses",
+}
+
+
+def kiosk_user_problem(hass: HomeAssistant, user: User | None, others: list[Any]) -> str | None:
+    """Why this user may not be the user pairing of a wall display, or None.
+
+    A display is always Home, and a user pairing covers every normal login of
+    that user, also a remote one. So only a dedicated kiosk user is allowed:
+    active, not system-generated, neither owner nor administrator, and not used
+    by any other recipient's pairing (as user or through one of its logins).
+    ``others`` are the stored entries of every other recipient.
+
+    Returns "not_allowed" (no such active person, owner or admin), "in_use" or None.
+    """
+    if user is None or not user.is_active or user.system_generated:
+        return "not_allowed"
+    if user.is_owner or user.is_admin:
+        return "not_allowed"
+    if any(isinstance(raw, dict) and pairing_uses_user(hass, raw, user.id) for raw in others):
+        return "in_use"
+    return None
 
 
 def notification_writer(method):
@@ -82,15 +201,36 @@ class NotificationRecipient:
     allow_external_reset: bool = False
     session_token_id: str | None = None
     session_user_id: str | None = None
+    kind: str = RECIPIENT_KIND_MOBILE
+
+    @property
+    def is_display(self) -> bool:
+        """Stationary display: no notifications, no tracker, always Home."""
+        return self.kind == RECIPIENT_KIND_DISPLAY
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> NotificationRecipient | None:
-        """Create a recipient from config-entry options."""
+        """Create a recipient from config-entry options.
+
+        Entries without ``kind`` are mobile recipients (all entries before the
+        display kind existed). An unknown or empty kind is ignored entirely and
+        logged, because such a recipient would silently receive no alarms.
+        """
+        kind = raw.get(RECIPIENT_KIND, RECIPIENT_KIND_MOBILE)
+        if kind not in RECIPIENT_KINDS:
+            _warn_once(
+                "unknown_kind",
+                raw,
+                "Notification recipient %s (%s) has an unknown kind and is ignored: "
+                "it receives no leak notifications. Edit or re-add it under Configure.",
+            )
+            return None
+        display = kind == RECIPIENT_KIND_DISPLAY
         try:
             recipient_id = str(raw[RECIPIENT_ID])
             name = str(raw[RECIPIENT_NAME])
-            notify_service = str(raw[RECIPIENT_NOTIFY_SERVICE])
-            tracker_entity = str(raw[RECIPIENT_TRACKER_ENTITY])
+            notify_service = "" if display else str(raw[RECIPIENT_NOTIFY_SERVICE])
+            tracker_entity = "" if display else str(raw[RECIPIENT_TRACKER_ENTITY])
             token = raw[RECIPIENT_TOKEN]
         except KeyError, TypeError, ValueError:
             return None
@@ -98,8 +238,8 @@ class NotificationRecipient:
         if (
             not recipient_id
             or not name
-            or not notify_service.startswith("notify.")
-            or not tracker_entity.startswith("device_tracker.")
+            or (not display and not notify_service.startswith("notify."))
+            or (not display and not tracker_entity.startswith("device_tracker."))
             or not isinstance(token, str)
             or not token.strip()
         ):
@@ -123,14 +263,28 @@ class NotificationRecipient:
             name=name,
             notify_service=notify_service,
             tracker_entity=tracker_entity,
-            critical_enabled=bool(raw.get(RECIPIENT_CRITICAL_ENABLED, True)),
-            allow_global_ack=raw.get(RECIPIENT_ALLOW_GLOBAL_ACK, True) is True,
-            trusted_stationary=bool(raw.get(RECIPIENT_TRUSTED_STATIONARY, False)),
+            critical_enabled=not display and bool(raw.get(RECIPIENT_CRITICAL_ENABLED, True)),
+            # Mobile default True (as before); a display defaults to False.
+            allow_global_ack=raw.get(RECIPIENT_ALLOW_GLOBAL_ACK, not display) is True,
+            trusted_stationary=not display and bool(raw.get(RECIPIENT_TRUSTED_STATIONARY, False)),
             token=token,
             allow_external_reset=raw.get(RECIPIENT_ALLOW_EXTERNAL_RESET) is True,
             session_token_id=session_token_id,
             session_user_id=session_user_id,
+            kind=kind,
         )
+
+
+def recipient_is_home(hass: HomeAssistant, recipient: NotificationRecipient) -> bool:
+    """Home authority for every Home-only action.
+
+    A stationary display has no tracker and is always Home (the admin chose it
+    for a fixed place); a mobile recipient is Home only while its tracker says so.
+    """
+    if recipient.is_display:
+        return True
+    tracker = hass.states.get(recipient.tracker_entity)
+    return tracker is not None and tracker.state == "home"
 
 
 class DispatchState(StrEnum):
@@ -314,7 +468,7 @@ class NotificationController:
             self._tracker_unsub()
             self._tracker_unsub = None
 
-        trackers = sorted({r.tracker_entity for r in recipients.values()})
+        trackers = sorted({r.tracker_entity for r in recipients.values() if not r.is_display})
         if trackers:
             self._tracker_unsub = async_track_state_change_event(
                 self.hass,
@@ -337,18 +491,31 @@ class NotificationController:
         return {event_id: state.to_dict() for event_id, state in self.acknowledgements.items()}
 
     def recipient_for_session(
-        self, session_token_id: str | None, session_user_id: str | None = None
+        self,
+        session_token_id: str | None,
+        session_user_id: str | None = None,
+        session_user: User | None = None,
     ) -> NotificationRecipient | None:
         """Recipient paired with this HA login or, failing that, with its user.
 
         The caller (websocket.session_recipient) has already verified that the
         login is a normal app/browser login of an active, non-system user and
-        that ``session_user_id`` is the owner of exactly that login.
+        that ``session_user_id`` (``session_user``) is the owner of exactly that login.
 
         Resolution order:
         1. A recipient paired with exactly this login (``session_token_id``) wins.
         2. Otherwise a recipient paired with the login's user (``session_user_id``).
         3. Otherwise the session is not paired.
+
+        A wall display is always Home, and its user pairing covers every login of
+        that user, also a remote one. It therefore only resolves for a dedicated
+        kiosk user (see kiosk_user_problem): never for the owner or an admin and
+        never when another recipient's pairing uses that user or one of its
+        logins (in any instance of the integration). Whatever the pairing, a
+        display never resolves for a Companion app login or for a login of a user
+        that a mobile recipient's pairing uses. Hand-edited options cannot bypass
+        this; such a display is logged and treated as not paired. Without
+        ``session_user`` a display user pairing never resolves.
 
         Current options are authoritative: they are parsed directly instead of
         reload_recipients(), so a read-only query never re-subscribes the tracker
@@ -359,18 +526,78 @@ class NotificationController:
         raw_recipients = self.entry.options.get(CONF_NOTIFICATION_RECIPIENTS, [])
         if not isinstance(raw_recipients, list):
             return None
-        recipients = [
-            recipient
+        parsed = [
+            (raw, NotificationRecipient.from_dict(raw))
             for raw in raw_recipients
-            if isinstance(raw, dict) and (recipient := NotificationRecipient.from_dict(raw))
+            if isinstance(raw, dict)
         ]
+        recipients = [recipient for _, recipient in parsed if recipient is not None]
+        foreign = recipients_of_other_entries(self.hass, self.entry.entry_id)
         by_token = [r for r in recipients if r.session_token_id == session_token_id]
         if by_token:
-            return by_token[0] if len(by_token) == 1 else None
+            if len(by_token) != 1:
+                return None
+            refusal = self._display_refusal(
+                by_token[0], parsed, foreign, session_token_id, None, via_user=False
+            )
+            return None if refusal else by_token[0]
         if not session_user_id:
             return None
         by_user = [r for r in recipients if r.session_user_id == session_user_id]
-        return by_user[0] if len(by_user) == 1 else None
+        user = (
+            session_user
+            if session_user is not None and session_user.id == session_user_id
+            else None
+        )
+        # A display that is not a valid kiosk-user pairing is logged and never
+        # resolves; checked before the ambiguity rule so that it is always logged.
+        refused = [
+            candidate
+            for candidate in by_user
+            if self._display_refusal(
+                candidate, parsed, foreign, session_token_id, user, via_user=True
+            )
+        ]
+        if refused or len(by_user) != 1:
+            return None
+        return by_user[0]
+
+    def _display_refusal(
+        self,
+        candidate: NotificationRecipient,
+        parsed: list[tuple[dict[str, Any], NotificationRecipient | None]],
+        foreign: list[dict[str, Any]],
+        session_token_id: str,
+        user: User | None,
+        *,
+        via_user: bool,
+    ) -> str | None:
+        """Why this session may not act as the display ``candidate`` (logged), or None.
+
+        Mobile candidates are never refused here. For a display, every other
+        stored entry counts (also ones that do not parse and those of other
+        instances): a user pairing needs a dedicated kiosk user, and the login
+        itself must be neither a Companion app login nor one of a user that a
+        mobile recipient's pairing uses.
+        """
+        if not candidate.is_display:
+            return None
+        others = [raw for raw, parsed_one in parsed if parsed_one is not candidate] + foreign
+        problem = kiosk_user_problem(self.hass, user, others) if via_user else None
+        if problem is None:
+            auth = getattr(self.hass, "auth", None)
+            token = auth.async_get_refresh_token(session_token_id) if auth is not None else None
+            problem = display_login_problem(self.hass, token, others)
+        if problem is not None:
+            _warn_once(
+                f"display_{problem}",
+                {RECIPIENT_ID: candidate.id, RECIPIENT_NAME: candidate.name},
+                "Wall display %s (%s) "
+                + _DISPLAY_REFUSALS[problem]
+                + "; it is treated as not paired. Pair a dedicated non-admin kiosk user "
+                "nobody else uses, or the kiosk browser's single login.",
+            )
+        return problem
 
     async def async_session_mute(self, event_id: str, recipient_id: str) -> str | None:
         """Device-scoped mute from a paired dashboard session; None means accepted.
@@ -381,6 +608,9 @@ class NotificationController:
         self.reload_recipients()
         if recipient_id not in self.recipients:
             return "not_paired"
+        if self.recipients[recipient_id].is_display:
+            # A display receives no notifications, so there is nothing to mute.
+            return "not_applicable"
         if event_id not in self.manager.active_events():
             return "event_not_active"
         state = self.acknowledgements.setdefault(event_id, EventAcknowledgement())
@@ -455,6 +685,7 @@ class NotificationController:
         state = self.acknowledgements.get(event_id)
         return (
             not self._closed
+            and not recipient.is_display
             and event_id in self._events
             and self.recipients.get(recipient.id) == recipient
             and state is not None
@@ -468,6 +699,8 @@ class NotificationController:
             return
         for event_id, payload in tuple(self._events.items()):
             for recipient in tuple(self.recipients.values()):
+                if recipient.is_display:
+                    continue  # never part of notification dispatch
                 route = self._delivery_key(recipient)
                 identity = (event_id, route)
                 if identity in self._dispatch_tasks or not self._eligible(event_id, recipient):
@@ -597,6 +830,16 @@ class NotificationController:
         else:
             await self._async_handle_mobile_action(event)
 
+    def _raw_kind(self, recipient_id: Any) -> str | None:
+        """Stored kind of a recipient (mobile if missing), straight from the options."""
+        raws = self.entry.options.get(CONF_NOTIFICATION_RECIPIENTS, [])
+        if not isinstance(raws, list):
+            return None
+        for raw in raws:
+            if isinstance(raw, dict) and raw.get(RECIPIENT_ID) == recipient_id:
+                return raw.get(RECIPIENT_KIND, RECIPIENT_KIND_MOBILE)
+        return None
+
     async def _async_handle_mobile_action(self, event: Event) -> None:
         action = event.data.get("action")
         if not isinstance(action, str) or not action.startswith(f"{ACTION_PREFIX}|"):
@@ -611,6 +854,12 @@ class NotificationController:
             except ValueError, TypeError, UnicodeError:
                 return
             if isinstance(payload, dict):
+                if self._raw_kind(payload.get("recipient_id")) == RECIPIENT_KIND_DISPLAY:
+                    # Displays never receive notifications, hence never notification actions.
+                    self._fire_rejected(
+                        payload.get("event_id"), payload.get("recipient_id"), "display_recipient"
+                    )
+                    return
                 success = await self.manager.async_external_reset(payload)
                 if not success:
                     self._fire_rejected(
@@ -630,6 +879,10 @@ class NotificationController:
         recipient = self.recipients.get(recipient_id)
         if recipient is None or recipient.token != token:
             self._fire_rejected(event_id, recipient_id, "invalid_recipient_or_token")
+            return
+        if recipient.is_display:
+            # Displays never receive notifications, hence never notification actions.
+            self._fire_rejected(event_id, recipient_id, "display_recipient")
             return
 
         snapshot = self.manager.engine.snapshot(self.manager.current_total_l)
@@ -700,6 +953,7 @@ class NotificationController:
                 "recipient_id": recipient_id,
                 "scope": "global",
                 "trusted_stationary": recipient.trusted_stationary,
+                "kind": recipient.kind,
             },
         )
 
@@ -726,7 +980,7 @@ class NotificationController:
             if state is None or state.globally_acknowledged:
                 continue
             for recipient in tuple(self.recipients.values()):
-                if recipient.tracker_entity != tracker_entity:
+                if recipient.is_display or recipient.tracker_entity != tracker_entity:
                     continue
                 state.muted_recipients.discard(recipient.id)
                 route = self._delivery_key(recipient)
@@ -761,6 +1015,8 @@ class NotificationController:
         authorize: Callable[[], bool] | None = None,
         on_dispatch: Callable[[], None] | None = None,
     ) -> bool:
+        if recipient.is_display:
+            return False  # defense in depth: a display has no notify service
         domain, service = recipient.notify_service.split(".", 1)
         if not self.hass.services.has_service(domain, service):
             _LOGGER.warning(
@@ -910,6 +1166,8 @@ class NotificationController:
         title_key: str,
         message_key: str,
     ) -> None:
+        if recipient.is_display:
+            return
         domain, service = recipient.notify_service.split(".", 1)
         if not self.hass.services.has_service(domain, service):
             return

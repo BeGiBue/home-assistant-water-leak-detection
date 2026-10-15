@@ -1,5 +1,47 @@
 # Changelog
 
+## Unreleased
+
+- Dashboard card 0.6.0: "High Flow bypass" and "Learning" start **expanded**. New option
+  `collapsed: true` (editor: "Start with sections collapsed") starts them collapsed, needed only on short screens such
+  as a Raspberry Pi 7″ display in landscape (800×480); in portrait (480×800) the default open card fits
+  under the toolbar (idle about 550 px, card 448–464 px wide, measured ±15 px). In-card toggles stay in memory; changing the option resets to its default. Idle height
+  (Chromium, ±15 px): expanded about 615/550/550 px at 320/386/500 px and about 465 px in two columns
+  (744 px); collapsed unchanged at about 335 px (188 px in two columns).
+- New recipient kind **wall display** (`kind: display`, options: "Add wall display") for a fixed display
+  such as TouchKio: no notify service, no device tracker, never notified or part of dispatch, always
+  counts as home, requires a pairing, permissions are the usual flags (global acknowledgement off by
+  default, also for a hand-edited entry without the key). The session reports `kind` and `can_mute`; mute answers `mute_not_applicable` and the card
+  hides it. The kind cannot be changed after creation. Entries without `kind` stay mobile; no migration.
+  The admin acknowledgement form offers only mobile recipients. Wiki: TouchKio example automation.
+- Wall display pairing: either a single login (🔑, binds the rights to the one kiosk session; renew it
+  after the kiosk logs in again) or a **dedicated kiosk user** (👤). A kiosk user must be active, neither
+  owner nor administrator, and used by no other recipient's pairing, neither as user nor through one of
+  its logins (form errors `display_user_not_allowed`, `display_user_in_use`); in return no other
+  recipient can select that user or its logins (`session_user_reserved_for_display`). The same rule is
+  enforced when resolving sessions: such a hand-edited display never resolves and is logged by name.
+  With a user pairing every login of the kiosk user counts as home, also a remote one with its
+  password; docs and form texts recommend a non-admin kiosk user with its own strong password.
+- Wall display login pairing: Companion app logins (`https://home-assistant.io/iOS…`, `…/android…`) and
+  logins of a user that a mobile recipient's pairing uses are not offered, rejected
+  (`display_login_not_allowed`) and refused at runtime with a warning; a mobile recipient cannot select
+  the user of a display's login. Kiosk-user and display-login rules count the pairings of all instances
+  of the integration.
+- A display can no longer reset an external leak through the notification action or the
+  `external_reset` service (rejected with `display_recipient` resp. not authorized); only the card's
+  websocket command may act as a display. The recipient kind is read from the stored options.
+- Dashboard card 0.6.1: `getCardSize()` returns 11 with a section expanded, 7 with both collapsed, 14
+  during an alarm. New card tests for `canClear` and DE/EN I18N key parity.
+- Recipients with an unknown or empty `kind` are logged by id and name (they receive no notifications);
+  the external-reset validator rejects them as well.
+- The shutoff-request binary sensor's icon follows its state via a new `icons.json`: `mdi:valve-open`
+  while no shutoff is requested, `mdi:valve-closed` while one is requested, `mdi:valve` otherwise (the
+  fixed `mdi:valve-closed` entity icon is gone). The card already shows `mdi:valve-closed` only for a
+  requested shutoff and is unchanged.
+- Wiki (TouchKio): recommend only turning the display on when the card's dashboard is the kiosk start
+  page; a `text.set_value` page URL must use exactly TouchKio's `web_url` base (scheme, host, port),
+  otherwise the browser has no stored login and the dashboard does not load.
+
 ## 2.0.0-beta.2 — 2026-10-14
 
 - Dashboard card 0.5.0 – compact, collapsible, responsive layout. The idle single-column card

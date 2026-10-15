@@ -1,6 +1,6 @@
 # Dashboard-Karte (Lovelace)
 
-**Status:** Karte 0.5.0 mit Water Leak Guard **2.0.0-beta.2** (kompaktes Layout, Benutzerkopplung; vorher 0.4.1 mit 2.0.0-beta.1, Etappen A, B, C und D umgesetzt). Die Karte ist eine Ansicht auf die vorhandenen
+**Status:** Karte 0.6.1 (unveröffentlicht: Abschnitte standardmäßig offen, Option `collapsed`, Wanddisplay-Empfänger); zuletzt veröffentlicht Karte 0.5.0 mit Water Leak Guard **2.0.0-beta.2**. Die Karte ist eine Ansicht auf die vorhandenen
 Entitäten, Dienste und Kartenbefehle und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
 Reset-Nonce, und Berechtigung, Anwesenheit und erlaubte Alarmaktionen prüft ausschließlich das
 Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).
@@ -40,20 +40,30 @@ einem Tablet oder dem Raspberry-Pi-Display. Zwei Spalten gibt es nur, wenn die K
 ca. 600 px breit ist: in der **Panel-Ansicht** oder in einer Sections-Ansicht mit einem Abschnitt über
 mehrere Spalten (`column_span` ≥ 2) und `grid_options: columns: full` an der Karte.
 
-Höhe der ruhigen Karte (Überwachung aktiv, kein Alarm, Standardkonfiguration), gemessen in Chromium mit
-simuliertem Home Assistant. Je nach Schrift weichen echte Geräte um **ca. ±15 px** ab.
+Höhe der ruhigen Karte (Überwachung aktiv, kein Alarm), gemessen in Chromium mit simuliertem Home
+Assistant. Je nach Schrift weichen echte Geräte um **ca. ±15 px** ab. Ab 0.6.0 starten die Abschnitte
+„High-Flow-Bypass“ und „Lernmodell“ **aufgeklappt**; mit `collapsed: true` starten sie zu (Höhe wie 0.5.0).
 
-| Gerät / Ansicht | Kartenbreite | Spalten | 0.4.1 | 0.5.0 |
-|---|---|---|---|---|
-| schmales Telefon | 320 px | 1 | ca. 930 px | ca. 335 px |
-| iPhone 17 Pro (402×874) | ca. 386 px | 1 | ca. 884 px | ca. 335 px |
-| iPad / Raspberry Pi 7″ (800×480) in Masonry oder Sections | ca. 490–500 px | 1 | ca. 827 px | ca. 335 px |
-| Panel-Ansicht oder Abschnitt über ganze Breite (Tablet, Pi im Panel) | ≥ ca. 600 px (z. B. 744/768 px) | 2 | ca. 810 px | ca. 190 px |
+| Gerät / Ansicht | Kartenbreite | Spalten | 0.4.1 | 0.6.0 Standard (offen) | 0.6.0 `collapsed: true` |
+|---|---|---|---|---|---|
+| schmales Telefon | 320 px | 1 | ca. 930 px | ca. 615 px | ca. 335 px |
+| iPhone 17 Pro (402×874) | ca. 386 px | 1 | ca. 884 px | ca. 550 px | ca. 335 px |
+| iPad / Raspberry Pi 7″ quer (800×480) in Masonry oder Sections | ca. 490–500 px | 1 | ca. 827 px | ca. 550 px | ca. 335 px |
+| Raspberry Pi 7″ hochkant (480×800), Kiosk ohne Seitenleiste | ca. 448–464 px | 1 | – | ca. 550 px | ca. 335 px |
+| Panel-Ansicht oder Abschnitt über ganze Breite (Tablet, Pi im Panel) | ≥ ca. 600 px (z. B. 744/768 px) | 2 | ca. 810 px | ca. 465 px | ca. 190 px |
 
 Mit einem externen Sensor kommen ca. 80 px hinzu (ca. 415 px), mit aktivem Bypass bei schmaler Karte
-ca. 12 px (zweizeilige Zusammenfassung). Auf dem alten 7″-Display (800×480, ca. 420 px unter der
-HA-Leiste von 56 px) passt die ruhige einspaltige Karte damit ohne Scrollen; aufgeklappte Abschnitte oder
-ein Alarm brauchen mehr Platz.
+ca. 12 px (zweizeilige Zusammenfassung).
+
+**Raspberry Pi 7″ (altes offizielles Display):**
+
+- **Hochkant (480×800,** ca. 744 px unter der HA-Leiste von 56 px): Die Karte ist ca. 448–464 px breit
+  und passt mit dem **Standard (Abschnitte offen)** ohne Scrollen: ruhig ca. 550 px, Unterkante bei ca.
+  613 px (gemessen bei 448 und 464 px, DE/EN, ±15 px). Ein Alarm braucht mehr Platz (Display-Sitzung:
+  Burst ca. 850–880 px, Low Flow ca. 870–900 px); der Alarmkasten steht oben, der Rest wird gescrollt.
+  `collapsed: true` ist hier nicht nötig.
+- **Quer (800×480,** ca. 420 px unter der Leiste): Nur mit `collapsed: true` (ca. 335 px) passt die ruhige
+  Karte ohne Scrollen. `collapsed: true` braucht man also nur quer oder auf anderen niedrigen Bildschirmen.
 
 Für ein Wanddisplay oder den Pi eignet sich eine eigene Ansicht im Panel-Modus (zwei Spalten):
 
@@ -290,7 +300,12 @@ show_external: true
 show_learning: true
 show_background: true                 # Schutzschild mit Wasser im Kopf der Karte
 bypass_presets: [60, 120, 240]        # Minuten, 1–1440
+collapsed: false                      # true: Bypass und Lernmodell starten eingeklappt (z. B. 800×480 quer)
 ```
+
+`collapsed` (Editor: „Abschnitte eingeklappt starten“) bestimmt nur den Anfangszustand. Auf- und
+Zuklappen in der Karte bleibt pro Karte im Speicher, auch bei Aktualisierungen; eine Änderung der Option
+im Editor setzt beide Abschnitte auf den neuen Standard zurück.
 
 Das Hintergrundmotiv übernimmt die Kartenfarbe (grün, grau, gelb, rot). Im Alarm schwappt das Wasser
 an die rechte Wand. Bei `prefers-reduced-motion` steht es still.
@@ -361,8 +376,8 @@ vorhandenen Prüffunktionen.
 
 | Befehl | Felder | Wirkung | Prüfung im Backend beim Ausführen |
 |---|---|---|---|
-| `water_leak_detection/session` | – | Auskunft: `paired`, `recipient_id`, `recipient_name`, `home`, `tracker_entity`, `trusted_stationary`, `can_global_ack`, `can_external_reset` | nur Anzeige; jede Aktion prüft erneut |
-| `water_leak_detection/mute` | `event_id` | stummschalten **nur für dieses Gerät** | gekoppelt, Ereignis aktiv; überall erlaubt |
+| `water_leak_detection/session` | – | Auskunft: `paired`, `recipient_id`, `recipient_name`, `kind` (`mobile`/`display`), `home`, `tracker_entity` (bei einem Display `null`), `trusted_stationary`, `can_mute`, `can_global_ack`, `can_external_reset` | nur Anzeige; jede Aktion prüft erneut |
+| `water_leak_detection/mute` | `event_id` | stummschalten **nur für dieses Gerät** | gekoppelt, Ereignis aktiv, kein Wanddisplay (`mute_not_applicable`); überall erlaubt |
 | `water_leak_detection/acknowledge` | `event_id` | globale Quittierung | über `async_acknowledge_event`: Berechtigung, Device Tracker `home`, Ereignis aktiv, dauerhaft gespeichert vor Bestätigung |
 | `water_leak_detection/external_reset` | `event_id`, `source_id`, `source_generation` | externes Leck zurücksetzen | über `async_external_reset`: Berechtigung, `home`, exakte Ereignisbindung, dauerhaft gespeichert |
 
@@ -382,6 +397,45 @@ beenden weder Erkennung noch Alarm noch Absperranforderung.
 | `not_committed` | Konnte nicht dauerhaft gespeichert werden; nichts wurde veröffentlicht |
 | `rejected` | Sonstige Ablehnung durch die Prüffunktion |
 | `instance_not_found` | Instanz unbekannt oder mehrdeutig (`config_entry_id` angeben) |
+| `mute_not_applicable` | Ein Wanddisplay bekommt keine Benachrichtigungen; Stummschalten entfällt |
+
+### Wanddisplay (Empfängertyp `display`)
+
+Ein fest montiertes Display (TouchKio, Kiosk-Browser) wird unter *Konfigurieren →
+Benachrichtigungsempfänger → Wanddisplay hinzufügen* angelegt. Es hat keinen Benachrichtigungsdienst und
+keinen Device Tracker, bekommt nie Benachrichtigungen und gilt bei **jeder** Zuhause-Prüfung als
+zuhause (globale Quittierung, externer Reset, die alarmbeendenden Kartenaktionen). Es braucht eine
+Kopplung; Vorrang, Eindeutigkeit und „nur normale Anmeldungen“ gelten wie oben. Zwei Arten:
+
+- **„👤 Kiosk-Benutzer“:** nur ein eigener Benutzer, der aktiv ist, **weder Besitzer noch
+  Administrator** ist und von **keinem anderen Empfänger** genutzt wird – weder als Benutzer noch über eine
+  seiner Anmeldungen (Formularfehler `display_user_not_allowed` bzw. `display_user_in_use`). Umgekehrt
+  kann kein anderer Empfänger diesen Benutzer oder eine seiner Anmeldungen wählen
+  (`session_user_reserved_for_display`). **Achtung:** Bei einer Benutzer-Kopplung gilt **jede** Anmeldung
+  des Kiosk-Benutzers als das Display und damit als zuhause – auch eine Anmeldung aus der Ferne mit
+  seinem Passwort. Deshalb ein eigener Kiosk-Benutzer ohne Adminrechte mit eigenem, starkem Passwort, das
+  niemand anderswo verwendet.
+- **„🔑 Anmeldung“** (strenger): bindet die Rechte an genau die eine Sitzung des Kiosk-Geräts. Meldet sich
+  das Kiosk-Gerät neu an, muss die Kopplung erneuert werden. Nicht angeboten und abgelehnt
+  (`display_login_not_allowed`) werden Anmeldungen der Companion-App (Client-ID
+  `https://home-assistant.io/iOS…` oder `…/android…`, also Handy/Tablet) und Anmeldungen eines Benutzers,
+  den ein Handy-Empfänger nutzt; sonst wäre dieses Handy überall „zuhause“. Umgekehrt kann ein
+  Handy-Empfänger den Benutzer einer Display-Anmeldung nicht wählen.
+
+Alle Regeln zählen die Kopplungen **aller Instanzen** der Integration (Benutzer und Anmeldungen gehören
+Home Assistant, nicht einer Instanz).
+
+Dieselben Regeln gelten zur Laufzeit: Ein von Hand bearbeitetes Display, dessen Benutzer Besitzer oder
+Administrator ist oder auch in der Kopplung eines anderen Empfängers vorkommt (als Benutzer oder über eine
+seiner Anmeldungen), wird nie erkannt, ebenso nie über eine Companion-App-Anmeldung oder eine Anmeldung
+eines von einem Handy-Empfänger genutzten Benutzers; das Log nennt den Empfänger. Ein Display nutzt nie
+Benachrichtigungsaktionen: Die Aktion „Externes Leck zurücksetzen“ und der Dienst `external_reset`
+lehnen ein Display ab (sein Token verlässt den Server nie); zurücksetzen kann es nur über die Karte. Die Rechte sind die üblichen Häkchen
+des Empfängers; „Globales Quittieren“ ist bei einem Display ohne gespeicherten Wert aus. Die Karte blendet
+dort „Stummschalten“ aus und zeigt nie „Nur zuhause möglich“. Empfänger mit unbekannter oder leerer Art
+(`kind`) werden ignoriert und im Log gemeldet; sie bekommen keine Benachrichtigungen und dürfen nichts.
+Beispiel-Automation zum
+Einschalten des Displays bei Alarm: Wiki-Seite *Dashboard-Karte*, Abschnitt „Wanddisplay / TouchKio“.
 
 ## Entwicklungsstand
 

@@ -119,6 +119,8 @@ from .const import (
     RECIPIENT_ALLOW_GLOBAL_ACK,
     RECIPIENT_CRITICAL_ENABLED,
     RECIPIENT_ID,
+    RECIPIENT_KIND,
+    RECIPIENT_KIND_DISPLAY,
     RECIPIENT_NAME,
     RECIPIENT_NOTIFY_SERVICE,
     RECIPIENT_SESSION_TOKEN_ID,
@@ -129,6 +131,11 @@ from .const import (
     DetectorKind,
 )
 from .low_flow_options import low_stability_minutes
+from .notifications import (
+    display_login_problem,
+    kiosk_user_problem,
+    recipients_of_other_entries,
+)
 from .units import is_supported_flow_unit, is_supported_volume_unit
 
 SOURCE_ENTITIES = "entities"
@@ -157,6 +164,11 @@ _PAIR_USER = "user:"
 _PAIR_TOKEN = "token:"
 
 
+def _is_display(raw: dict[str, Any] | None) -> bool:
+    """Stationary display recipient (no notify service, no tracker, always Home)."""
+    return isinstance(raw, dict) and raw.get(RECIPIENT_KIND) == RECIPIENT_KIND_DISPLAY
+
+
 def _pairing_value(raw: dict[str, Any] | None) -> str:
     """Encoded select value of a stored recipient pairing (login wins over user)."""
     raw = raw or {}
@@ -180,7 +192,11 @@ def _recipient_description_placeholders(
             "configured_recipients": "—",
         }
 
-    lines = [f"- **{str(recipient.get(RECIPIENT_NAME) or '—')}**" for recipient in valid]
+    lines = [
+        f"- **{str(recipient.get(RECIPIENT_NAME) or '—')}**"
+        + (" 🖥" if _is_display(recipient) else "")
+        for recipient in valid
+    ]
 
     return {
         "recipient_count": str(len(valid)),
@@ -732,6 +748,8 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
         "add_recipient": "notifications",
         "edit_recipient": "notifications",
         "edit_recipient_details": "edit_recipient",
+        "add_display": "notifications",
+        "edit_display_details": "edit_recipient",
         "remove_recipient": "notifications",
         "add_external_sensor": "external_sensors",
         "edit_external_sensor": "external_sensors",
@@ -773,6 +791,7 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                     item
                     for item in self._raw_recipients()
                     if item.get(RECIPIENT_ID) == user_input["recipient_id"]
+                    and not _is_display(item)
                 ),
                 None,
             )
@@ -815,7 +834,7 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                                     label=str(raw.get(RECIPIENT_NAME, raw[RECIPIENT_ID])),
                                 )
                                 for raw in self._raw_recipients()
-                                if raw.get(RECIPIENT_ID)
+                                if raw.get(RECIPIENT_ID) and not _is_display(raw)
                             ]
                         )
                     ),
@@ -897,7 +916,7 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
     ) -> ConfigFlowResult:
         """Manage notification recipients."""
         recipients = self._raw_recipients()
-        menu_options = ["add_recipient"]
+        menu_options = ["add_recipient", "add_display"]
         if recipients:
             menu_options.extend(["edit_recipient", "remove_recipient"])
         menu_options.append("back_to_main")
@@ -1400,7 +1419,10 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
             elif any(raw.get(RECIPIENT_NOTIFY_SERVICE) == notify_service for raw in existing):
                 errors["base"] = "recipient_notify_service_exists"
             elif session_id is not None and (
-                session_error := self._session_error(str(session_id), sessions, existing, None)
+                session_error := self._kiosk_user_conflict(
+                    str(session_id), existing, None, mobile=True
+                )
+                or self._session_error(str(session_id), sessions, existing, None)
             ):
                 errors["base"] = session_error
             else:
@@ -1450,6 +1472,11 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
 
         if user_input is not None:
             self._editing_recipient_id = str(user_input[RECIPIENT_ID])
+            editing = self._editing_recipient_id
+            chosen = next((r for r in recipients if str(r.get(RECIPIENT_ID, "")) == editing), None)
+            # The kind is fixed after creation: a display has its own form.
+            if _is_display(chosen):
+                return await self.async_step_edit_display_details()
             return await self.async_step_edit_recipient_details()
 
         options = [
@@ -1489,6 +1516,8 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
         )
         if current is None:
             return self.async_abort(reason="recipient_not_found")
+        if _is_display(current):
+            return await self.async_step_edit_display_details()
 
         notify_services = self._mobile_notify_services()
         current_service = str(current.get(RECIPIENT_NOTIFY_SERVICE, ""))
@@ -1515,9 +1544,10 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                 session_id is not None
                 and session_id != current_pairing
                 and (
-                    session_error := self._session_error(
-                        str(session_id), sessions, recipients, recipient_id
+                    session_error := self._kiosk_user_conflict(
+                        str(session_id), recipients, recipient_id, mobile=True
                     )
+                    or self._session_error(str(session_id), sessions, recipients, recipient_id)
                 )
             ):
                 errors["base"] = session_error
@@ -1559,6 +1589,175 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
                 notify_services,
                 current=current,
                 sessions=session_options,
+            ),
+            errors=errors,
+            description_placeholders=_recipient_description_placeholders(recipients),
+        )
+
+    def _display_schema(
+        self, session_options: list[SelectOptionDict], current: dict[str, Any] | None = None
+    ) -> probatio.Schema:
+        """Form of a stationary display: name, required pairing, permissions only.
+
+        A display has no notify service, no device tracker and no notification
+        settings; it is always treated as Home. "—" (no pairing) is not offered.
+        Users (👤) and single logins (🔑) are offered; a user is only accepted if
+        it is a dedicated kiosk user (validated on submit, see kiosk_user_problem).
+        """
+        current = current or {}
+        options = [o for o in session_options if o["value"] != _NO_PAIRING]
+        # (Logins a display may not use are already removed by _display_options.)
+        paired = _pairing_value(current)
+        pairing_key = (
+            probatio.Required(FORM_SESSION_PAIRING, default=paired)
+            if paired != _NO_PAIRING and paired in {o["value"] for o in options}
+            else probatio.Required(FORM_SESSION_PAIRING)
+        )
+        return probatio.Schema(
+            {
+                probatio.Required(
+                    RECIPIENT_NAME, default=current.get(RECIPIENT_NAME, "")
+                ): TextSelector(),
+                pairing_key: SelectSelector(SelectSelectorConfig(options=options)),
+                probatio.Required(
+                    RECIPIENT_ALLOW_GLOBAL_ACK,
+                    default=current.get(RECIPIENT_ALLOW_GLOBAL_ACK, False) is True,
+                ): BooleanSelector(),
+                probatio.Required(
+                    RECIPIENT_ALLOW_EXTERNAL_RESET,
+                    default=current.get(RECIPIENT_ALLOW_EXTERNAL_RESET) is True,
+                ): BooleanSelector(),
+            }
+        )
+
+    async def async_step_add_display(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Add a stationary wall display (e.g. TouchKio): no push, always Home."""
+        if user_input is not None and user_input.get("go_back"):
+            return await self.async_step_notifications()
+        if error := self._navigation_error("add_display", user_input):
+            return error
+        existing = self._raw_recipients()
+        sessions, session_options = await self._session_choices(existing, None)
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            name = str(user_input[RECIPIENT_NAME]).strip()
+            session_id = str(user_input.get(FORM_SESSION_PAIRING) or _NO_PAIRING)
+            if not name:
+                errors["base"] = "recipient_name_required"
+            elif session_id == _NO_PAIRING:
+                errors["base"] = "display_pairing_required"
+            # The kiosk-user rule first: its error explains more than "already paired".
+            elif session_error := (
+                await self._display_user_error(session_id, existing, None)
+                or self._display_login_error(session_id, existing, None)
+                or self._session_error(session_id, sessions, existing, None)
+                or self._kiosk_user_conflict(session_id, existing, None)
+            ):
+                errors["base"] = session_error
+            else:
+                display = self._apply_session(
+                    {
+                        RECIPIENT_ID: uuid4().hex[:10],
+                        RECIPIENT_KIND: RECIPIENT_KIND_DISPLAY,
+                        RECIPIENT_NAME: name,
+                        RECIPIENT_ALLOW_GLOBAL_ACK: user_input.get(RECIPIENT_ALLOW_GLOBAL_ACK)
+                        is True,
+                        RECIPIENT_ALLOW_EXTERNAL_RESET: user_input.get(
+                            RECIPIENT_ALLOW_EXTERNAL_RESET
+                        )
+                        is True,
+                        RECIPIENT_TOKEN: token_urlsafe(12),
+                    },
+                    session_id,
+                )
+                updated = dict(self.config_entry.options)
+                updated[CONF_NOTIFICATION_RECIPIENTS] = [*existing, display]
+                await self._persist_options(updated)
+                return await self.async_step_notifications()
+
+        return self.async_show_form(
+            step_id="add_display",
+            last_step=False,
+            data_schema=self._display_schema(
+                self._display_options(session_options, existing, None)
+            ),
+            errors=errors,
+            description_placeholders=_recipient_description_placeholders(existing),
+        )
+
+    async def async_step_edit_display_details(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Edit a stationary display; its kind, id and token stay unchanged."""
+        if user_input is not None and user_input.get("go_back"):
+            return await self.async_step_edit_recipient()
+        if error := self._navigation_error("edit_display_details", user_input):
+            return error
+        recipient_id = self._editing_recipient_id
+        recipients = self._raw_recipients()
+        current = next(
+            (raw for raw in recipients if str(raw.get(RECIPIENT_ID, "")) == recipient_id),
+            None,
+        )
+        if current is None:
+            return self.async_abort(reason="recipient_not_found")
+        if not _is_display(current):
+            # The kind is fixed: a mobile recipient keeps its own form.
+            return await self.async_step_edit_recipient_details()
+        sessions, session_options = await self._session_choices(recipients, recipient_id, current)
+        current_pairing = _pairing_value(current)
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            name = str(user_input[RECIPIENT_NAME]).strip()
+            session_id = str(user_input.get(FORM_SESSION_PAIRING) or _NO_PAIRING)
+            if not name:
+                errors["base"] = "recipient_name_required"
+            elif session_id == _NO_PAIRING:
+                errors["base"] = "display_pairing_required"
+            # The kiosk-user rule is checked first and even for an unchanged
+            # pairing, so a display never keeps a user pairing that became invalid.
+            elif session_error := (
+                await self._display_user_error(session_id, recipients, recipient_id)
+                or self._display_login_error(session_id, recipients, recipient_id)
+                or (
+                    self._session_error(session_id, sessions, recipients, recipient_id)
+                    if session_id != current_pairing
+                    else None
+                )
+                or self._kiosk_user_conflict(session_id, recipients, recipient_id)
+            ):
+                errors["base"] = session_error
+            else:
+                replacement = {
+                    RECIPIENT_ID: str(current[RECIPIENT_ID]),
+                    RECIPIENT_KIND: RECIPIENT_KIND_DISPLAY,
+                    RECIPIENT_NAME: name,
+                    RECIPIENT_ALLOW_GLOBAL_ACK: user_input.get(RECIPIENT_ALLOW_GLOBAL_ACK) is True,
+                    RECIPIENT_ALLOW_EXTERNAL_RESET: user_input.get(RECIPIENT_ALLOW_EXTERNAL_RESET)
+                    is True,
+                    RECIPIENT_TOKEN: str(current[RECIPIENT_TOKEN]),
+                }
+                for key in (RECIPIENT_SESSION_TOKEN_ID, RECIPIENT_SESSION_USER_ID):
+                    if isinstance(current.get(key), str):
+                        replacement[key] = current[key]
+                if session_id != current_pairing:
+                    replacement = self._apply_session(replacement, session_id)
+                updated = dict(self.config_entry.options)
+                updated[CONF_NOTIFICATION_RECIPIENTS] = [
+                    replacement if str(raw.get(RECIPIENT_ID, "")) == recipient_id else raw
+                    for raw in recipients
+                ]
+                await self._persist_options(updated)
+                self._editing_recipient_id = None
+                return await self.async_step_notifications()
+
+        return self.async_show_form(
+            step_id="edit_display_details",
+            last_step=False,
+            data_schema=self._display_schema(
+                self._display_options(session_options, recipients, recipient_id), current
             ),
             errors=errors,
             description_placeholders=_recipient_description_placeholders(recipients),
@@ -1674,6 +1873,108 @@ class WaterLeakOptionsFlow(_NavigationForms, OptionsFlowWithReload):
             for raw in recipients
         ):
             return already
+        return None
+
+    def _token(self, token_id: str) -> RefreshToken | None:
+        auth = getattr(self.hass, "auth", None)
+        return auth.async_get_refresh_token(token_id) if auth is not None else None
+
+    def _other_recipients(
+        self, recipients: list[dict[str, Any]], editing_id: str | None
+    ) -> list[dict[str, Any]]:
+        """Every other recipient: this entry's (without the edited one) and other instances'."""
+        own = [raw for raw in recipients if str(raw.get(RECIPIENT_ID, "")) != (editing_id or "")]
+        return own + recipients_of_other_entries(self.hass, self.config_entry.entry_id)
+
+    async def _display_user_error(
+        self, session_id: str, recipients: list[dict[str, Any]], editing_id: str | None
+    ) -> str | None:
+        """A display's user pairing must be a dedicated kiosk user.
+
+        A display is always Home and a user pairing covers every login of that
+        user, also a remote one with its password. So the user must be active,
+        neither owner nor administrator, and not used by any other recipient's
+        pairing (as user or through one of its logins, in any instance).
+        """
+        if not session_id.startswith(_PAIR_USER):
+            return None
+        user = (await self._pairable_users()).get(session_id.removeprefix(_PAIR_USER))
+        if user is None:
+            return "session_user_not_found"
+        others = self._other_recipients(recipients, editing_id)
+        return {
+            "not_allowed": "display_user_not_allowed",
+            "in_use": "display_user_in_use",
+        }.get(kiosk_user_problem(self.hass, user, others) or "")
+
+    def _display_login_error(
+        self, session_id: str, recipients: list[dict[str, Any]], editing_id: str | None
+    ) -> str | None:
+        """A display's login pairing must be the kiosk browser's own login.
+
+        Refused: a Companion app login (a phone or tablet, which would then be
+        "home" everywhere) and any login of a user that a mobile recipient's
+        pairing uses. A login that no longer exists is left to _session_error.
+        """
+        if not session_id.startswith(_PAIR_TOKEN):
+            return None
+        token = self._token(session_id.removeprefix(_PAIR_TOKEN))
+        if token is None:
+            return None
+        others = self._other_recipients(recipients, editing_id)
+        return (
+            "display_login_not_allowed" if display_login_problem(self.hass, token, others) else None
+        )
+
+    def _display_options(
+        self,
+        session_options: list[SelectOptionDict],
+        recipients: list[dict[str, Any]],
+        editing_id: str | None,
+    ) -> list[SelectOptionDict]:
+        """Pairing choices of a display: no "—" and no login it may not use."""
+        return [
+            option
+            for option in session_options
+            if option["value"] != _NO_PAIRING
+            and not self._display_login_error(option["value"], recipients, editing_id)
+        ]
+
+    def _kiosk_user_conflict(
+        self,
+        session_id: str,
+        recipients: list[dict[str, Any]],
+        editing_id: str | None,
+        *,
+        mobile: bool = False,
+    ) -> str | None:
+        """The reverse display rules for every recipient form.
+
+        A user that a wall display is paired with is reserved for that display:
+        no other recipient may be paired with that user or with one of its
+        logins. For a mobile recipient additionally the user of a display's
+        paired login is reserved (otherwise the display would stop working).
+        Displays of other instances count as well.
+        """
+        if session_id.startswith(_PAIR_USER):
+            user_id: str | None = session_id.removeprefix(_PAIR_USER)
+        elif session_id.startswith(_PAIR_TOKEN):
+            token = self._token(session_id.removeprefix(_PAIR_TOKEN))
+            user_id = token.user.id if token is not None else None
+        else:
+            return None
+        if not user_id:
+            return None
+        for raw in self._other_recipients(recipients, editing_id):
+            if not _is_display(raw):
+                continue
+            pairing = _pairing_value(raw)
+            if pairing == f"{_PAIR_USER}{user_id}":
+                return "session_user_reserved_for_display"
+            if mobile and pairing.startswith(_PAIR_TOKEN):
+                token = self._token(pairing.removeprefix(_PAIR_TOKEN))
+                if token is not None and token.user.id == user_id:
+                    return "session_user_reserved_for_display"
         return None
 
     @staticmethod
