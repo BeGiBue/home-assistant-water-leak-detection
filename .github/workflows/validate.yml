@@ -41,3 +41,12 @@ jobs:
         run: ruff check .
       - name: Test
         run: pytest -q
+      - name: TEMP failure details
+        if: always()
+        run: |
+          pytest -q -p no:cacheprovider -rf --tb=short tests/test_ui_metadata.py > /tmp/out.txt 2>&1 || true
+          pytest -q -p no:cacheprovider | grep -E "^FAILED|passed|failed" > /tmp/all.txt 2>&1 || true
+          python - <<'PY'
+          t = open("/tmp/out.txt").read()[-6000:] + "\n==ALL==\n" + open("/tmp/all.txt").read()[-3000:]
+          print("::error::" + t.replace("%", "%25").replace("\r", "").replace("\n", "%0A"))
+          PY
