@@ -34,6 +34,11 @@ def validate_external_snapshot(raw: dict) -> None:
         for record in raw.get(role, []):
             if role == "external_alarm_ledger" or record.get("tombstone") is True:
                 _validate_retained_alarm(record)
+            elif role == "external_sources":
+                # F04-FSR-H01: a configured source's own record is safety
+                # evidence as well. A damaged one must not become ARMED
+                # (dropped) or an alarm with an invented identity.
+                _validate_source_record(record)
             if record.get("phase") not in (
                 ExternalPhase.ARMED.value,
                 ExternalPhase.RESET_WAITING_FOR_OFF.value,
@@ -75,6 +80,50 @@ def _validate_retained_alarm(record: dict) -> None:
         raise ValueError(
             "Contradictory or uninterpretable retained external alarm; restore a verified backup"
         )
+
+
+_SOURCE_DAMAGED = "Uninterpretable external source record (F04-FSR-H01); restore a verified backup"
+
+
+def _optional(record: dict, key: str, kind: type) -> bool:
+    """Absent (older writers) or None, else exactly the expected type."""
+    value = record.get(key)
+    return value is None or (isinstance(value, kind) and not isinstance(value, bool))
+
+
+def _validate_source_record(record: dict) -> None:
+    """Every field a writer of this schema produces must be interpretable.
+
+    The phase decides whether an alarm and its shutoff contribution exist, so it
+    is never guessed: a missing/unknown phase, an ACTIVE record without a valid
+    Event-ID or aware start time, or damaged identity, routing or safety flags
+    raise into the Store recovery barrier (alarm and shutoff held, original bytes
+    kept, reset/ACK blocked, repair issue). Missing optional metadata of older
+    writers (name, registry data, flags) is accepted; a wrong type is not.
+    """
+    phase = record.get("phase")
+    started = record.get("started_at")
+    if (
+        phase not in tuple(item.value for item in ExternalPhase)
+        or not all(
+            valid_id(record.get(key)) for key in ("source_id", "generation", "learning_epoch")
+        )
+        or not isinstance(record.get("entity_id"), str)
+        or not record["entity_id"].startswith("binary_sensor.")
+        or not isinstance(record.get("contributes_to_shutoff"), bool)
+        or not isinstance(record.get("tombstone", False), bool)
+        or not isinstance(record.get("identity_conflict", False), bool)
+        or not _optional(record, "name", str)
+        or not _optional(record, "registry_id", str)
+        or not _optional(record, "identity_signature", str)
+        or not _optional(record, "reset_nonce", str)
+        or (started is not None and parse_datetime(started) is None)
+        or (
+            phase == ExternalPhase.ACTIVE.value
+            and (not valid_id(record.get("event_id")) or parse_datetime(started) is None)
+        )
+    ):
+        raise ValueError(_SOURCE_DAMAGED)
 
 
 @dataclass(slots=True)

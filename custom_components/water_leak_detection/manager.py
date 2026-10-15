@@ -272,6 +272,19 @@ class WaterLeakManager:
         if existed and not isinstance(stored, dict):
             self._storage_load_failed = True
             stored = None
+        if not existed and self._corrupt_store_copies():
+            # F04-FSR-H01: HA renames a Store file that is not valid JSON (e.g.
+            # NaN, truncation) to "<file>.corrupt.<time>" and loads nothing. The
+            # first start after that already holds the barrier above; without
+            # this check the next start would look like a new installation and
+            # silently drop persisted alarms and shutoff contributions.
+            _LOGGER.error(
+                "Runtime store %s is missing but a corrupt copy exists; holding alarm "
+                "and shutoff until a verified backup is restored",
+                self._store.path,
+            )
+            self._storage_load_failed = True
+            stored = None
         if not self._storage_load_failed:
             stored = migrate_snapshot(
                 stored, self.measurement_source, dt_util.utcnow(), self.entry.entry_id
@@ -1382,6 +1395,11 @@ class WaterLeakManager:
                 controller.sources.pop(source_id)
             else:
                 controller.remove(source_id)
+
+    def _corrupt_store_copies(self) -> list[Path]:
+        """Copies HA's Store kept of an unreadable runtime file ("<file>.corrupt.<time>")."""
+        path = Path(self._store.path)
+        return sorted(path.parent.glob(f"{path.name}.corrupt.*")) if path.parent.is_dir() else []
 
     def _ensure_storage_writable(self) -> None:
         if self._storage_load_failed:
