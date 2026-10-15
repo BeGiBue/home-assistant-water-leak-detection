@@ -168,12 +168,15 @@ async def test_loader_is_kept_while_other_entries_exist(runtime_hass, runtime_en
     assert len(loaders(collection)) == 1
 
 
-async def test_yaml_mode_or_no_lovelace_only_uses_the_extra_module(runtime_hass):
+async def test_yaml_mode_or_no_lovelace_only_uses_the_extra_module(runtime_hass, caplog):
     runtime_hass.data[LOVELACE_DATA] = SimpleNamespace(
         resource_mode="yaml", resources=ResourceYAMLCollection([])
     )
     loaded = with_frontend(runtime_hass, FakeHttp())
-    url = await async_register_card(runtime_hass)
+    with caplog.at_level(logging.WARNING):
+        url = await async_register_card(runtime_hass)
+    # YAML resources are skipped on purpose, not by an error.
+    assert "loader resource" not in caplog.text
     assert loaded == {url} and runtime_hass.data[LOVELACE_DATA].resources.async_items() == []
     runtime_hass.data.pop(LOVELACE_DATA)
     runtime_hass.data.pop(DATA_CARD_URL)
