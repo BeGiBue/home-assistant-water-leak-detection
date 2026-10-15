@@ -42,23 +42,34 @@ DATA_CARD_URL = f"{DOMAIN}_card_url"
 CARD_TAG = "water-leak-guard-card"
 LOADER_MARKER = "water-leak-guard-card loader"
 _LOADER_PREFIX = "data:text/javascript;charset=utf-8,"
+LOADER_GRACE_MS = 3000
 
 
 def loader_url(card_url: str) -> str:
     """The Lovelace resource: a data: module that loads the card, with retries.
 
     It needs no server route, so it works even when the dashboard loads before
-    the integration serves the card. A retry adds a query parameter, because a
-    browser may remember a failed module URL. With the card already defined
-    (extra module loaded) it does nothing; the same URL is never evaluated twice.
+    the integration serves the card. It first waits up to LOADER_GRACE_MS for the
+    page's own extra module to define the card (then it does nothing, so a cached
+    page with an older digest does not run a second copy). A retry adds a query
+    parameter, because a browser may remember a failed module URL. Retries stop
+    after 40 attempts, or after three failures once HA reports RUNNING (e.g. the
+    files were removed but the resource was not).
     """
     source = (
         f"/* {LOADER_MARKER}: managed by the Water Leak Guard integration */"
-        f"(()=>{{const T={json.dumps(CARD_TAG)},U={json.dumps(card_url)};let n=0;"
+        f"(()=>{{const T={json.dumps(CARD_TAG)},U={json.dumps(card_url)};let n=0,r=0;"
+        # Stop after repeated failures once HA reports RUNNING (files removed, e.g.).
+        "const running=()=>"
+        "document.querySelector('home-assistant')?.hass?.config?.state==='RUNNING';"
         "const go=()=>{if(customElements.get(T))return;"
         "const u=new URL(U,location.origin);if(n)u.searchParams.set('retry',String(n));"
-        "import(u.href).catch(()=>{n+=1;if(n<=40)setTimeout(go,Math.min(30000,1000*2**Math.min(n,5)));});};"
-        "go();})();"
+        "import(u.href).catch(()=>{n+=1;if(running())r+=1;"
+        "if(n<=40&&r<3)setTimeout(go,Math.min(30000,1000*2**Math.min(n,5)));});};"
+        # Give the page's own extra module a moment: no second copy when it defines the card.
+        "Promise.race([customElements.whenDefined(T),"
+        f"new Promise((d)=>setTimeout(d,{LOADER_GRACE_MS}))])"
+        ".then(go);})();"
     )
     return _LOADER_PREFIX + quote(source, safe="")
 

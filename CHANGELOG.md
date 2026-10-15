@@ -2,14 +2,15 @@
 
 ## Unreleased
 
-- Dashboard card 0.6.2: fixed the empty "Configuration error" card on startup (e.g. iPad Companion
-  app) that only a reload removed. HA's first `hass` object has `states: null` (and null
-  `entities`/`devices`) while connecting; the card's `hass` setter read `hass.states[...]` and threw,
-  and HA's `hui-card` then replaced the card for the rest of the page's life. The card now handles
-  missing/null states, registry entries and attribute shapes, shows "Loading …" until states arrive,
-  never throws from `hass`/`getCardSize`, renders a small "Loading …" fallback on any render error
-  (logged once, retried on the next update) and, if an alarm is readable, keeps an alarm line in
-  that fallback.
+- Dashboard card 0.6.2 (hardening, a precaution): the `hass` setter, `getCardSize` and the render
+  path never throw any more. HA replaces a card whose `hass` setter throws by an empty
+  "Configuration error" card until the page is reloaded (`hui-card.ts`, `update()`). The card now
+  tolerates missing/null states, registry entries and attribute shapes, and on any render error it
+  logs `water-leak-guard-card: render failed, retrying on the next update` once to the browser
+  console, shows a small "Loading …" state (with an alarm line if an alarm is readable) and retries
+  on the next update. The likely cause of the iPad "Configuration error" is the module load timing
+  addressed by the loader resource below, not a throwing setter: HA renders panels only once
+  states, config and services exist (`home-assistant.ts`).
 - Dashboard card: fixed "Configuration error" instead of the card until a reload (e.g. iPad Companion
   app after an HA restart). HA writes extra modules into the page only when serving it, serves the
   frontend before custom integrations are set up, and never re-requests them; HA's

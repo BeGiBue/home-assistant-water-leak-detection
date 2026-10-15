@@ -679,10 +679,10 @@ class WaterLeakGuardCard extends HTMLElement {
   }
 
   /**
-   * Never throws: Home Assistant replaces a card whose `hass` setter throws by
-   * an empty "configuration error" card for the rest of the page's life
-   * (hui-card.ts, update()). An incomplete hass (startup) renders the fallback
-   * and the next update tries again.
+   * Never throws (precaution): Home Assistant replaces a card whose `hass`
+   * setter throws by an empty "configuration error" card for the rest of the
+   * page's life (hui-card.ts, update()). A render error shows the fallback,
+   * logs "render failed …" and the next update tries again.
    */
   set hass(hass) {
     this._hass = hass;
@@ -819,9 +819,8 @@ class WaterLeakGuardCard extends HTMLElement {
     const ids = Object.values(resolveEntities(this._hass, this._statusEntity));
     // External sensors are other integrations' entities; their live availability
     // decides between "dry" and "unavailable", so they must trigger a re-render too.
-    // HA's first hass object has `states: null` (connection-mixin) until the
-    // states arrive; reading `states[id]` then threw and HA replaced the card
-    // by an empty "configuration error" card until the page was reloaded.
+    // Precaution: HA renders panels only once states exist (home-assistant.ts),
+    // but a hass without states must still never throw from the setter.
     const states = this._hass.states || {};
     const status = states[this._resolvedStatusId];
     for (const src of sourceList(status?.attributes)) {
@@ -1116,7 +1115,7 @@ class WaterLeakGuardCard extends HTMLElement {
     }
     const t = translator(this._hass);
     if (!this._hass.states) {
-      // HA's first hass object while connecting: states not loaded yet.
+      // Precaution: no states yet (HA normally renders panels only with states).
       this.shadowRoot.innerHTML = `<style>${STYLES}</style><ha-card><div class="empty">${esc(t("loading"))}</div></ha-card>`;
       return;
     }

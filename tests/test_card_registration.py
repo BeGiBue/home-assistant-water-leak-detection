@@ -204,3 +204,31 @@ def test_loader_source_is_valid_javascript(tmp_path):
     script = tmp_path / "loader.mjs"
     script.write_text(source)
     subprocess.run(["node", "--check", str(script)], check=True)
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_loader_waits_for_the_page_module_retries_and_stops(tmp_path):
+    """Runs the generated loader in tests/card/loader_harness.mjs (fake page, instant timers)."""
+    source = unquote(loader_url(f"{CARD_URL}?v=abc").split(",", 1)[1])
+    script = tmp_path / "loader.js"
+    script.write_text(source)
+    harness = Path(__file__).parent / "card" / "loader_harness.mjs"
+    result = json.loads(
+        subprocess.run(
+            ["node", str(harness), str(script)], check=True, capture_output=True, text=True
+        ).stdout
+    )
+    base = f"http://ha.local:8123{CARD_URL}?v=abc"
+    # The page's own extra module defined the card in time: no second copy.
+    assert result["defined_within_grace"]["imports"] == []
+    # Served late: retries with a fresh query until the card loads, then stops.
+    assert result["served_after_two_failures"]["imports"] == [
+        base,
+        f"{base}&retry=1",
+        f"{base}&retry=2",
+    ]
+    # Files removed but resource left: stops after three failures once HA is RUNNING ...
+    assert len(result["files_missing_ha_running"]["imports"]) == 3
+    # ... while HA is still starting it keeps trying, but at most 41 times.
+    assert len(result["files_missing_ha_starting"]["imports"]) == 41
+    assert max(result["files_missing_ha_starting"]["delays"]) == 30000

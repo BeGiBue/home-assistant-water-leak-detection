@@ -553,6 +553,54 @@ test("a render error shows Loading, never hides an active alarm, and recovers", 
   }
 });
 
+test("fallback alarm line from each single alarm signal; none without an alarm", async () => {
+  const signals = {
+    aggregate_only: (h) => {
+      h.states[K.status] = { ...h.states[K.status], state: "idle", attributes: { ...h.states[K.status].attributes, aggregate_alarm_active: true } };
+    },
+    status_only: (h) => {
+      h.states[K.status] = { ...h.states[K.status], state: "low_flow", attributes: { ...h.states[K.status].attributes, aggregate_alarm_active: false } };
+    },
+    leak_alarm_only: (h) => {
+      h.states[K.leak_alarm] = { ...h.states[K.leak_alarm], state: "on" };
+    },
+    none: () => {},
+  };
+  const original = console.error;
+  console.error = () => {};
+  try {
+    for (const [name, apply] of Object.entries(signals)) {
+      const card = await mount();
+      card._renderCard = () => { throw new Error(`boom ${name}`); };
+      const h = hass();
+      apply(h);
+      card._signature = "";
+      card.hass = h;
+      assert.ok(html(card).includes("Lädt"), name);
+      assert.equal(html(card).includes('class="fallback-alarm"'), name !== "none", name);
+      card.disconnectedCallback();
+    }
+  } finally {
+    console.error = original;
+  }
+});
+
+test("the hass setter never throws, even when an alarm/session step throws", async () => {
+  const original = console.error;
+  console.error = () => {};
+  try {
+    const card = await mount();
+    card._alarmActive = () => { throw new Error("alarm step"); };
+    assert.doesNotThrow(() => { card.hass = hass({ alarm: "burst_leak" }); });
+    card._alarmActive = () => false;
+    card._trackerState = () => { throw new Error("tracker step"); };
+    assert.doesNotThrow(() => { card.hass = hass(); });
+    card.disconnectedCallback();
+  } finally {
+    console.error = original;
+  }
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {
