@@ -11,7 +11,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import translation
 
-from .card import async_register_card
+from .card import async_register_card, async_remove_loader_resource
 from .const import (
     ATTR_CONFIG_ENTRY_ID,
     ATTR_DURATION_MINUTES,
@@ -230,3 +230,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     manager: WaterLeakManager = hass.data[DOMAIN].pop(entry.entry_id)
     await manager.async_unload()
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove the dashboard card loader resource with the last entry."""
+    if not any(
+        other.entry_id != entry.entry_id for other in hass.config_entries.async_entries(DOMAIN)
+    ):
+        await async_remove_loader_resource(hass)

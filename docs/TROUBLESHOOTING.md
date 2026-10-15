@@ -103,6 +103,34 @@ The integration exposes source unavailability and suspends incomplete learning e
    cache*, then reopen the app.
 4. In *Add card* search for "Water Leak Guard"; custom cards are listed below the built-in cards.
 
+**"Configuration error" ("Konfigurationsfehler") instead of the card, a reload fixes it.** Most likely
+the page did not get the card module in time. HA writes extra modules into the start page only when
+it serves the page, serves the frontend before custom integrations are set up and never asks again;
+the Companion app and the browser's service worker may also show a cached start page from such a
+moment (without the module, or with an older `?v=` digest). HA then shows its error card after two
+seconds and waits for the card element. Since the H01 fix branch the integration also keeps a small
+Lovelace resource (*Settings → Dashboards → ⋮ → Resources*, a `data:text/javascript…` entry
+"water-leak-guard-card loader"). It needs no server request, waits briefly for the card, then loads
+it as soon as the integration serves it (with retries), and HA replaces the error card by itself.
+Do not delete that entry; it is removed when the last Water Leak Guard entry is removed. With
+resources in YAML mode (`lovelace: resource_mode: yaml`) the integration cannot add it: add the same
+entry yourself or reload the page after HA has started.
+
+- *Two copies of the card code.* A cached start page with an older `?v=` digest and the loader with
+  the current one can both load the card file. The first one defines the element; the second only
+  logs the "version … is already loaded" warning if the versions differ (the define guard prevents
+  any error). The loader skips its import when the card gets defined within a few seconds.
+- *Card 0.6.2 hardening.* The card's `hass` setter and render path no longer throw. If a render
+  error happens anyway, the browser console shows `water-leak-guard-card: render failed, retrying on
+  the next update`, the card shows "Loading …" (plus an alarm line if an alarm is active) and tries
+  again on the next update. Please include that console line in a bug report.
+
+**Uninstall in this order.** First remove all Water Leak Guard entries under *Settings → Devices &
+services* (this also removes the loader resource), then remove the integration in HACS and restart.
+If the files are removed first, the loader resource stays: delete the "water-leak-guard-card
+loader" entry under *Resources* by hand. Until then it tries to load the missing card a few times
+and stops once Home Assistant reports that it has fully started.
+
 **Console warning "version … is already loaded".** An older, manually added resource
 `/local/water-leak-guard-card.js` is still present. Remove it under *Settings → Dashboards → ⋮ →
 Resources* and delete the file from `<config>/www/`.

@@ -29,6 +29,7 @@ from test_config_runtime import options_flow
 from test_external_reset_runtime import configured
 
 from custom_components.water_leak_detection import notifications as notifications_module
+from custom_components.water_leak_detection.config_flow import DISPLAY_AUTOMATION_URL
 from custom_components.water_leak_detection.const import (
     ACTION_ACK_ALL,
     ACTION_EXTERNAL_RESET,
@@ -344,6 +345,8 @@ async def test_display_form_accepts_a_kiosk_user_or_a_login_and_keeps_mobile_unc
     assert "add_display" in menu["menu_options"]
 
     form = await flow.async_step_add_display()
+    # The description links to the wiki automation example (URL as placeholder).
+    assert form["description_placeholders"]["automation_url"] == DISPLAY_AUTOMATION_URL
     fields = {str(key) for key in form["data_schema"].schema}
     assert fields >= {"name", "session_pairing", "allow_global_ack", "allow_external_reset"}
     assert not fields & {"notify_service", "tracker_entity", "critical_enabled"}
@@ -404,6 +407,7 @@ async def test_display_form_accepts_a_kiosk_user_or_a_login_and_keeps_mobile_unc
     flow._editing_recipient_id = wall["id"]
     form = await flow.async_step_edit_recipient({"id": wall["id"]})
     assert form["step_id"] == "edit_display_details"
+    assert form["description_placeholders"]["automation_url"] == DISPLAY_AUTOMATION_URL
     values = form["data_schema"]({"name": "Flur oben", "allow_external_reset": True})
     await flow.async_step_edit_display_details(values)
     edited = recipients_by_id(runtime_entry)[wall["id"]]

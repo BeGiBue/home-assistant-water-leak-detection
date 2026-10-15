@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import glob
 import logging
 from collections.abc import Callable
 from copy import deepcopy
@@ -270,6 +271,21 @@ class WaterLeakManager:
             stored = self._store.recovered_data
             self._storage_load_failed = stored is None
         if existed and not isinstance(stored, dict):
+            self._storage_load_failed = True
+            stored = None
+        if not existed and await self._corrupt_store_copies():
+            # F04-FSR-H01: HA renames a Store file that is not valid JSON (e.g.
+            # NaN, truncation) to "<file>.corrupt.<time>" and loads nothing. The
+            # first start after that already holds the barrier above; without
+            # this check the next start would look like a new installation and
+            # silently drop persisted alarms and shutoff contributions. This holds
+            # for every installation, hydraulic-only too: hydraulic alarms in that
+            # file are safety evidence as well (maintainer decision, fail-safe).
+            _LOGGER.error(
+                "Runtime store %s is missing but a corrupt copy exists; holding alarm "
+                "and shutoff until a verified backup is restored",
+                self._store.path,
+            )
             self._storage_load_failed = True
             stored = None
         if not self._storage_load_failed:
@@ -1382,6 +1398,21 @@ class WaterLeakManager:
                 controller.sources.pop(source_id)
             else:
                 controller.remove(source_id)
+
+    async def _corrupt_store_copies(self) -> list[Path]:
+        """Copies HA's Store kept of this entry's unreadable runtime file.
+
+        HA names them "<file>.corrupt.<time>"; only this exact file name counts,
+        never another entry's or another Store key's copy. Runs in the executor.
+        """
+        path = Path(self._store.path)
+
+        def scan() -> list[Path]:
+            if not path.parent.is_dir():
+                return []
+            return sorted(path.parent.glob(f"{glob.escape(path.name)}.corrupt.*"))
+
+        return await self.hass.async_add_executor_job(scan)
 
     def _ensure_storage_writable(self) -> None:
         if self._storage_load_failed:

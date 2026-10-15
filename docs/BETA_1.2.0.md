@@ -13,9 +13,12 @@ die unten genannten Voraussetzungen; H01 ist nicht allgemein geschlossen.
 
 ## Voraussetzung: hydraulischer Einsatz ohne externe Sensoren
 
-F04-FSR-H01 bleibt ein offenes Sicherheitsfinding bei beschädigten gespeicherten
-Alarmdaten aktuell eingebundener externer Wassermelder. Externe Sensoren sind
-deshalb nicht uneingeschränkt für diese Beta freigegeben.
+F04-FSR-H01 war für diese Beta ein offenes Sicherheitsfinding bei beschädigten
+gespeicherten Alarmdaten aktuell eingebundener externer Wassermelder. Externe Sensoren
+sind deshalb nicht uneingeschränkt für diese Beta freigegeben. **Nachtrag:** H01 ist im
+Branch `fix/f04-fsr-h01` behoben (noch nicht veröffentlicht); Definition, Fallliste und
+Restgrenzen: [F04-FSR-H01](F04_FSR_H01.md). Für die veröffentlichten Betas gilt die
+Einschränkung unverändert.
 
 Vor Installation die bestehende vollständige HA-Konfiguration und Runtime-Datei
 sichern. Prüfen, dass keine externen Sensoren konfiguriert sind und die gespeicherten

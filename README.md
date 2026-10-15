@@ -10,6 +10,8 @@ A backend-focused Home Assistant custom integration for detecting abnormal water
 **Release status:** pre-release; latest published stable: 1.1.0.
 **Beta scope:** hydraulic detection with notifications and the bundled dashboard card, without
 configured external leak sensors or persisted external records. See [the 2.0 beta notes](docs/BETA_2.0.0.md).
+The reason for that restriction, F04-FSR-H01 (damaged persisted data of configured external sensors),
+is addressed in the unreleased fix described in [F04-FSR-H01](docs/F04_FSR_H01.md).
 **Minimum Home Assistant:** 2026.9.0
 **Integration domain:** `water_leak_detection`
 

@@ -1,6 +1,6 @@
 # Dashboard-Karte (Lovelace)
 
-**Status:** Karte 0.6.1 mit Water Leak Guard **2.0.0-beta.3** (Abschnitte standardmäßig offen, Option `collapsed`, Wanddisplay-Empfänger; vorher 0.5.0 mit 2.0.0-beta.2). Die Karte ist eine Ansicht auf die vorhandenen
+**Status:** Karte 0.6.1 mit Water Leak Guard **2.0.0-beta.3**, unveröffentlicht Karte 0.6.2 (robuster Start ohne „Konfigurationsfehler“) (Abschnitte standardmäßig offen, Option `collapsed`, Wanddisplay-Empfänger; vorher 0.5.0 mit 2.0.0-beta.2). Die Karte ist eine Ansicht auf die vorhandenen
 Entitäten, Dienste und Kartenbefehle und **keine Vertrauensgrenze**: Sie enthält weder Empfänger-Token noch
 Reset-Nonce, und Berechtigung, Anwesenheit und erlaubte Alarmaktionen prüft ausschließlich das
 Backend. Die Integration bleibt ohne Karte voll funktionsfähig (SPEC §1051).
@@ -268,9 +268,17 @@ So funktioniert es:
 - Beim Start stellt die Integration die Datei unter `/water_leak_detection/water-leak-guard-card.js`
   bereit und lädt sie als zusätzliches Frontend-Modul (`frontend.add_extra_js_url`). Das gilt für alle
   Dashboards, im UI- wie im YAML-Modus, ohne Eintrag unter *Ressourcen*.
+- Zusätzlich hält die Integration im UI-Ressourcenmodus (Standard) **eine** Lovelace-Ressource, den
+  „water-leak-guard-card loader“ (`data:text/javascript…`). Grund: HA schreibt zusätzliche Module nur
+  beim Ausliefern in die Seite und liefert das Frontend schon aus, bevor eigene Integrationen starten.
+  Eine Seite, die während des HA-Starts geladen wurde (z. B. die Companion App nach einem Neustart),
+  zeigte sonst „Konfigurationsfehler“ bis zum Neuladen. Der Loader braucht keine Serveranfrage,
+  lädt die Karte nach, sobald die Integration sie bereitstellt (mit Wiederholungen), und HA ersetzt
+  die Fehlerkarte dann selbst. Die Ressource wird beim Entfernen des letzten Eintrags gelöscht. Im
+  YAML-Ressourcenmodus bleibt es beim zusätzlichen Modul.
 - Die Adresse enthält einen Prüfwert aus dem Dateiinhalt (`?v=…`). Nach jedem Update lädt der Browser die
   neue Version, ohne dass ein alter Stand im Cache hängen bleibt.
-- `frontend` und `http` sind nur als **Lade-Reihenfolge** eingetragen (`after_dependencies`), nicht als
+- `frontend`, `http` und `lovelace` sind nur als **Lade-Reihenfolge** eingetragen (`after_dependencies`), nicht als
   Pflicht. Ohne Frontend oder bei einem Fehler beim Registrieren startet die Leckerkennung trotzdem.
   Nur die Karte fehlt dann, und im Log steht eine Warnung.
 - Mehrere Instanzen der Integration teilen sich dieselbe Karte. Pro Karte wählt man die Instanz über

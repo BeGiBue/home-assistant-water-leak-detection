@@ -1,5 +1,43 @@
 # Changelog
 
+## Unreleased
+
+- Dashboard card 0.6.2 (hardening, a precaution): the `hass` setter, `getCardSize` and the render
+  path never throw any more. HA replaces a card whose `hass` setter throws by an empty
+  "Configuration error" card until the page is reloaded (`hui-card.ts`, `update()`). The card now
+  tolerates missing/null states, registry entries and attribute shapes, and on any render error it
+  logs `water-leak-guard-card: render failed, retrying on the next update` once to the browser
+  console, shows a small "Loading …" state (with an alarm line if an alarm is readable) and retries
+  on the next update. The likely cause of the iPad "Configuration error" is the module load timing
+  addressed by the loader resource below, not a throwing setter: HA renders panels only once
+  states, config and services exist (`home-assistant.ts`).
+- Dashboard card: fixed "Configuration error" instead of the card until a reload (e.g. iPad Companion
+  app after an HA restart). HA writes extra modules into the page only when serving it, serves the
+  frontend before custom integrations are set up, and never re-requests them; HA's
+  `_customCreate` then shows its error card and waits for the element forever. In storage resource
+  mode the integration now also keeps one Lovelace resource, a `data:` loader module that needs no
+  server route, imports the card (with retries) once the integration serves it, and lets HA's
+  `ll-rebuild` replace the error card. Created/updated at startup, removed with the last entry,
+  never blocks setup; YAML resource mode keeps the extra module only. `lovelace` added to
+  `after_dependencies`. The card file itself is unchanged (0.6.1).
+- **Security F04-FSR-H01:** damaged persisted records of configured external leak sensors can no
+  longer silently end an ACTIVE alarm or its shutoff contribution, nor turn into an invented but
+  trusted identity. Every `external_sources` record must be interpretable (known phase; valid IDs,
+  entity and shutoff flag; for ACTIVE a valid Event-ID and aware start time; correctly typed
+  optional fields), otherwise the existing Store recovery barrier applies: alarm and shutoff held,
+  original bytes kept, external reset and ACK refused, ERROR repair, `storage_recovery_required`.
+  The same applies to a missing list in a current-schema body and to a Store file that HA renamed
+  to `water_leak_detection.runtime.<entry_id>.corrupt.<time>` because it was not valid JSON.
+  **Behavior change for every installation, hydraulic-only included:** previously the second start
+  after such a rename began as a new installation and silently dropped all stored alarms; now the
+  barrier stays until a backup is restored or the copy is deliberately moved aside with HA stopped
+  (accepting the loss of the stored state). The repair text explains both. Undamaged installations
+  are unchanged. Details:
+  `docs/F04_FSR_H01.md`.
+- The wall display forms ("Add wall display", editing a display) link to the TouchKio automation
+  example in the wiki (`Dashboard-Karte#wanddisplay--touchkio`): the display needs an automation to
+  wake up and show the card on an alarm.
+
 ## 2.0.0-beta.3 — 2026-10-15
 
 - Dashboard card 0.6.0: "High Flow bypass" and "Learning" start **expanded**. New option

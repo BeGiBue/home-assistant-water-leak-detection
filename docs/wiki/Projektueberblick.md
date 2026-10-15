@@ -152,8 +152,9 @@ bestehende ACTIVE-Ereignisse und Shutoff-Beiträge bleiben erhalten.
 [Entitäten](Home-Assistant-Schnittstellen) · [Diagnose](Troubleshooting).
 
 Die Beta ist auf hydraulische Erkennung/Benachrichtigungen ohne konfigurierte
-externe Sensoren oder gespeicherte externe Alarmdatensätze beschränkt; H01 bleibt
-für externe Quellen offen. Softwaretests und der am 14. Oktober 2026
+externe Sensoren oder gespeicherte externe Alarmdatensätze beschränkt. F04-FSR-H01
+(beschädigte gespeicherte Daten konfigurierter externer Melder) ist im Branch
+`fix/f04-fsr-h01` behoben, aber noch nicht veröffentlicht ([Details](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/F04_FSR_H01.md)). Softwaretests und der am 14. Oktober 2026
 vom Benutzer bestätigte erfolgreiche Hydrus-Neustart mit Beta.3 sind getrennte
 Nachweise; der Einzeltest belegt nicht sämtliche Ausfall-/Neustartszenarien. [Beta-Chronologie](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
 [Kartendokumentation](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/CARD.md).

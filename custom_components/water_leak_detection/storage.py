@@ -33,6 +33,11 @@ def validate_snapshot_body(raw: Any) -> None:
         ):
             raise ValueError("Invalid hydraulic runtime records")
     for field in ("external_sources", "external_alarm_ledger"):
+        # F04-FSR-H01: every writer of the current schema stores both lists, so
+        # a missing one is damage, not "no external alarms". Older bodies
+        # without the schema marker are migrated and get empty lists.
+        if field not in raw and raw.get("learning_schema_version") == LEARNING_SCHEMA_VERSION:
+            raise ValueError("Missing external safety records; restore a verified backup")
         if field in raw and (
             not isinstance(raw[field], list)
             or any(not isinstance(record, dict) for record in raw[field])

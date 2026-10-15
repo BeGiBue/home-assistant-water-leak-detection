@@ -132,15 +132,19 @@ def test_public_data_never_contains_secrets_and_private_staging_does_not_release
 
 @pytest.mark.parametrize("field", ["generation", "learning_epoch", "source_id", "entity_id"])
 @pytest.mark.parametrize("value", [None, [], False])
-def test_damaged_active_routing_is_quarantined_as_alarm_not_dry(field, value):
+def test_damaged_active_routing_is_never_restored_as_dry_or_as_invented_identity(field, value):
+    """F04-FSR-H01: no ARMED fallback and no invented (resettable) identity.
+
+    The restore refuses before touching live state; the manager then holds alarm
+    and shutoff in the Store recovery barrier (tests/test_f04_fsr_h01.py).
+    """
     controller = ExternalLeakController()
     source = SourceIdentity("binary_sensor.kitchen", "registry", "signature", "generation", "epoch")
     controller.configure("kitchen", source, True, "Kitchen")
     controller.observe("kitchen", "on", NOW)
     raw = controller.to_dict()
     raw["external_sources"][0][field] = value
-    restored = ExternalLeakController()
-    restored.restore(raw, NOW)
-    assert restored.shutoff_request
-    assert len(restored.active_events()) == 1
-    assert not restored.sources
+    live = controller.to_dict()
+    with pytest.raises(ValueError, match="F04-FSR-H01"):
+        controller.restore(raw, NOW)
+    assert controller.to_dict() == live and controller.shutoff_request
