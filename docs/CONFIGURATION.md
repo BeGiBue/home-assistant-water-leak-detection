@@ -152,9 +152,9 @@ Each recipient is configured independently with:
 ### Wall display recipient (no push, always home)
 
 Step-by-step guide for TouchKio on a Raspberry Pi (kiosk user, form, card YAML, wake-up automation,
-troubleshooting; in German): [Wiki: Wanddisplay mit TouchKio](https://github.com/BeGiBue/homeassistant-water-leak-detection/wiki/Wanddisplay-TouchKio).
+troubleshooting; in German): [Wiki: Wanddisplay mit TouchKio](https://github.com/BeGiBue/home-assistant-water-leak-guard/wiki/Wanddisplay-TouchKio).
 
-![Card on the Raspberry Pi 7 inch display: portrait idle and Burst alarm, landscape collapsed](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/card-wall-display.png)
+![Card on the Raspberry Pi 7 inch display: portrait idle and Burst alarm, landscape collapsed](https://raw.githubusercontent.com/BeGiBue/home-assistant-water-leak-guard/main/docs/assets/card-wall-display.png)
 
 
 **Configure → Notification recipients → Add wall display** creates a recipient of kind `display` for a

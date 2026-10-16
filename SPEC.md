@@ -27,7 +27,7 @@ The integration shall use Home Assistant native entities, services, events, conf
 ## 2. Project identity
 
 - **Display name:** Water Leak Guard
-- **Repository:** `BeGiBue/homeassistant-water-leak-detection`
+- **Repository:** `BeGiBue/home-assistant-water-leak-guard`
 - **Target platform:** Home Assistant
 - **Scope:** Backend integration only
 - **Frontend/custom card:** Out of scope for now

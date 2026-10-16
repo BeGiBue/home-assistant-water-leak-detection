@@ -2124,7 +2124,7 @@ if (!window.customCards.some((c) => c.type === CARD_TAG)) {
     name: "Water Leak Guard",
     description: "Status, flow, bypass, learning and external sensors of Water Leak Guard (Wasserwächter).",
     preview: true,
-    documentationURL: "https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/CARD.md",
+    documentationURL: "https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/CARD.md",
   });
 }
 
