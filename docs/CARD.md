@@ -12,7 +12,7 @@ Datei: `custom_components/water_leak_detection/frontend/water-leak-guard-card.js
 – eine einzelne JS-Datei ohne Build-Schritt und ohne externe Abhängigkeiten. Sie wird mit der
 Integration installiert und automatisch geladen (siehe Installation).
 
-![Karte im Normalzustand und bei Burst-Leak-Alarm mit Geräteaktionen](https://raw.githubusercontent.com/BeGiBue/home-assistant-water-leak-detection/main/docs/assets/card-preview.png)
+![Karte im Normalzustand und bei Burst-Leak-Alarm mit Geräteaktionen](https://raw.githubusercontent.com/BeGiBue/water-leak-guard/main/docs/assets/card-preview.png)
 
 ## Inhalt der Karte
 
@@ -445,9 +445,9 @@ dort „Stummschalten“ aus und zeigt nie „Nur zuhause möglich“. Empfänge
 Beispiel-Automation zum
 Einschalten des Displays bei Alarm: Wiki-Seite *Dashboard-Karte*, Abschnitt „Wanddisplay / TouchKio“.
 Vollständige Schritt-für-Schritt-Anleitung (Kiosk-Benutzer, Formular, Karte, Automation, Fehlerbehebung):
-[Wiki: Wanddisplay mit TouchKio](https://github.com/BeGiBue/home-assistant-water-leak-detection/wiki/Wanddisplay-TouchKio).
+[Wiki: Wanddisplay mit TouchKio](https://github.com/BeGiBue/water-leak-guard/wiki/Wanddisplay-TouchKio).
 
-![Karte auf dem Raspberry Pi 7″: hochkant ruhig und bei Burst-Alarm, quer eingeklappt](https://raw.githubusercontent.com/BeGiBue/home-assistant-water-leak-detection/main/docs/assets/card-wall-display.png)
+![Karte auf dem Raspberry Pi 7″: hochkant ruhig und bei Burst-Alarm, quer eingeklappt](https://raw.githubusercontent.com/BeGiBue/water-leak-guard/main/docs/assets/card-wall-display.png)
 
 ## Entwicklungsstand
 

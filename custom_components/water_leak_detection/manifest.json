@@ -11,10 +11,10 @@
   ],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/BeGiBue/home-assistant-water-leak-detection",
+  "documentation": "https://github.com/BeGiBue/water-leak-guard",
   "integration_type": "service",
   "iot_class": "calculated",
-  "issue_tracker": "https://github.com/BeGiBue/home-assistant-water-leak-detection/issues",
+  "issue_tracker": "https://github.com/BeGiBue/water-leak-guard/issues",
   "requirements": [],
   "version": "2.0.0"
 }

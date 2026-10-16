@@ -165,7 +165,7 @@ _PAIR_TOKEN = "token:"
 # Wiki section with the TouchKio automation example (wakes the display on an
 # alarm). Passed as a placeholder: hassfest forbids URLs in translation strings.
 DISPLAY_AUTOMATION_URL = (
-    "https://github.com/BeGiBue/home-assistant-water-leak-detection/wiki/"
+    "https://github.com/BeGiBue/water-leak-guard/wiki/"
     "Dashboard-Karte#wanddisplay--touchkio"
 )
 

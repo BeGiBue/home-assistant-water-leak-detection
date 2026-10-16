@@ -12,7 +12,7 @@
 
 Repository:
 
-`https://github.com/BeGiBue/home-assistant-water-leak-detection`
+`https://github.com/BeGiBue/water-leak-guard`
 
 Kategorie:
 
@@ -192,7 +192,7 @@ je Empfänger false. Einzelheiten zu Migration, Home-Zone und defekten Sensoren:
 
 ## Upgrade auf 2.0.0
 
-**2.0.0** ist der stabile Stand ([Release Notes](https://github.com/BeGiBue/home-assistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0.md)). Vorher ein vollständiges HA-Backup inklusive
+**2.0.0** ist der stabile Stand ([Release Notes](https://github.com/BeGiBue/water-leak-guard/blob/main/RELEASE_NOTES_2.0.0.md)). Vorher ein vollständiges HA-Backup inklusive
 `.storage/` erstellen (Laufzeitspeicher `.storage/water_leak_detection.runtime.<entry_id>`), in HACS
 auf 2.0.0 aktualisieren, HA neu starten und Browser bzw. Companion App neu laden.
 
@@ -215,7 +215,7 @@ Konfiguration und Store sichern, in HACS Beta-/Pre-release-Versionen aktivieren,
 Beta.3 herunterladen und HA neu starten. Danach installierte Version und neue
 Entität **Hydraulische Überwachung** am Integrationsgerät prüfen. Config Entry und
 Runtime-Datei nicht löschen, um eine Sperre zu umgehen.
-[Beta-Voraussetzungen](https://github.com/BeGiBue/home-assistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
+[Beta-Voraussetzungen](https://github.com/BeGiBue/water-leak-guard/blob/main/docs/BETA_1.2.0.md).
 
 ## Upgrade auf 2.0.0-beta.1 und Dashboard-Karte (historisch; Kopplung und Wanddisplay gelten weiter)
 
@@ -240,4 +240,4 @@ bekommt keine Benachrichtigungen und gilt immer als zuhause. Details:
 [Dashboard-Karte – Wanddisplay](Dashboard-Karte#wanddisplay--touchkio); vollständige Anleitung:
 [Wanddisplay mit TouchKio](Wanddisplay-TouchKio).
 Externe Lecksensoren werden seit 2.0.0 unterstützt (in den Betas ausgeschlossen).
-[Dashboard-Karte](Dashboard-Karte) · [Beta 2.0.0](https://github.com/BeGiBue/home-assistant-water-leak-detection/blob/main/docs/BETA_2.0.0.md).
+[Dashboard-Karte](Dashboard-Karte) · [Beta 2.0.0](https://github.com/BeGiBue/water-leak-guard/blob/main/docs/BETA_2.0.0.md).
