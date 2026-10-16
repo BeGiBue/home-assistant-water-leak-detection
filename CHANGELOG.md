@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.1 — 2026-10-16
+
+- Neue, im Browser erstellte Vorschauen aus dem unveränderten Original-Code in der README.
+- README-Darstellung in HACS aktiviert; bestehende absolute Vorschau-URLs beibehalten.
+- Versionsangaben für das Patch-Release aktualisiert.
+
+Keine Änderungen an der Funktionsweise der Karte oder Integration.
+
 ## 2.0.0 — 2026-10-15
 
 Stable major release. Summary of the changes since the last stable release 1.1.0 (details in the
