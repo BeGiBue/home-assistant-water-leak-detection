@@ -9,9 +9,9 @@
 A backend-focused Home Assistant custom integration for detecting abnormal water consumption and possible water leaks from an existing water-meter flow sensor.
 
 **Current release:** 2.0.0
-**Release status:** stable. See the [2.0.0 release notes](RELEASE_NOTES_2.0.0.md).
+**Release status:** stable. See the [2.0.0 release notes](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/RELEASE_NOTES_2.0.0.md).
 **External leak sensors:** supported. The former beta restriction (F04-FSR-H01, damaged persisted
-data of configured external sensors) is fixed in 2.0.0; see [F04-FSR-H01](docs/F04_FSR_H01.md).
+data of configured external sensors) is fixed in 2.0.0; see [F04-FSR-H01](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/F04_FSR_H01.md).
 **Minimum Home Assistant:** 2026.9.0
 **Integration domain:** `water_leak_detection`
 
@@ -21,7 +21,7 @@ data of configured external sensors) is fixed in 2.0.0; see [F04-FSR-H01](docs/F
 ## Highlights
 
 - Conservative Store recovery and external identity-conflict quarantine preserve
-  alarm/Shutoff contributions. See the [backup recovery and MQTT-boundary guide](docs/F04_LOW_ACK_DURATION.md#safety-recovery-and-mqtt-interruption-boundaries).
+  alarm/Shutoff contributions. See the [backup recovery and MQTT-boundary guide](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/F04_LOW_ACK_DURATION.md#safety-recovery-and-mqtt-interruption-boundaries).
 
 - Separate **Slow Leak**, **Low Flow**, **High Flow**, and **Burst Leak** detectors.
 - Independent enable/disable switches for Slow Leak and Low Flow.
@@ -60,7 +60,7 @@ Then:
 4. Search for **Water Leak Guard**.
 5. Complete the config flow.
 
-Detailed installation and update instructions: [docs/INSTALLATION.md](docs/INSTALLATION.md)
+Detailed installation and update instructions: [docs/INSTALLATION.md](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/INSTALLATION.md)
 
 ### Manual installation
 
@@ -159,7 +159,7 @@ use `collapsed: true`. For a device paired with a notification
 recipient it offers exactly the alarm actions the backend allows right now (device mute, global
 acknowledgement at home, external reset at home with permission); other devices are view only.
 Pair a device under **Configure → Notification recipients → Edit recipient → Pairing for the
-dashboard card** (a Home Assistant user or a single login). Wall display with TouchKio (German guide): [Wiki](https://github.com/BeGiBue/home-assistant-water-leak-guard/wiki/Wanddisplay-TouchKio). Details, permissions and migration: [docs/CARD.md](docs/CARD.md). Tested with
+dashboard card** (a Home Assistant user or a single login). Wall display with TouchKio (German guide): [Wiki](https://github.com/BeGiBue/home-assistant-water-leak-guard/wiki/Wanddisplay-TouchKio). Details, permissions and migration: [docs/CARD.md](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/CARD.md). Tested with
 a simulated Home Assistant and the full CI suite; not yet tested on a live installation.
 
 ## Language and later configuration
@@ -230,7 +230,7 @@ Bypass, any ACTIVE alarm (including external sources), Burst/Rapid-Rise candidat
 measurement gaps and interrupted High episodes are excluded. Every startup needs
 the configured physical High quiet reset before new High learning.
 
-See [F04 V3 configuration and safety contract](docs/F04_V3.md).
+See [F04 V3 configuration and safety contract](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/F04_V3.md).
 
 ## Hydraulic context
 
@@ -273,14 +273,14 @@ Event payloads include the event ID and relevant detector context. Burst events 
 
 ## Documentation
 
-- [Installation and updates](docs/INSTALLATION.md)
-- [Configuration reference](docs/CONFIGURATION.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Changelog](CHANGELOG.md)
-- [v1.0.3 release notes](RELEASE_NOTES_1.0.3.md)
-- [Release procedure](docs/RELEASING.md)
+- [Installation and updates](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/INSTALLATION.md)
+- [Configuration reference](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/CONFIGURATION.md)
+- [Troubleshooting](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/TROUBLESHOOTING.md)
+- [Changelog](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/CHANGELOG.md)
+- [v1.0.3 release notes](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/RELEASE_NOTES_1.0.3.md)
+- [Release procedure](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/RELEASING.md)
 - [Project Wiki](https://github.com/BeGiBue/home-assistant-water-leak-guard/wiki)
-- [Technical specification and roadmap](SPEC.md)
+- [Technical specification and roadmap](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/SPEC.md)
 
 ## Release status
 
@@ -299,7 +299,7 @@ The release is validated against Home Assistant 2026.9.4 / Python 3.14.2 with co
 
 Water Leak Guard is licensed under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**.
 
-See [LICENSE](LICENSE) for the complete license text.
+See [LICENSE](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/LICENSE) for the complete license text.
 
 ## Operational contract after 1.1.0
 
@@ -307,7 +307,7 @@ Version **1.1.0** contains the seven reviewed technical correction rounds togeth
 F02 static High Flow, F08 Low Flow stability, and the repeatedly confirmed seasonal
 learning of clean High Flow episodes. High remains static and learning can influence only
 the existing adaptive Burst context in that release. F04 V3 replaces the shared High-learning channel and Rapid-Rise rule;
-see the current [V3 contract](docs/F04_V3.md). F04 V3 is part of the stable release 2.0.0.
+see the current [V3 contract](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/F04_V3.md). F04 V3 is part of the stable release 2.0.0.
 
 Only actual flow reports supply detection/quiet evidence. Re-reading a cached HA
 state on an internal tick never matures a timer. Object identity and report
@@ -437,7 +437,7 @@ MQTT Flow sensors need `force_update: true` to expose repeated equal telegrams.
 Short MQTT expiry or explicit source timeout can repeatedly interrupt reset
 evidence. Missing reports never mean zero. Configure now provides an authorized
 active-event acknowledgement form; numeric event seconds gain DE/EN display
-attributes. Full diagnostics, semantics and limits: [follow-up contract](docs/F04_LOW_ACK_DURATION.md).
+attributes. Full diagnostics, semantics and limits: [follow-up contract](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/F04_LOW_ACK_DURATION.md).
 
 
 ### F04 Sicherheitsreview: MQTT-Messherkunft und Quittierung
@@ -447,7 +447,7 @@ Empfänger-Messzeit im JSON-Feld `timestamp`; `force_update` allein beweist kein
 neue Messung. Retained, alte oder ungebundene Nachrichten liefern keine Evidenz.
 Fehlende Messherkunft sperrt die Auswertung und erzeugt einen Repair-Hinweis;
 bestehende ACTIVE-Alarme bleiben erhalten. Die fremde Discovery wird nicht
-überschrieben. Details und Vertrauensgrenzen: [Low/ACK/Dauer](docs/F04_LOW_ACK_DURATION.md).
+überschrieben. Details und Vertrauensgrenzen: [Low/ACK/Dauer](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/F04_LOW_ACK_DURATION.md).
 
 ACK wird erst nach erfolgreicher Persistenz veröffentlicht. Das Configure-ACK ist
 administrative Delegation anhand des ausgewählten Recipients und dessen Home-
@@ -462,13 +462,13 @@ or a source change is awaiting a measurement without an explicit exclusion;
 not end an existing alarm or release its shutoff request. The sensor stays available
 and includes `reason`, `source_entity_id`, `source_available`,
 `mqtt_provenance_status`, `last_valid_measurement` and `observation_age_seconds`.
-See [configuration](docs/CONFIGURATION.md#hydraulische-überwachung).
+See [configuration](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/CONFIGURATION.md#hydraulische-überwachung).
 
 ### Dashboard card and verification status
 
 Since 2.0.0 the card (0.6.2) is installed and loaded with the integration, shows the
 hydraulic monitoring state separately from the alarm state and offers per-device alarm actions
-that the backend authorizes (see [Dashboard card](#dashboard-card) and [docs/CARD.md](docs/CARD.md)).
+that the backend authorizes (see [Dashboard card](#dashboard-card) and [docs/CARD.md](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/CARD.md)).
 Remove an older manual `/local/water-leak-guard-card.js` resource after upgrading.
 
 Publishing a release does not update a running HA installation: download the chosen
@@ -477,5 +477,5 @@ version and restart HA. Software/broker tests and the **user-confirmed physical 
 11 seconds blocked then automatically active, `verified_original_measurement`.
 This observed duration is not guaranteed and does not cover all outage/restart
 scenarios. The integration was not tested on every real device or meter; the card was not verified
-in a real Companion app on iOS/iPadOS. See [test details and limits](docs/BETA_1.2.0.md) (historical
+in a real Companion app on iOS/iPadOS. See [test details and limits](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/BETA_1.2.0.md) (historical
 beta notes).
