@@ -8,8 +8,8 @@
 
 A backend-focused Home Assistant custom integration for detecting abnormal water consumption and possible water leaks from an existing water-meter flow sensor.
 
-**Current release:** 2.0.0
-**Release status:** stable. See the [2.0.0 release notes](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/RELEASE_NOTES_2.0.0.md).
+**Current release:** 2.0.1
+**Release status:** stable. See the [2.0.1 release notes](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/RELEASE_NOTES_2.0.1.md).
 **External leak sensors:** supported. The former beta restriction (F04-FSR-H01, damaged persisted
 data of configured external sensors) is fixed in 2.0.0; see [F04-FSR-H01](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/F04_FSR_H01.md).
 **Minimum Home Assistant:** 2026.9.0
