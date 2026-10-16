@@ -29,7 +29,7 @@ Version 0.3.0 completes the original backend roadmap through adaptive detection 
 
 Recommended: install through HACS as a custom Integration repository:
 
-`https://github.com/BeGiBue/water-leak-guard`
+`https://github.com/BeGiBue/home-assistant-water-leak-guard`
 
 Minimum Home Assistant: 2026.9.0.
 

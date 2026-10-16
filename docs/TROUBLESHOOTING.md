@@ -163,7 +163,7 @@ Restart or reload logging as appropriate, reproduce the problem, and remove debu
 
 Open:
 
-`https://github.com/BeGiBue/water-leak-guard/issues`
+`https://github.com/BeGiBue/home-assistant-water-leak-guard/issues`
 
 Include:
 

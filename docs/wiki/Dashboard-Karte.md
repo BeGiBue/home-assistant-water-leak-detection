@@ -4,7 +4,7 @@ Seit **2.0.0-beta.1** gehört die Dashboard-Karte **Water Leak Guard** zur Integ
 eine Ansicht und Bedienoberfläche, aber **keine Vertrauensgrenze**: Ob eine Aktion erlaubt ist,
 entscheidet ausschließlich das Backend. Die Integration funktioniert unverändert auch ohne Karte.
 
-![Karte im Normalzustand und bei Burst-Leak-Alarm mit Geräteaktionen](https://raw.githubusercontent.com/BeGiBue/water-leak-guard/main/docs/assets/card-preview.png)
+![Karte im Normalzustand und bei Burst-Leak-Alarm mit Geräteaktionen](https://raw.githubusercontent.com/BeGiBue/home-assistant-water-leak-guard/main/docs/assets/card-preview.png)
 
 ## Installation
 
@@ -107,7 +107,7 @@ im Editor setzt auf den neuen Standard zurück.
 > **Vollständige Anleitung (Kiosk-Benutzer, Formular, Karte, Automation, Fehlerbehebung):
 > [Wanddisplay mit TouchKio](Wanddisplay-TouchKio).**
 
-![Karte auf dem Raspberry Pi 7″: hochkant ruhig und bei Burst-Alarm, quer eingeklappt](https://raw.githubusercontent.com/BeGiBue/water-leak-guard/main/docs/assets/card-wall-display.png)
+![Karte auf dem Raspberry Pi 7″: hochkant ruhig und bei Burst-Alarm, quer eingeklappt](https://raw.githubusercontent.com/BeGiBue/home-assistant-water-leak-guard/main/docs/assets/card-wall-display.png)
 
 Ein fest montiertes Display – etwa [TouchKio](https://github.com/leukipp/touchkio) auf einem Raspberry Pi
 oder ein anderer HA-Kiosk-Browser – hat weder Companion-Benachrichtigungen noch einen Device Tracker.
@@ -195,4 +195,4 @@ Tracker nicht zuhause“. Technische Einzelheiten zu Befehlen und Fehlercodes:
 Getestet mit der vollständigen Testsuite in der CI und mit simuliertem Home Assistant im Browser; jede
 Etappe wurde unabhängig anhand des Codes geprüft. Ein Test in einer echten Installation steht aus.
 Bewusst offene Punkte mit geringer Auswirkung und alle Details:
-[Kartendokumentation](https://github.com/BeGiBue/water-leak-guard/blob/main/docs/CARD.md) · [Beta 2.0.0](https://github.com/BeGiBue/water-leak-guard/blob/main/docs/BETA_2.0.0.md).
+[Kartendokumentation](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/CARD.md) · [Beta 2.0.0](https://github.com/BeGiBue/home-assistant-water-leak-guard/blob/main/docs/BETA_2.0.0.md).
