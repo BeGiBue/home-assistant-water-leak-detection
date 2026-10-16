@@ -146,6 +146,33 @@ recipient's `device_tracker.*`. Check that tracker; a trusted stationary flag do
 offline; see the monitoring row and [Hydraulic monitoring: waiting or
 blocked](#hydraulic-monitoring-waiting-or-blocked).
 
+## Repair "MQTT null reports may be suppressed" after updating wmbusmeters 3.1.0
+
+Seen with the Home Assistant add-on of wmbusmeters 3.1.0. The add-on now generates
+the MQTT discovery automatically from the driver. Its flow sensor is published
+**without `force_update`**, and it republishes it at every add-on start. A discovery
+that you published yourself, with `force_update: true`, is overwritten. Water Leak
+Guard then shows the repair "MQTT null reports may be suppressed" and cannot
+safely reset a Low Flow alarm. The sensor entity, `unique_id`, unit and the JSON
+`timestamp` stay unchanged, so the measurement provenance is not affected.
+
+Fix, as verified on a Diehl Hydrus meter (driver `hydrus`):
+
+1. In the add-on configuration switch **Enable mqtt discovery** off, save and restart
+   the add-on.
+2. Publish the discovery of the flow sensor once again with `"force_update": true`
+   (*Settings → Devices & services → MQTT → Configure → Publish a packet*): the exact
+   topic, for example `homeassistant/sensor/wmbusmeters/<meter id>_flow_m3h/config`
+   (no wildcard), **Retain** on, and the previous discovery payload plus
+   `"force_update": true`. The payload field renders templates: wrap the whole JSON
+   in `{% raw %}` and `{% endraw %}`, or the `value_template` is evaluated.
+3. Restart the add-on again and check that the retained message keeps
+   `force_update: true` and that the repair does not return.
+
+With discovery switched off, the add-on creates no new or changed sensors
+automatically; the retained discovery messages that exist stay valid. After every
+update of wmbusmeters or of the add-on, check the repairs once more.
+
 ## Debug logging
 
 Add temporary logger configuration in Home Assistant:

@@ -217,6 +217,35 @@ Hilfreiche Angaben:
 
 Keine Zugangstokens oder Geheimnisse posten.
 
+## Reparatur „MQTT-Nullmeldungen werden möglicherweise unterdrückt“ nach wmbusmeters 3.1.0
+
+Beobachtet mit dem Home-Assistant-Add-on von wmbusmeters 3.1.0. Das Add-on erzeugt
+die MQTT-Discovery jetzt automatisch aus dem Treiber. Der Flow-Sensor wird **ohne
+`force_update`** veröffentlicht, und das Add-on veröffentlicht ihn bei jedem Start
+neu. Eine selbst veröffentlichte Discovery mit `force_update: true` wird dabei
+überschrieben. Wasserwächter zeigt dann die Reparatur „MQTT-Nullmeldungen werden
+möglicherweise unterdrückt“ und kann einen Low-Flow-Alarm nicht sicher
+zurücksetzen. Entität, `unique_id`, Einheit und das JSON-Feld `timestamp` bleiben
+gleich, die Messherkunft ist davon nicht betroffen.
+
+Lösung, geprüft mit einem Diehl-Hydrus (Treiber `hydrus`):
+
+1. In der Add-on-Konfiguration **Enable mqtt discovery** abschalten, speichern und
+   das Add-on neu starten.
+2. Die Discovery des Flow-Sensors noch einmal mit `"force_update": true`
+   veröffentlichen (*Einstellungen → Geräte & Dienste → MQTT → Konfigurieren → Ein
+   Paket veröffentlichen*): konkretes Topic, zum Beispiel
+   `homeassistant/sensor/wmbusmeters/<Zähler-ID>_flow_m3h/config` (ohne `#`),
+   **Retain** an, Payload wie bisher plus `"force_update": true`. Das Payload-Feld
+   wertet Templates aus: den gesamten JSON-Text in `{% raw %}` und `{% endraw %}`
+   einschließen, sonst wird das `value_template` ausgewertet.
+3. Das Add-on erneut starten und prüfen, dass die retained Nachricht
+   `force_update: true` behält und die Reparatur nicht zurückkehrt.
+
+Bei abgeschalteter Discovery legt das Add-on neue oder geänderte Sensoren nicht
+mehr automatisch an; vorhandene retained Discovery-Nachrichten bleiben gültig.
+Nach jedem Update von wmbusmeters oder des Add-ons die Reparaturen erneut prüfen.
+
 ## Hydraulische Überwachung: Warten oder Gesperrt
 
 1. Installierte Version nach Download und HA-Neustart prüfen; ein Release allein
