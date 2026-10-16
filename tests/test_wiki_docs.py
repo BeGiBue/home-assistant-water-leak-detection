@@ -93,7 +93,7 @@ def test_display_forms_link_to_the_wiki_automation_example() -> None:
 
     from custom_components.water_leak_detection.config_flow import DISPLAY_AUTOMATION_URL
 
-    base = "https://github.com/BeGiBue/homeassistant-water-leak-detection/wiki/"
+    base = "https://github.com/BeGiBue/home-assistant-water-leak-detection/wiki/"
     page = (WIKI / "Dashboard-Karte.md").read_text(encoding="utf-8")
     anchors = {
         _github_slug(line.lstrip("#"))
@@ -151,7 +151,7 @@ def test_wall_display_page_is_linked_and_anchors_resolve() -> None:
 
 def test_wall_display_images_are_absolute_raw_urls_and_small() -> None:
     base = (
-        "https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection"
+        "https://raw.githubusercontent.com/BeGiBue/home-assistant-water-leak-detection"
         "/main/docs/assets/"
     )
     for image in ("card-preview.png", "card-wall-display.png"):
@@ -163,5 +163,8 @@ def test_wall_display_images_are_absolute_raw_urls_and_small() -> None:
         WIKI / "Wanddisplay-TouchKio.md",
     ):
         text = doc.read_text(encoding="utf-8")
-        assert base + "card-wall-display.png" in text or base + "card-preview.png" in text, doc
+        if doc.name == "README.md":
+            assert f"]({base}" in text, doc
+        else:
+            assert base + "card-wall-display.png" in text or base + "card-preview.png" in text, doc
         assert "](docs/assets/" not in text and "](../assets/" not in text, doc

@@ -4,7 +4,7 @@ Schritt-für-Schritt-Anleitung für ein fest montiertes Display (zum Beispiel ei
 [TouchKio](https://github.com/leukipp/touchkio)), das die Karte **Water Leak Guard** zeigt, bei
 einem Alarm aufwacht und dort quittieren darf. Voraussetzung: Wasserwächter ab **2.0.0** (Karte 0.6.2).
 
-![Karte auf dem Raspberry Pi 7″: hochkant ruhig und bei Burst-Alarm, quer mit eingeklappten Abschnitten](https://raw.githubusercontent.com/BeGiBue/homeassistant-water-leak-detection/main/docs/assets/card-wall-display.png)
+![Karte auf dem Raspberry Pi 7″: hochkant ruhig und bei Burst-Alarm, quer mit eingeklappten Abschnitten](https://raw.githubusercontent.com/BeGiBue/home-assistant-water-leak-detection/main/docs/assets/card-wall-display.png)
 
 *Die Bilder zeigen die ausgelieferte Karte 0.6.2 in Chromium mit simuliertem Home Assistant (Pi 7″
 hochkant 480×800 und quer 800×480, 56-px-Leiste, Wanddisplay-Sitzung). Kein Test auf echter Hardware.*
@@ -179,7 +179,7 @@ Absperranforderung ([Alarmstufen und Quittierung](Alarmstufen-und-Quittierung)).
 - **Karte zeigt „Konfigurationsfehler“:** Meist hat die Seite das Kartenmodul nicht rechtzeitig
   bekommen (Start von Home Assistant). Seite neu laden. Die Integration legt dafür unter *Einstellungen →
   Dashboards → ⋮ → Ressourcen* den Eintrag „water-leak-guard-card loader“ an; **nicht löschen**. Details:
-  [Troubleshooting der Karte](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/TROUBLESHOOTING.md).
+  [Troubleshooting der Karte](https://github.com/BeGiBue/home-assistant-water-leak-detection/blob/main/docs/TROUBLESHOOTING.md).
 - **Karte fehlt nach dem Update:** Home Assistant neu starten, auf dem Kiosk **hart neu laden** bzw.
   den Browser-Cache leeren; in der Companion App den Frontend-Cache zurücksetzen. Prüfe, ob der Eintrag
   „water-leak-guard-card loader“ vorhanden ist (nicht im YAML-Ressourcenmodus).

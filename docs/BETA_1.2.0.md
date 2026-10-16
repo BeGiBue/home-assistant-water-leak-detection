@@ -142,6 +142,6 @@ verwende vorerst eine Standard-HA-Karte. Ihre ACK/Clear-WebSocket-Kommandos sind
 nur vorgeschlagen, mit geschütztem Configure-Fallback. [Kartenanleitung](CARD.md).
 [Upgrade und Backup](INSTALLATION.md#upgrading-to-the-published-120-beta3).
 
-[Beta.3-Release](https://github.com/BeGiBue/homeassistant-water-leak-detection/releases/tag/1.2.0-beta.3).
+[Beta.3-Release](https://github.com/BeGiBue/home-assistant-water-leak-detection/releases/tag/1.2.0-beta.3).
 Beta.1 und Beta.2 bleiben unverändert. Die Dokumentationsänderung darf nach Prüfung gemergt und das Wiki über seinen
 Veröffentlichungsworkflow synchronisiert werden; ein neuer Release ist nicht nötig.

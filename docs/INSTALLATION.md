@@ -12,14 +12,14 @@
 
 ### One-click
 
-[![Open your Home Assistant instance and open this repository in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=BeGiBue&repository=homeassistant-water-leak-detection&category=integration)
+[![Open your Home Assistant instance and open this repository in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=BeGiBue&repository=home-assistant-water-leak-detection&category=integration)
 
 ### Manual HACS repository
 
 1. Open **HACS** in Home Assistant.
 2. Open the HACS menu and choose **Custom repositories**.
 3. Add:
-   - Repository: `https://github.com/BeGiBue/homeassistant-water-leak-detection`
+   - Repository: `https://github.com/BeGiBue/home-assistant-water-leak-detection`
    - Category: **Integration**
 4. Open **Water Leak Guard** in HACS.
 5. Download the latest release.

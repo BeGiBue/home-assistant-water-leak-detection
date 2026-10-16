@@ -163,7 +163,7 @@ Restart or reload logging as appropriate, reproduce the problem, and remove debu
 
 Open:
 
-`https://github.com/BeGiBue/homeassistant-water-leak-detection/issues`
+`https://github.com/BeGiBue/home-assistant-water-leak-detection/issues`
 
 Include:
 

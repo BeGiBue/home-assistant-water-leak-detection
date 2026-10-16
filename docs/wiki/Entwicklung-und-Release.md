@@ -2,7 +2,7 @@
 
 ## Repository
 
-`BeGiBue/homeassistant-water-leak-detection`
+`BeGiBue/home-assistant-water-leak-detection`
 
 Technische Domain:
 
@@ -191,7 +191,7 @@ installierter Beta.3 und realem Hydrus: kein Fehlalarm oder Repair, 11 Sekunden
 Gesperrt, anschließend automatisch Aktiv, `verified_original_measurement`. Das
 ist kein von Codex selbst ausgeführter Hardwaretest und kein Nachweis aller
 Neustart-/MQTT-Ausfallfälle. Die Dauer ist kein garantierter Startwert.
-[Chronologie und Haushaltsprüfung](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
+[Chronologie und Haushaltsprüfung](https://github.com/BeGiBue/home-assistant-water-leak-detection/blob/main/docs/BETA_1.2.0.md).
 
 Diese Runde aktualisiert nur Repository-Dokumentation/Wiki-Quellen; ein neuer
 Release ist nicht nötig. Der manuelle Workflow **Publish Wiki** synchronisiert
@@ -204,12 +204,12 @@ Die früheren Release-/Korrekturrunden auf dieser Seite sind historischer Kontex
 Erster stabiler Stand seit 1.1.0. Enthält alle Betas von 1.2.0 und 2.0.0 sowie den Fix für
 F04-FSR-H01: Beschädigte gespeicherte Daten konfigurierter externer Melder halten Alarm und
 Absperranforderung in der Recovery-Sperre; eine von HA als `.corrupt.*` beiseitegelegte Datei sperrt
-jetzt bei jeder Installation, auch rein hydraulisch ([Details](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/F04_FSR_H01.md)). Damit sind externe
+jetzt bei jeder Installation, auch rein hydraulisch ([Details](https://github.com/BeGiBue/home-assistant-water-leak-detection/blob/main/docs/F04_FSR_H01.md)). Damit sind externe
 Lecksensoren nicht mehr ausgeschlossen. Karte 0.6.2: robuster Start (Loader-Ressource gegen den
 „Konfigurationsfehler“ nach einem HA-Neustart, gehärteter `hass`-Setter). Wanddisplay-Formulare
 verlinken das TouchKio-Beispiel. Mehrere Runden unabhängiger Review anhand des Codes; Validate,
 Hassfest und HACS bestanden. Nicht auf jeder echten Hardware geprüft.
-[Release Notes](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0.md).
+[Release Notes](https://github.com/BeGiBue/home-assistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0.md).
 
 Die folgenden Abschnitte sind historisch.
 
@@ -219,7 +219,7 @@ Karte 0.6.1 mit standardmäßig offenen Abschnitten (Option `collapsed`), neuer 
 (z. B. TouchKio) mit Kiosk-Benutzer- oder Anmelde-Kopplung, zustandsabhängige Ventil-Symbole der
 Absperranforderung. Zusammengeführt aus `feature/display-recipient`; mehrere Runden unabhängiger Review
 anhand des Codes, Validate, Hassfest und HACS bestanden. Kein Test in einer echten Installation.
-[Release Notes](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0-beta.3.md).
+[Release Notes](https://github.com/BeGiBue/home-assistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0-beta.3.md).
 
 ## 2.0.0-beta.2 – 14. Oktober 2026
 
@@ -230,7 +230,7 @@ alarmbeendende Aktionen nur für ein gekoppeltes Gerät zuhause, nichts Grünes 
 Zusammengeführt aus `feature/card-compact` und `docs/readme-hacs-card-preview` (README mit HACS-tauglichem
 Logo und Kartenvorschau). Mehrere Runden unabhängiger Review anhand des Codes; Validate, Hassfest und
 HACS bestanden. Kein Test in einer echten Installation.
-[Release Notes](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0-beta.2.md).
+[Release Notes](https://github.com/BeGiBue/home-assistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0-beta.2.md).
 
 ## 2.0.0-beta.1 – 14. Oktober 2026
 
@@ -241,6 +241,6 @@ Zusammengeführt aus PR #18 (Überwachungsanzeige), #19 (Backend-Vertrag und Kop
 mit der Integration) und #23 (Kartenaktionen). Jede Etappe wurde von einer unabhängigen Review-Instanz
 anhand des Codes geprüft; Validate, Hassfest und HACS bestanden. Kein Test in einer echten Installation.
 Beta-Umfang damals ohne externe Lecksensoren (H01 damals offen; in 2.0.0 behoben:
-[F04-FSR-H01](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/F04_FSR_H01.md)).
-[Release Notes](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0-beta.1.md) ·
-[Beta 2.0.0](https://github.com/BeGiBue/homeassistant-water-leak-detection/blob/main/docs/BETA_2.0.0.md).
+[F04-FSR-H01](https://github.com/BeGiBue/home-assistant-water-leak-detection/blob/main/docs/F04_FSR_H01.md)).
+[Release Notes](https://github.com/BeGiBue/home-assistant-water-leak-detection/blob/main/RELEASE_NOTES_2.0.0-beta.1.md) ·
+[Beta 2.0.0](https://github.com/BeGiBue/home-assistant-water-leak-detection/blob/main/docs/BETA_2.0.0.md).
